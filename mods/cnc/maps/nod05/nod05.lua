@@ -1,3 +1,11 @@
+--[[
+   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   This file is part of OpenRA, which is free software. It is made
+   available to you under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of
+   the License, or (at your option) any later version. For more
+   information, see COPYING.
+]]
 NodUnitsVehicle = { 'bike', 'bike', 'bggy', 'ltnk', 'bike', 'bike' }
 NodUnitsRocket = { 'e1', 'e1', 'e1', 'e1' }
 NodUnitsGunner = { 'e3', 'e3', 'e3', 'e3' }
@@ -37,16 +45,16 @@ Gdi12Waypoints = { waypoint0, waypoint1, waypoint3, waypoint11, waypoint12 }
 
 AllWaypoints = { Gdi1Waypoints, Gdi2Waypoints, Gdi3Waypoints, Gdi5Waypoints, Gdi11Waypoints, Gdi12Waypoints }
 
-HuntActorTriggerActivator = { Tower1, Tower2, Radar, Silo1, Silo2, Silo3, Refinery, Barracks, Plant1, Plant2, Yard, Factory }
+PrimaryTargets = { Tower1, Tower2, Radar, Silo1, Silo2, Silo3, Refinery, Barracks, Plant1, Plant2, Yard, Factory }
 
 GDIStartUnits = { }
 
 SendGDIAirstrike = function()
-	if not Radar.IsDead then
+	if not Radar.IsDead and Radar.Owner == enemy then
 		local target = getAirstrikeTarget()
 
 		if target then
-			Radar.SendAirstrike(target, false, 256 - 28)
+			Radar.SendAirstrike(target, false, Facing.NorthEast + 4)
 			Trigger.AfterDelay(AirstrikeDelay, SendGDIAirstrike)
 		else
 			Trigger.AfterDelay(AirstrikeDelay/4, SendGDIAirstrike)
@@ -57,7 +65,7 @@ end
 YyyyTriggerFunction = function()
 	if not YyyyTriggerSwitch then
 		for type, count in pairs(Gdi2Units) do
-			MyActors = Utils.Take(count, GDI.GetActorsByType(type))
+			MyActors = Utils.Take(count, enemy.GetActorsByType(type))
 			Utils.Do(MyActors, function(actor)
 				WaypointMovementAndHunt(actor, Gdi2Waypoints)
 			end)
@@ -68,7 +76,7 @@ end
 ZzzzTriggerFunction = function()
 	if not ZzzzTriggerSwitch then
 		for type, count in pairs(Gdi1Units) do
-			MyActors = Utils.Take(count, GDI.GetActorsByType(type))
+			MyActors = Utils.Take(count, enemy.GetActorsByType(type))
 			Utils.Do(MyActors, function(actor)
 				WaypointMovementAndHunt(actor, Gdi1Waypoints)
 			end)
@@ -77,19 +85,19 @@ ZzzzTriggerFunction = function()
 end
 
 Grd1TriggerFunction = function()
-	MyActors = Utils.Take(2, GDI.GetActorsByType('jeep'))
+	MyActors = Utils.Take(2, enemy.GetActorsByType('jeep'))
 	Utils.Do(MyActors, function(actor)
 		WaypointMovementAndHunt(actor, Gdi5Waypoints)
 	end)
 end
 
 Atk5TriggerFunction = function()
-	WaypointMovementAndHunt(GDI.GetActorsByType('mtnk')[1], Gdi12Waypoints)
+	WaypointMovementAndHunt(enemy.GetActorsByType('mtnk')[1], Gdi12Waypoints)
 end
 
 Atk2TriggerFunction = function()
 	for type, count in pairs(Gdi1Units) do
-		MyActors = Utils.Take(count, GDI.GetActorsByType(type))
+		MyActors = Utils.Take(count, enemy.GetActorsByType(type))
 		Utils.Do(MyActors, function(actor)
 			WaypointMovementAndHunt(actor, Gdi1Waypoints)
 		end)
@@ -98,7 +106,7 @@ end
 
 Atk3TriggerFunction = function()
 	for type, count in pairs(Gdi2Units) do
-		MyActors = Utils.Take(count, GDI.GetActorsByType(type))
+		MyActors = Utils.Take(count, enemy.GetActorsByType(type))
 		Utils.Do(MyActors, function(actor)
 			WaypointMovementAndHunt(actor, Gdi2Waypoints)
 		end)
@@ -106,21 +114,16 @@ Atk3TriggerFunction = function()
 end
 
 Atk4TriggerFunction = function()
-	WaypointMovementAndHunt(GDI.GetActorsByType('jeep')[1], Gdi3Waypoints)
+	WaypointMovementAndHunt(enemy.GetActorsByType('jeep')[1], Gdi3Waypoints)
 end
 
 Atk6TriggerFunction = function()
-	WaypointMovementAndHunt(GDI.GetActorsByType('mtnk')[1], Gdi2Waypoints)
+	WaypointMovementAndHunt(enemy.GetActorsByType('mtnk')[1], Gdi2Waypoints)
 end
 
 Atk1TriggerFunction = function()
-	Reinforcements.ReinforceWithTransport(GDI, 'tran', GDIReinforceUnits, { waypoint9.Location, waypoint26.Location }, nil,
-	function(transport, cargo)
-		transport.UnloadPassengers()
-		Utils.Do(cargo, function(actor)
-			IdleHunt(actor)
-		end)
-	end)
+	local cargo = Reinforcements.ReinforceWithTransport(enemy, 'tran', GDIReinforceUnits, { waypoint9.Location, waypoint26.Location }, { waypoint9.Location })[2]
+	Utils.Do(cargo, IdleHunt)
 end
 
 AutoTriggerFunction = function()
@@ -128,7 +131,7 @@ AutoTriggerFunction = function()
 	local waypoints = AllWaypoints[DateTime.GameTime % #AllWaypoints + 1]
 
 	for type, count in pairs(units) do
-		MyActors = Utils.Take(count, GDI.GetActorsByType(type))
+		MyActors = Utils.Take(count, enemy.GetActorsByType(type))
 		Utils.Do(MyActors, function(actor)
 			WaypointMovementAndHunt(actor, waypoints)
 		end)
@@ -136,7 +139,7 @@ AutoTriggerFunction = function()
 end
 
 HuntTriggerFunction = function()
-	local list = GDI.GetGroundAttackers()
+	local list = enemy.GetGroundAttackers()
 	Utils.Do(list, function(unit)
 		IdleHunt(unit)
 	end)
@@ -154,57 +157,58 @@ end
 InsertNodUnits = function()
 	Camera.Position = UnitsEntry.CenterPosition
 
-	Reinforcements.Reinforce(Nod, NodUnitsVehicle, { UnitsEntry.Location, UnitsRallyVehicle.Location }, 1)
-	Reinforcements.Reinforce(Nod, NodUnitsRocket, { UnitsEntry.Location, UnitsRallyRocket.Location }, 50)
-	Reinforcements.Reinforce(Nod, NodUnitsGunner, { UnitsEntry.Location, UnitsRallyGunner.Location }, 50)
+	Media.PlaySpeechNotification(player, "Reinforce")
+	Reinforcements.Reinforce(player, NodUnitsVehicle, { UnitsEntry.Location, UnitsRallyVehicle.Location }, 1)
+	Reinforcements.Reinforce(player, NodUnitsRocket, { UnitsEntry.Location, UnitsRallyRocket.Location }, 50)
+	Reinforcements.Reinforce(player, NodUnitsGunner, { UnitsEntry.Location, UnitsRallyGunner.Location }, 50)
 	Trigger.AfterDelay(DateTime.Seconds(6), function()
-		Reinforcements.Reinforce(Nod, { 'mcv' }, { UnitsEntry.Location, UnitsRallyMCV.Location })
+		Reinforcements.Reinforce(player, { 'mcv' }, { UnitsEntry.Location, UnitsRallyMCV.Location })
 	end)
 end
 
 WorldLoaded = function()
-	GDI = Player.GetPlayer("GDI")
-	Nod = Player.GetPlayer("Nod")
+	player = Player.GetPlayer("Nod")
+	enemy = Player.GetPlayer("GDI")
 
 	InsertNodUnits()
 
-	Trigger.OnObjectiveAdded(Nod, function(p, id)
+	Trigger.OnObjectiveAdded(player, function(p, id)
 		Media.DisplayMessage(p.GetObjectiveDescription(id), "New " .. string.lower(p.GetObjectiveType(id)) .. " objective")
 	end)
 
-	Trigger.OnObjectiveCompleted(Nod, function(p, id)
+	Trigger.OnObjectiveCompleted(player, function(p, id)
 		Media.DisplayMessage(p.GetObjectiveDescription(id), "Objective completed")
 	end)
 
-	Trigger.OnObjectiveFailed(Nod, function(p, id)
+	Trigger.OnObjectiveFailed(player, function(p, id)
 		Media.DisplayMessage(p.GetObjectiveDescription(id), "Objective failed")
 	end)
 
-	Trigger.OnPlayerWon(Nod, function()
-		Media.PlaySpeechNotification(Nod, "Win")
+	Trigger.OnPlayerWon(player, function()
+		Media.PlaySpeechNotification(player, "Win")
 	end)
 
-	Trigger.OnPlayerLost(Nod, function()
-		Media.PlaySpeechNotification(Nod, "Lose")
+	Trigger.OnPlayerLost(player, function()
+		Media.PlaySpeechNotification(player, "Lose")
 	end)
 
-	NodObjective1 = Nod.AddPrimaryObjective("Build 3 SAMs")
-	NodObjective2 = Nod.AddPrimaryObjective("Destroy the GDI base")
-	GDIObjective = GDI.AddPrimaryObjective("Kill all enemies!")
+	NodObjective1 = player.AddPrimaryObjective("Build 3 SAMs.")
+	NodObjective2 = player.AddPrimaryObjective("Destroy the GDI base.")
+	GDIObjective = enemy.AddPrimaryObjective("Kill all enemies.")
 
 	Trigger.AfterDelay(AirstrikeDelay, SendGDIAirstrike)
 	Trigger.AfterDelay(YyyyTriggerFunctionTime, YyyyTriggerFunction)
 	Trigger.AfterDelay(ZzzzTriggerFunctionTime, ZzzzTriggerFunction)
 
 	Trigger.OnEnteredFootprint(DelyCellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
+		if a.Owner == player then
 			YyyyTriggerSwitch = true
 			Trigger.RemoveFootprintTrigger(id)
 		end
 	end)
 
 	Trigger.OnEnteredFootprint(DelzCellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
+		if a.Owner == player then
 			ZzzzTriggerSwitch = true
 			Trigger.RemoveFootprintTrigger(id)
 		end
@@ -213,7 +217,7 @@ WorldLoaded = function()
 	Trigger.AfterDelay(Grd1TriggerFunctionTime, Grd1TriggerFunction)
 
 	Trigger.OnEnteredFootprint(Atk5CellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
+		if a.Owner == player then
 			Atk5TriggerFunction()
 			Trigger.RemoveFootprintTrigger(id)
 		end
@@ -225,7 +229,7 @@ WorldLoaded = function()
 	Trigger.AfterDelay(Atk6TriggerFunctionTime, Atk6TriggerFunction)
 
 	Trigger.OnEnteredFootprint(Atk1CellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
+		if a.Owner == player then
 			Atk1TriggerFunction()
 			Trigger.RemoveFootprintTrigger(id)
 		end
@@ -234,28 +238,27 @@ WorldLoaded = function()
 	Trigger.OnDiscovered(Tower1, AutoTriggerFunction)
 	Trigger.OnDiscovered(Tower2, AutoTriggerFunction)
 
-	Trigger.OnAllRemovedFromWorld(HuntActorTriggerActivator, HuntTriggerFunction)
+	Trigger.OnAllKilledOrCaptured(PrimaryTargets, function()
+		player.MarkCompletedObjective(NodObjective2)
+		HuntTriggerFunction()
+	end)
 
 	Trigger.AfterDelay(0, getStartUnits)
 end
 
 Tick = function()
-	if Nod.HasNoRequiredUnits() then
+	if player.HasNoRequiredUnits() then
 		if DateTime.GameTime > 2 then
-			GDI.MarkCompletedObjective(GDIObjective)
+			enemy.MarkCompletedObjective(GDIObjective)
 		end
 	end
 
-	if not Nod.IsObjectiveCompleted(NodObjective1) and CheckForSams(Nod) then
-		Nod.MarkCompletedObjective(NodObjective1)
-	end
-
-	if GDI.HasNoRequiredUnits() then
-		Nod.MarkCompletedObjective(NodObjective2)
+	if not player.IsObjectiveCompleted(NodObjective1) and CheckForSams(player) then
+		player.MarkCompletedObjective(NodObjective1)
 	end
 
 	if DateTime.GameTime % DateTime.Seconds(3) == 0 then
-		checkProduction(GDI)
+		checkProduction(enemy)
 	end
 
 	if DateTime.GameTime % DateTime.Seconds(45) == 0 then
@@ -270,15 +273,13 @@ IdleHunt = function(unit)
 end
 
 CheckForSams = function(player)
-	local baseBuildings = Map.ActorsInBox(Map.TopLeft, Map.BottomRight, function(actor)
-		return actor.Owner == Nod and actor.Type == 'sam' end)
-
-	return #baseBuildings >= 3
+	local sams = player.GetActorsByType("sam")
+	return #sams >= 3
 end
 
 checkProduction = function(player)
-	local Units = Map.ActorsInBox(Map.TopLeft, Map.BottomRight, function(actor)
-		return actor.Owner == GDI
+	local Units = Utils.Where(Map.ActorsInWorld, function(actor)
+		return actor.Owner == enemy
 	end)
 
 	local UnitsType = { }
@@ -295,9 +296,9 @@ checkProduction = function(player)
 			end
 		end
 		if #UnitsType > 0 then
-			if (type == 'jeep' or type == 'mtnk') and not Factory.IsDead then
+			if (type == 'jeep' or type == 'mtnk') and not Factory.IsDead and Factory.Owner == enemy then
 				Factory.Build(UnitsType)
-			elseif (type == 'e1' or type == 'e2') and not Barracks.IsDead then
+			elseif (type == 'e1' or type == 'e2') and not Barracks.IsDead and Barracks.Owner == enemy then
 				Barracks.Build(UnitsType)
 			end
 		end
@@ -306,8 +307,8 @@ checkProduction = function(player)
 end
 
 getStartUnits = function()
-	local Units = Map.ActorsInBox(Map.TopLeft, Map.BottomRight, function(actor)
-		return actor.Owner == GDI and ( actor.Type == 'e2' or actor.Type == 'e1' or actor.Type == 'jeep' or actor.Type == 'mtnk')
+	local Units = Utils.Where(Map.ActorsInWorld, function(actor)
+		return actor.Owner == enemy and ( actor.Type == 'e2' or actor.Type == 'e1' or actor.Type == 'jeep' or actor.Type == 'mtnk')
 	end)
 	Utils.Do(Units, function(unit)
 		if not GDIStartUnits[unit.Type] then
@@ -320,10 +321,15 @@ end
 
 searches = 0
 getAirstrikeTarget = function()
-	local list = Nod.GetGroundAttackers()
+	local list = player.GetGroundAttackers()
+
+	if #list == 0 then
+		return
+	end
+
 	local target = list[DateTime.GameTime % #list + 1].CenterPosition
 
-	local sams = Map.ActorsInCircle(target, WRange.New(8 * 1024), function(actor)
+	local sams = Map.ActorsInCircle(target, WDist.New(8 * 1024), function(actor)
 		return actor.Type == "sam" end)
 
 	if #sams == 0 then

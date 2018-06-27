@@ -1,87 +1,110 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
+using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Mods.Common.Effects;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Can be paradropped by a ParaDrop actor.")]
-	class ParachutableInfo : ITraitInfo
+	public class ParachutableInfo : ITraitInfo, Requires<IPositionableInfo>
 	{
 		[Desc("If we land on invalid terrain for my actor type should we be killed?")]
 		public readonly bool KilledOnImpassableTerrain = true;
 
+		[Desc("Types of damage that this trait causes to self when 'KilledOnImpassableTerrain' is true. Leave empty for no damage types.")]
+		public readonly HashSet<string> DamageTypes = new HashSet<string>();
+
+		[Desc("Image where Ground/WaterCorpseSequence is looked up.")]
+		public readonly string Image = "explosion";
+
 		public readonly string GroundImpactSound = null;
-		public readonly string GroundCorpseSequence = "corpse";
-		public readonly string GroundCorpsePalette = "effect";
+		[SequenceReference("Image")] public readonly string GroundCorpseSequence = "corpse";
+		[PaletteReference] public readonly string GroundCorpsePalette = "effect";
 
 		public readonly string WaterImpactSound = null;
-		public readonly string WaterCorpseSequence = "small_splash";
-		public readonly string WaterCorpsePalette = "effect";
+		[SequenceReference("Image")] public readonly string WaterCorpseSequence = null;
+		[PaletteReference] public readonly string WaterCorpsePalette = "effect";
 
-		[Desc("Requires the sub-sequences \"open\" and \"idle\".")]
-		public readonly string ParachuteSequence = null;
-
-		[Desc("Optional, otherwise defaults to the palette the actor is using.")]
-		public readonly string ParachutePalette = null;
-
-		[Desc("Used to clone the actor with this palette and render it with a visual offset below.")]
-		public readonly string ParachuteShadowPalette = "shadow";
-
-		public readonly WVec ParachuteOffset = WVec.Zero;
+		[Desc("Terrain types on which to display WaterCorpseSequence.")]
+		public readonly HashSet<string> WaterTerrainTypes = new HashSet<string> { "Water" };
 
 		public readonly int FallRate = 13;
 
-		[Desc("Alternative to ParachuteShadowPalette which disables it and allows to set a custom sprite sequence instead.")]
-		public readonly string ShadowSequence = null;
+		[GrantedConditionReference]
+		[Desc("The condition to grant to self while parachuting.")]
+		public readonly string ParachutingCondition = null;
 
-		[Desc("Optional, otherwise defaults to the palette the actor is using.")]
-		public readonly string ShadowPalette = null;
-
-		public object Create(ActorInitializer init) { return new Parachutable(init, this); }
+		public object Create(ActorInitializer init) { return new Parachutable(init.Self, this); }
 	}
 
-	class Parachutable : INotifyParachuteLanded
+	class Parachutable : INotifyCreated, INotifyParachute
 	{
-		readonly Actor self;
 		readonly ParachutableInfo info;
 		readonly IPositionable positionable;
 
-		public Parachutable(ActorInitializer init, ParachutableInfo info)
-		{
-			this.self = init.Self;
-			this.info = info;
+		ConditionManager conditionManager;
+		int parachutingToken = ConditionManager.InvalidConditionToken;
 
-			positionable = self.TraitOrDefault<IPositionable>();
+		public Parachutable(Actor self, ParachutableInfo info)
+		{
+			this.info = info;
+			positionable = self.Trait<IPositionable>();
 		}
 
-		public void OnLanded()
+		public bool IsInAir { get; private set; }
+
+		void INotifyCreated.Created(Actor self)
 		{
+			conditionManager = self.TraitOrDefault<ConditionManager>();
+		}
+
+		void INotifyParachute.OnParachute(Actor self)
+		{
+			IsInAir = true;
+
+			if (conditionManager != null && parachutingToken == ConditionManager.InvalidConditionToken && !string.IsNullOrEmpty(info.ParachutingCondition))
+				parachutingToken = conditionManager.GrantCondition(self, info.ParachutingCondition);
+		}
+
+		void INotifyParachute.OnLanded(Actor self, Actor ignore)
+		{
+			IsInAir = false;
+
+			if (parachutingToken != ConditionManager.InvalidConditionToken)
+				parachutingToken = conditionManager.RevokeCondition(self, parachutingToken);
+
 			if (!info.KilledOnImpassableTerrain)
 				return;
 
-			if (positionable.CanEnterCell(self.Location, self))
+			var cell = self.Location;
+			if (positionable.CanEnterCell(cell, self))
 				return;
 
-			var terrain = self.World.Map.GetTerrainInfo(self.Location);
+			if (ignore != null && self.World.ActorMap.GetActorsAt(cell).Any(a => a != ignore))
+				return;
 
-			var sound = terrain.IsWater ? info.WaterImpactSound : info.GroundImpactSound;
-			Sound.Play(sound, self.CenterPosition);
+			var onWater = info.WaterTerrainTypes.Contains(self.World.Map.GetTerrainInfo(cell).Type);
 
-			var sequence = terrain.IsWater ? info.WaterCorpseSequence : info.GroundCorpseSequence;
-			var palette = terrain.IsWater ? info.WaterCorpsePalette : info.GroundCorpsePalette;
+			var sound = onWater ? info.WaterImpactSound : info.GroundImpactSound;
+			Game.Sound.Play(SoundType.World, sound, self.CenterPosition);
+
+			var sequence = onWater ? info.WaterCorpseSequence : info.GroundCorpseSequence;
+			var palette = onWater ? info.WaterCorpsePalette : info.GroundCorpsePalette;
 			if (sequence != null && palette != null)
-				self.World.AddFrameEndTask(w => w.Add(new Explosion(w, self.OccupiesSpace.CenterPosition, sequence, palette)));
+				self.World.AddFrameEndTask(w => w.Add(new SpriteEffect(self.OccupiesSpace.CenterPosition, w, info.Image, sequence, palette)));
 
-			self.Kill(self);
+			self.Kill(self, info.DamageTypes);
 		}
 	}
 }

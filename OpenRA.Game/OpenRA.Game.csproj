@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -16,7 +16,6 @@
     <UpgradeBackupLocation>
     </UpgradeBackupLocation>
     <IsWebBootstrapper>false</IsWebBootstrapper>
-    <ApplicationIcon>OpenRA.ico</ApplicationIcon>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -31,16 +30,49 @@
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <OutputPath>..\</OutputPath>
+    <OutputPath>..</OutputPath>
     <DefineConstants>TRACE;DEBUG</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <PlatformTarget>x86</PlatformTarget>
     <UseVSHostingProcess>false</UseVSHostingProcess>
+    <StartArguments>Game.Mod=ra</StartArguments>
+    <Commandlineparameters>Game.Mod=ra</Commandlineparameters>
+    <LangVersion>5</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>..</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <Optimize>true</Optimize>
+    <StartArguments>Game.Mod=ra</StartArguments>
+    <Commandlineparameters>Game.Mod=ra</Commandlineparameters>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(RunConfiguration)' == 'Default' ">
+    <StartAction>Project</StartAction>
+    <StartArguments>Game.Mod=ra</StartArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(RunConfiguration)' == 'Dune 2000' ">
+    <StartAction>Project</StartAction>
+    <StartArguments>Game.Mod=d2k</StartArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(RunConfiguration)' == 'Tiberian Dawn' ">
+    <StartAction>Project</StartAction>
+    <StartArguments>Game.Mod=cnc</StartArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(RunConfiguration)' == 'Tiberian Sun' ">
+    <StartAction>Project</StartAction>
+    <StartArguments>Game.Mod=ts</StartArguments>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -51,11 +83,8 @@
       <HintPath>..\thirdparty\download\SharpFont.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Mono.Nat">
-      <SpecificVersion>False</SpecificVersion>
-      <Private>False</Private>
-      <Package>mono.nat</Package>
-      <HintPath>..\thirdparty\download\Mono.Nat.dll</HintPath>
+    <Reference Include="Open.Nat">
+      <HintPath>..\thirdparty\download\Open.Nat.dll</HintPath>
     </Reference>
     <Reference Include="Eluant">
       <HintPath>..\thirdparty\download\Eluant.dll</HintPath>
@@ -65,36 +94,27 @@
       <HintPath>..\thirdparty\download\ICSharpCode.SharpZipLib.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="MaxMind.GeoIP2">
-      <HintPath>..\thirdparty\download\MaxMind.GeoIP2.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="MaxMind.Db">
       <HintPath>..\thirdparty\download\MaxMind.Db.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="SDL2-CS">
-      <HintPath>..\thirdparty\download\SDL2-CS.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
+    <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Activities\Activity.cs" />
     <Compile Include="Activities\CallFunc.cs" />
     <Compile Include="Actor.cs" />
     <Compile Include="CacheStorage.cs" />
-    <Compile Include="FileSystem\IdxEntry.cs" />
+    <Compile Include="FileSystem\IPackage.cs" />
+    <Compile Include="Primitives\Int32Matrix4x4.cs" />
     <Compile Include="LogProxy.cs" />
-    <Compile Include="FileFormats\IdxReader.cs" />
-    <Compile Include="FileSystem\BagFile.cs" />
+    <Compile Include="Map\MapGrid.cs" />
     <Compile Include="Map\MapPlayers.cs" />
     <Compile Include="MPos.cs" />
-    <Compile Include="GameRules\Warhead.cs" />
-    <Compile Include="Graphics\QuadRenderer.cs" />
     <Compile Include="Download.cs" />
     <Compile Include="Effects\AsyncAction.cs" />
     <Compile Include="Effects\DelayedAction.cs" />
-    <Compile Include="Effects\FlashTarget.cs" />
+    <Compile Include="Effects\DelayedImpact.cs" />
     <Compile Include="Effects\IEffect.cs" />
     <Compile Include="Game.cs" />
     <Compile Include="GameRules\ActorInfo.cs" />
@@ -107,10 +127,7 @@
     <Compile Include="Graphics\CursorProvider.cs" />
     <Compile Include="Graphics\CursorSequence.cs" />
     <Compile Include="Graphics\HardwarePalette.cs" />
-    <Compile Include="Graphics\LineRenderer.cs" />
     <Compile Include="Graphics\MappedImage.cs" />
-    <Compile Include="Graphics\Minimap.cs" />
-    <Compile Include="Graphics\Renderer.cs" />
     <Compile Include="Graphics\SequenceProvider.cs" />
     <Compile Include="Graphics\Sheet.cs" />
     <Compile Include="Graphics\SheetBuilder.cs" />
@@ -122,12 +139,12 @@
     <Compile Include="Graphics\Util.cs" />
     <Compile Include="Graphics\Viewport.cs" />
     <Compile Include="Graphics\WorldRenderer.cs" />
-    <Compile Include="Group.cs" />
     <Compile Include="IUtilityCommand.cs" />
     <Compile Include="ModData.cs" />
     <Compile Include="Network\Connection.cs" />
     <Compile Include="Network\FrameData.cs" />
     <Compile Include="Network\GameServer.cs" />
+    <Compile Include="Network\GeoIP.cs" />
     <Compile Include="Network\Handshake.cs" />
     <Compile Include="Network\Order.cs" />
     <Compile Include="Network\OrderIO.cs" />
@@ -142,8 +159,13 @@
     <Compile Include="Orders\UnitOrderGenerator.cs" />
     <Compile Include="Player.cs" />
     <Compile Include="Primitives\MergedStream.cs" />
+    <Compile Include="Primitives\PlayerDictionary.cs" />
+    <Compile Include="Primitives\ReadOnlyAdapterStream.cs" />
+    <Compile Include="Primitives\SegmentStream.cs" />
     <Compile Include="Primitives\SpatiallyPartitioned.cs" />
     <Compile Include="Primitives\ConcurrentCache.cs" />
+    <Compile Include="Primitives\ZipFileHelper.cs" />
+    <Compile Include="SelectableExts.cs" />
     <Compile Include="Selection.cs" />
     <Compile Include="Server\Connection.cs" />
     <Compile Include="Server\Exts.cs" />
@@ -152,49 +174,35 @@
     <Compile Include="Server\ServerOrder.cs" />
     <Compile Include="Server\TraitInterfaces.cs" />
     <Compile Include="Support\Arguments.cs" />
+    <Compile Include="Support\ExceptionHandler.cs" />
+    <Compile Include="Support\LaunchArguments.cs" />
     <Compile Include="Support\PerfHistory.cs" />
     <Compile Include="Support\Program.cs" />
     <Compile Include="Sync.cs" />
     <Compile Include="TraitDictionary.cs" />
-    <Compile Include="Traits\Armor.cs" />
-    <Compile Include="Traits\CreatesShroud.cs" />
-    <Compile Include="Traits\DrawLineToTarget.cs" />
-    <Compile Include="Traits\EditorAppearance.cs" />
-    <Compile Include="Traits\EditorTilesetFilter.cs" />
-    <Compile Include="Traits\Health.cs" />
     <Compile Include="Traits\LintAttributes.cs" />
-    <Compile Include="Traits\RejectsOrders.cs" />
-    <Compile Include="Traits\Player\DeveloperMode.cs" />
-    <Compile Include="Traits\Player\PlayerResources.cs" />
-    <Compile Include="Traits\RevealsShroud.cs" />
+    <Compile Include="Traits\Player\Shroud.cs" />
     <Compile Include="Traits\Selectable.cs" />
-    <Compile Include="Traits\SelectionDecorations.cs" />
     <Compile Include="Traits\Target.cs" />
     <Compile Include="Traits\TraitsInterfaces.cs" />
-    <Compile Include="Traits\Util.cs" />
-    <Compile Include="Traits\ValidateOrder.cs" />
-    <Compile Include="Traits\World\Country.cs" />
+    <Compile Include="Traits\World\Faction.cs" />
     <Compile Include="Traits\World\ResourceType.cs" />
     <Compile Include="Traits\World\ScreenShaker.cs" />
-    <Compile Include="Traits\World\Shroud.cs" />
+    <Compile Include="Traits\World\DebugVisualizations.cs" />
     <Compile Include="World.cs" />
     <Compile Include="WorldUtils.cs" />
-    <Compile Include="Network\ReplayRecorderConnection.cs" />
+    <Compile Include="VoiceExts.cs" />
+    <Compile Include="Network\ReplayRecorder.cs" />
     <Compile Include="Traits\DebugPauseState.cs" />
     <Compile Include="Network\UPnP.cs" />
     <Compile Include="Graphics\Renderable.cs" />
-    <Compile Include="Graphics\Voxel.cs" />
-    <Compile Include="Graphics\VoxelRenderer.cs" />
-    <Compile Include="Graphics\VoxelLoader.cs" />
-    <Compile Include="Graphics\VoxelProvider.cs" />
-    <Compile Include="Traits\BodyOrientation.cs" />
-    <Compile Include="Graphics\VoxelAnimation.cs" />
+    <Compile Include="Graphics\ModelRenderer.cs" />
+    <Compile Include="Graphics\ModelAnimation.cs" />
     <Compile Include="Traits\Player\FrozenActorLayer.cs" />
     <Compile Include="Graphics\Theater.cs" />
     <Compile Include="Traits\Player\PlayerColorPalette.cs" />
     <Compile Include="Traits\Player\PlayerHighlightPalette.cs" />
     <Compile Include="Traits\World\ScreenMap.cs" />
-    <Compile Include="Traits\World\ActorMap.cs" />
     <Compile Include="Scripting\ScriptContext.cs" />
     <Compile Include="Scripting\ScriptActorInterface.cs" />
     <Compile Include="Scripting\ScriptObjectWrapper.cs" />
@@ -205,9 +213,7 @@
     <Compile Include="Traits\Player\FixedColorPalette.cs" />
     <Compile Include="Primitives\ReadOnlyDictionary.cs" />
     <Compile Include="Primitives\ReadOnlyList.cs" />
-    <Compile Include="ModMetadata.cs" />
     <Compile Include="GameRules\Ruleset.cs" />
-    <Compile Include="GameRules\RulesetCache.cs" />
     <Compile Include="Support\MersenneTwister.cs" />
     <Compile Include="GameInformation.cs" />
     <Compile Include="Map\CellLayer.cs" />
@@ -216,38 +222,49 @@
     <Compile Include="Input\InputHandler.cs" />
     <Compile Include="Input\Keycode.cs" />
     <Compile Include="Input\Hotkey.cs" />
-    <Compile Include="Graphics\IGraphicsDevice.cs" />
+    <Compile Include="Input\HotkeyReference.cs" />
+    <Compile Include="Graphics\PlatformInterfaces.cs" />
     <Compile Include="Sound\Sound.cs" />
     <Compile Include="Sound\SoundDevice.cs" />
-    <Compile Include="Sound\OpenAlSound.cs" />
-    <Compile Include="Sound\NullSound.cs" />
-    <Compile Include="Effects\SpriteEffect.cs" />
-    <Compile Include="Graphics\SelectionBoxRenderable.cs" />
-    <Compile Include="Graphics\SelectionBarsRenderable.cs" />
     <Compile Include="Graphics\TargetLineRenderable.cs" />
     <Compile Include="Graphics\UISpriteRenderable.cs" />
-    <Compile Include="GameRules\DamageWarhead.cs" />
     <Compile Include="Graphics\SoftwareCursor.cs" />
     <Compile Include="Graphics\HardwareCursor.cs" />
     <Compile Include="Support\PerfItem.cs" />
     <Compile Include="Support\PerfSample.cs" />
     <Compile Include="Graphics\SpriteRenderable.cs" />
     <Compile Include="Widgets\Widget.cs" />
-    <Compile Include="Widgets\RootWidget.cs" />
     <Compile Include="Widgets\WidgetLoader.cs" />
     <Compile Include="Widgets\ChromeMetrics.cs" />
     <Compile Include="Widgets\WidgetUtils.cs" />
-    <Compile Include="Widgets\WorldInteractionControllerWidget.cs" />
     <Compile Include="Graphics\PaletteReference.cs" />
+    <Compile Include="Graphics\TerrainSpriteLayer.cs" />
+    <Compile Include="Map\ProjectedCellRegion.cs" />
+    <Compile Include="Map\MapCoordsRegion.cs" />
+    <Compile Include="Renderer.cs" />
+    <Compile Include="Platform.cs" />
+    <Compile Include="GameSpeed.cs" />
+    <Compile Include="Primitives\ObservableList.cs" />
+    <Compile Include="Graphics\RgbaColorRenderer.cs" />
+    <Compile Include="Traits\Player\IndexedPlayerPalette.cs" />
+    <Compile Include="Traits\ActivityUtils.cs" />
+    <Compile Include="Primitives\float3.cs" />
+    <Compile Include="InstalledMods.cs" />
+    <Compile Include="CryptoUtil.cs" />
+    <Compile Include="Support\VariableExpression.cs" />
+    <Compile Include="ExternalMods.cs" />
+    <Compile Include="Graphics\Model.cs" />
+    <Compile Include="UtilityCommands\RegisterModCommand.cs" />
+    <Compile Include="UtilityCommands\UnregisterModCommand.cs" />
+    <Compile Include="UtilityCommands\ClearInvalidModRegistrationsCommand.cs" />
+    <Compile Include="HotkeyManager.cs" />
+    <Compile Include="HotkeyDefinition.cs" />
+    <Compile Include="Traits\Interactable.cs" />
+    <Compile Include="Graphics\RgbaSpriteRenderer.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FileSystem\D2kSoundResources.cs" />
     <Compile Include="FileSystem\Folder.cs" />
-    <Compile Include="FileSystem\InstallShieldPackage.cs" />
-    <Compile Include="FileSystem\MixFile.cs" />
-    <Compile Include="FileSystem\Pak.cs" />
     <Compile Include="FileSystem\ZipFile.cs" />
-    <Compile Include="FileSystem\BigFile.cs" />
     <Compile Include="Map\PlayerReference.cs" />
     <Compile Include="Map\TileReference.cs" />
     <Compile Include="Map\TileSet.cs" />
@@ -255,25 +272,9 @@
     <Compile Include="FieldSaver.cs" />
     <Compile Include="Manifest.cs" />
     <Compile Include="Graphics\Vertex.cs" />
-    <Compile Include="FileFormats\ImaAdpcmLoader.cs" />
-    <Compile Include="FileFormats\AudLoader.cs" />
-    <Compile Include="FileFormats\Blast.cs" />
-    <Compile Include="FileFormats\Blowfish.cs" />
-    <Compile Include="FileFormats\BlowfishKeyProvider.cs" />
-    <Compile Include="FileFormats\CRC32.cs" />
-    <Compile Include="FileFormats\Format2.cs" />
-    <Compile Include="FileFormats\Format40.cs" />
-    <Compile Include="FileFormats\Format80.cs" />
-    <Compile Include="FileFormats\IniFile.cs" />
-    <Compile Include="FileFormats\WavLoader.cs" />
-    <Compile Include="FileFormats\XccGlobalDatabase.cs" />
-    <Compile Include="FileFormats\XccLocalDatabase.cs" />
-    <Compile Include="FileFormats\HvaReader.cs" />
     <Compile Include="FileFormats\PngLoader.cs" />
-    <Compile Include="FileFormats\VqaReader.cs" />
-    <Compile Include="FileFormats\VxlReader.cs" />
     <Compile Include="Primitives\ActionQueue.cs" />
-    <Compile Include="Primitives\Bits.cs" />
+    <Compile Include="Primitives\BitSet.cs" />
     <Compile Include="Primitives\Cache.cs" />
     <Compile Include="Primitives\DisposableAction.cs" />
     <Compile Include="Primitives\float2.cs" />
@@ -287,18 +288,16 @@
     <Compile Include="Support\PerfTimer.cs" />
     <Compile Include="Exts.cs" />
     <Compile Include="MiniYaml.cs" />
-    <Compile Include="Platform.cs" />
     <Compile Include="StreamExts.cs" />
     <Compile Include="Map\Map.cs" />
     <Compile Include="Map\MapCache.cs" />
     <Compile Include="Map\MapPreview.cs" />
     <Compile Include="Graphics\HSLColor.cs" />
-    <Compile Include="FileSystem\PackageEntry.cs" />
     <Compile Include="CPos.cs" />
     <Compile Include="CVec.cs" />
     <Compile Include="WAngle.cs" />
+    <Compile Include="WDist.cs" />
     <Compile Include="WPos.cs" />
-    <Compile Include="WRange.cs" />
     <Compile Include="WRot.cs" />
     <Compile Include="WVec.cs" />
     <Compile Include="Primitives\TypeDictionary.cs" />
@@ -308,7 +307,7 @@
     <Compile Include="Settings.cs" />
     <Compile Include="Graphics\PlayerColorRemap.cs" />
     <Compile Include="Graphics\Palette.cs" />
-    <Compile Include="FileSystem\GlobalFileSystem.cs" />
+    <Compile Include="FileSystem\FileSystem.cs" />
     <Compile Include="FileFormats\ReplayMetadata.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -338,16 +337,5 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="OpenRA.ico" />
-  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
-  <ItemGroup />
 </Project>

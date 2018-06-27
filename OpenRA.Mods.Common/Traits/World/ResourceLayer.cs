@@ -1,15 +1,17 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Traits;
@@ -17,84 +19,127 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Attach this to the world actor.", "Order of the layers defines the Z sorting.")]
-	public class ResourceLayerInfo : TraitInfo<ResourceLayer>, Requires<ResourceTypeInfo> { }
+	public class ResourceLayerInfo : ITraitInfo, Requires<ResourceTypeInfo>, Requires<BuildingInfluenceInfo>
+	{
+		public virtual object Create(ActorInitializer init) { return new ResourceLayer(init.Self); }
+	}
 
-	public class ResourceLayer : IRenderOverlay, IWorldLoaded, ITickRender
+	public class ResourceLayer : IRenderOverlay, IWorldLoaded, ITickRender, INotifyActorDisposing
 	{
 		static readonly CellContents EmptyCell = new CellContents();
 
-		World world;
+		readonly World world;
+		readonly BuildingInfluence buildingInfluence;
+		readonly HashSet<CPos> dirty = new HashSet<CPos>();
+		readonly Dictionary<PaletteReference, TerrainSpriteLayer> spriteLayers = new Dictionary<PaletteReference, TerrainSpriteLayer>();
 
-		BuildingInfluence buildingInfluence;
+		protected readonly CellLayer<CellContents> Content;
+		protected readonly CellLayer<CellContents> RenderContent;
 
-		protected CellLayer<CellContents> content;
-		protected CellLayer<CellContents> render;
-		List<CPos> dirty;
+		public bool IsResourceLayerEmpty { get { return resCells < 1; } }
 
-		public void Render(WorldRenderer wr)
+		bool disposed;
+		int resCells;
+
+		public ResourceLayer(Actor self)
 		{
-			var shroudObscured = world.ShroudObscuresTest(wr.Viewport.VisibleCells);
-			foreach (var uv in wr.Viewport.VisibleCells.MapCoords)
-			{
-				if (shroudObscured(uv))
-					continue;
+			world = self.World;
+			buildingInfluence = self.Trait<BuildingInfluence>();
 
-				var c = render[uv];
-				if (c.Sprite != null)
-					new SpriteRenderable(c.Sprite, wr.World.Map.CenterOfCell(uv.ToCPos(world.Map)),
-						WVec.Zero, -511, c.Type.Palette, 1f, true).Render(wr); // TODO ZOffset is ignored
+			Content = new CellLayer<CellContents>(world.Map);
+			RenderContent = new CellLayer<CellContents>(world.Map);
+
+			RenderContent.CellEntryChanged += UpdateSpriteLayers;
+		}
+
+		void UpdateSpriteLayers(CPos cell)
+		{
+			var resource = RenderContent[cell];
+			foreach (var kv in spriteLayers)
+			{
+				// resource.Type is meaningless (and may be null) if resource.Sprite is null
+				if (resource.Sprite != null && resource.Type.Palette == kv.Key)
+					kv.Value.Update(cell, resource.Sprite);
+				else
+					kv.Value.Update(cell, null);
 			}
+		}
+
+		void IRenderOverlay.Render(WorldRenderer wr)
+		{
+			foreach (var kv in spriteLayers.Values)
+				kv.Draw(wr.Viewport);
 		}
 
 		int GetAdjacentCellsWith(ResourceType t, CPos cell)
 		{
 			var sum = 0;
 			for (var u = -1; u < 2; u++)
+			{
 				for (var v = -1; v < 2; v++)
-					if (content[cell + new CVec(u, v)].Type == t)
+				{
+					var c = cell + new CVec(u, v);
+					if (Content.Contains(c) && Content[c].Type == t)
 						++sum;
+				}
+			}
 
 			return sum;
 		}
 
 		public void WorldLoaded(World w, WorldRenderer wr)
 		{
-			this.world = w;
-
-			buildingInfluence = world.WorldActor.Trait<BuildingInfluence>();
-
-			content = new CellLayer<CellContents>(w.Map);
-			render = new CellLayer<CellContents>(w.Map);
-			dirty = new List<CPos>();
-
 			var resources = w.WorldActor.TraitsImplementing<ResourceType>()
 				.ToDictionary(r => r.Info.ResourceType, r => r);
 
-			foreach (var cell in w.Map.Cells)
+			// Build the sprite layer dictionary for rendering resources
+			// All resources that have the same palette must also share a sheet and blend mode
+			foreach (var r in resources)
+			{
+				var layer = spriteLayers.GetOrAdd(r.Value.Palette, pal =>
+				{
+					var first = r.Value.Variants.First().Value.First();
+					return new TerrainSpriteLayer(w, wr, first.Sheet, first.BlendMode, pal, wr.World.Type != WorldType.Editor);
+				});
+
+				// Validate that sprites are compatible with this layer
+				var sheet = layer.Sheet;
+				if (r.Value.Variants.Any(kv => kv.Value.Any(s => s.Sheet != sheet)))
+					throw new InvalidDataException("Resource sprites span multiple sheets. Try loading their sequences earlier.");
+
+				var blendMode = layer.BlendMode;
+				if (r.Value.Variants.Any(kv => kv.Value.Any(s => s.BlendMode != blendMode)))
+					throw new InvalidDataException("Resource sprites specify different blend modes. "
+						+ "Try using different palettes for resource types that use different blend modes.");
+			}
+
+			foreach (var cell in w.Map.AllCells)
 			{
 				ResourceType t;
-				if (!resources.TryGetValue(w.Map.MapResources.Value[cell].Type, out t))
+				if (!resources.TryGetValue(w.Map.Resources[cell].Type, out t))
 					continue;
 
 				if (!AllowResourceAt(t, cell))
 					continue;
 
-				content[cell] = CreateResourceCell(t, cell);
+				Content[cell] = CreateResourceCell(t, cell);
 			}
 
-			// Set initial density based on the number of neighboring resources
-			foreach (var cell in w.Map.Cells)
+			foreach (var cell in w.Map.AllCells)
 			{
-				var type = content[cell].Type;
+				var type = Content[cell].Type;
 				if (type != null)
 				{
+					// Set initial density based on the number of neighboring resources
 					// Adjacent includes the current cell, so is always >= 1
 					var adjacent = GetAdjacentCellsWith(type, cell);
 					var density = int2.Lerp(0, type.Info.MaxDensity, adjacent, 9);
-					var temp = content[cell];
+					var temp = Content[cell];
 					temp.Density = Math.Max(density, 1);
 
-					render[cell] = content[cell] = temp;
+					// Initialize the RenderContent with the initial map state
+					// because the shroud may not be enabled.
+					RenderContent[cell] = Content[cell] = temp;
 					UpdateRenderedSprite(cell);
 				}
 			}
@@ -102,17 +147,17 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void UpdateRenderedSprite(CPos cell)
 		{
-			var t = render[cell];
+			var t = RenderContent[cell];
 			if (t.Density > 0)
 			{
 				var sprites = t.Type.Variants[t.Variant];
-				var frame = int2.Lerp(0, sprites.Length - 1, t.Density - 1, t.Type.Info.MaxDensity);
+				var frame = int2.Lerp(0, sprites.Length - 1, t.Density, t.Type.Info.MaxDensity);
 				t.Sprite = sprites[frame];
 			}
 			else
 				t.Sprite = null;
 
-			render[cell] = t;
+			RenderContent[cell] = t;
 		}
 
 		protected virtual string ChooseRandomVariant(ResourceType t)
@@ -120,14 +165,14 @@ namespace OpenRA.Mods.Common.Traits
 			return t.Variants.Keys.Random(Game.CosmeticRandom);
 		}
 
-		public void TickRender(WorldRenderer wr, Actor self)
+		void ITickRender.TickRender(WorldRenderer wr, Actor self)
 		{
 			var remove = new List<CPos>();
 			foreach (var c in dirty)
 			{
 				if (!self.World.FogObscures(c))
 				{
-					render[c] = content[c];
+					RenderContent[c] = Content[c];
 					UpdateRenderedSprite(c);
 					remove.Add(c);
 				}
@@ -145,7 +190,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (!rt.Info.AllowedTerrainTypes.Contains(world.Map.GetTerrainInfo(cell).Type))
 				return false;
 
-			if (!rt.Info.AllowUnderActors && world.ActorMap.AnyUnitsAt(cell))
+			if (!rt.Info.AllowUnderActors && world.ActorMap.AnyActorsAt(cell))
 				return false;
 
 			if (!rt.Info.AllowUnderBuildings && buildingInfluence.GetBuildingAt(cell) != null)
@@ -153,8 +198,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (!rt.Info.AllowOnRamps)
 			{
-				var tile = world.Map.MapTiles.Value[cell];
-				var tileInfo = world.TileSet.GetTileInfo(tile);
+				var tile = world.Map.Tiles[cell];
+				var tileInfo = world.Map.Rules.TileSet.GetTileInfo(tile);
 				if (tileInfo != null && tileInfo.RampType > 0)
 					return false;
 			}
@@ -164,6 +209,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool CanSpawnResourceAt(ResourceType newResourceType, CPos cell)
 		{
+			if (!world.Map.Contains(cell))
+				return false;
+
 			var currentResourceType = GetResource(cell);
 			return (currentResourceType == newResourceType && !IsFull(cell))
 				|| (currentResourceType == null && AllowResourceAt(newResourceType, cell));
@@ -171,7 +219,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		CellContents CreateResourceCell(ResourceType t, CPos cell)
 		{
-			world.Map.CustomTerrain[cell] = world.TileSet.GetTerrainIndex(t.Info.TerrainType);
+			world.Map.CustomTerrain[cell] = world.Map.Rules.TileSet.GetTerrainIndex(t.Info.TerrainType);
+			++resCells;
 
 			return new CellContents
 			{
@@ -182,7 +231,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void AddResource(ResourceType t, CPos p, int n)
 		{
-			var cell = content[p];
+			var cell = Content[p];
 			if (cell.Type == null)
 				cell = CreateResourceCell(t, p);
 
@@ -190,33 +239,32 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			cell.Density = Math.Min(cell.Type.Info.MaxDensity, cell.Density + n);
-			content[p] = cell;
+			Content[p] = cell;
 
-			if (!dirty.Contains(p))
-				dirty.Add(p);
+			dirty.Add(p);
 		}
 
 		public bool IsFull(CPos cell)
 		{
-			return content[cell].Density == content[cell].Type.Info.MaxDensity;
+			return Content[cell].Density == Content[cell].Type.Info.MaxDensity;
 		}
 
 		public ResourceType Harvest(CPos cell)
 		{
-			var c = content[cell];
+			var c = Content[cell];
 			if (c.Type == null)
 				return null;
 
 			if (--c.Density < 0)
 			{
-				content[cell] = EmptyCell;
+				Content[cell] = EmptyCell;
 				world.Map.CustomTerrain[cell] = byte.MaxValue;
+				--resCells;
 			}
 			else
-				content[cell] = c;
+				Content[cell] = c;
 
-			if (!dirty.Contains(cell))
-				dirty.Add(cell);
+			dirty.Add(cell);
 
 			return c.Type;
 		}
@@ -224,30 +272,45 @@ namespace OpenRA.Mods.Common.Traits
 		public void Destroy(CPos cell)
 		{
 			// Don't break other users of CustomTerrain if there are no resources
-			if (content[cell].Type == null)
+			if (Content[cell].Type == null)
 				return;
 
+			--resCells;
+
 			// Clear cell
-			content[cell] = EmptyCell;
+			Content[cell] = EmptyCell;
 			world.Map.CustomTerrain[cell] = byte.MaxValue;
 
-			if (!dirty.Contains(cell))
-				dirty.Add(cell);
+			dirty.Add(cell);
 		}
 
-		public ResourceType GetResource(CPos cell) { return content[cell].Type; }
-		public ResourceType GetRenderedResource(CPos cell) { return render[cell].Type; }
-		public int GetResourceDensity(CPos cell) { return content[cell].Density; }
+		public ResourceType GetResource(CPos cell) { return Content[cell].Type; }
+		public ResourceType GetRenderedResource(CPos cell) { return RenderContent[cell].Type; }
+		public int GetResourceDensity(CPos cell) { return Content[cell].Density; }
 		public int GetMaxResourceDensity(CPos cell)
 		{
-			if (content[cell].Type == null)
+			if (Content[cell].Type == null)
 				return 0;
 
-			return content[cell].Type.Info.MaxDensity;
+			return Content[cell].Type.Info.MaxDensity;
+		}
+
+		void INotifyActorDisposing.Disposing(Actor self)
+		{
+			if (disposed)
+				return;
+
+			foreach (var kv in spriteLayers.Values)
+				kv.Dispose();
+
+			RenderContent.CellEntryChanged -= UpdateSpriteLayers;
+
+			disposed = true;
 		}
 
 		public struct CellContents
 		{
+			public static readonly CellContents Empty = new CellContents();
 			public ResourceType Type;
 			public int Density;
 			public string Variant;

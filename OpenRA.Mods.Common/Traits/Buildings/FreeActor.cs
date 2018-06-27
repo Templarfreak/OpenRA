@@ -1,29 +1,26 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using OpenRA.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("Player recives a unit for free once the building is placed. This also works for structures.",
+	[Desc("Player receives a unit for free once the building is placed. This also works for structures.",
 		"If you want more than one unit to appear copy this section and assign IDs like FreeActor@2, ...")]
-	public class FreeActorInfo : ITraitInfo
+	public class FreeActorInfo : ConditionalTraitInfo
 	{
-		[ActorReference]
+		[ActorReference, FieldLoader.Require]
 		[Desc("Name of the actor.")]
 		public readonly string Actor = null;
-
-		[Desc("What the unit should start doing. Warning: If this is not a harvester", "it will break if you use FindResources.")]
-		public readonly string InitialActivity = null;
 
 		[Desc("Offset relative to the top-left cell of the building.")]
 		public readonly CVec SpawnOffset = CVec.Zero;
@@ -31,28 +28,37 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Which direction the unit should face.")]
 		public readonly int Facing = 0;
 
-		public virtual object Create(ActorInitializer init) { return new FreeActor(init, this); }
+		[Desc("Whether another actor should spawn upon re-enabling the trait.")]
+		public readonly bool AllowRespawn = false;
+
+		public override object Create(ActorInitializer init) { return new FreeActor(init, this); }
 	}
 
-	public class FreeActor
+	public class FreeActor : ConditionalTrait<FreeActorInfo>
 	{
-		public FreeActor(ActorInitializer init, FreeActorInfo info)
+		bool allowSpawn;
+
+		public FreeActor(ActorInitializer init, FreeActorInfo info) : base(info)
 		{
-			if (init.Contains<FreeActorInit>() && !init.Get<FreeActorInit>().ActorValue)
+			allowSpawn = !init.Contains<FreeActorInit>() || init.Get<FreeActorInit>().ActorValue;
+		}
+
+		protected override void TraitEnabled(Actor self)
+		{
+			if (!allowSpawn)
 				return;
 
-			init.Self.World.AddFrameEndTask(w =>
-			{
-				var a = w.CreateActor(info.Actor, new TypeDictionary
-				{
-					new ParentActorInit(init.Self),
-					new LocationInit(init.Self.Location + info.SpawnOffset),
-					new OwnerInit(init.Self.Owner),
-					new FacingInit(info.Facing),
-				});
+			allowSpawn = Info.AllowRespawn;
 
-				if (info.InitialActivity != null)
-					a.QueueActivity(Game.CreateObject<Activity>(info.InitialActivity));
+			self.World.AddFrameEndTask(w =>
+			{
+				w.CreateActor(Info.Actor, new TypeDictionary
+				{
+					new ParentActorInit(self),
+					new LocationInit(self.Location + Info.SpawnOffset),
+					new OwnerInit(self.Owner),
+					new FacingInit(Info.Facing),
+				});
 			});
 		}
 	}

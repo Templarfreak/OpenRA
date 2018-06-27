@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -17,7 +18,12 @@ namespace OpenRA.Mods.Common.AI
 	{
 		protected virtual bool ShouldFlee(Squad owner)
 		{
-			return base.ShouldFlee(owner, enemies => !owner.AttackOrFleeFuzzy.CanAttack(owner.Units, enemies));
+			return base.ShouldFlee(owner, enemies => !AttackOrFleeFuzzy.Default.CanAttack(owner.Units, enemies));
+		}
+
+		protected Actor FindClosestEnemy(Squad owner)
+		{
+			return owner.Bot.FindClosestEnemy(owner.Units.First().CenterPosition);
 		}
 	}
 
@@ -30,30 +36,31 @@ namespace OpenRA.Mods.Common.AI
 			if (!owner.IsValid)
 				return;
 
-			if (!owner.TargetIsValid)
+			if (!owner.IsTargetValid)
 			{
-				var t = owner.Bot.FindClosestEnemy(owner.Units.FirstOrDefault().CenterPosition);
-				if (t == null) return;
-				owner.TargetActor = t;
+				var closestEnemy = FindClosestEnemy(owner);
+				if (closestEnemy == null)
+					return;
+
+				owner.TargetActor = closestEnemy;
 			}
 
-			var enemyUnits = owner.World.FindActorsInCircle(owner.TargetActor.CenterPosition, WRange.FromCells(10))
+			var enemyUnits = owner.World.FindActorsInCircle(owner.TargetActor.CenterPosition, WDist.FromCells(owner.Bot.Info.IdleScanRadius))
 				.Where(unit => owner.Bot.Player.Stances[unit.Owner] == Stance.Enemy).ToList();
 
-			if (enemyUnits.Any())
-			{
-				if (owner.AttackOrFleeFuzzy.CanAttack(owner.Units, enemyUnits))
-				{
-					foreach (var u in owner.Units)
-						owner.World.IssueOrder(new Order("AttackMove", u, false) { TargetLocation = owner.TargetActor.Location });
+			if (enemyUnits.Count == 0)
+				return;
 
-					// We have gathered sufficient units. Attack the nearest enemy unit.
-					owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackMoveState(), true);
-					return;
-				}
-				else
-					owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
+			if (AttackOrFleeFuzzy.Default.CanAttack(owner.Units, enemyUnits))
+			{
+				foreach (var u in owner.Units)
+					owner.Bot.QueueOrder(new Order("AttackMove", u, Target.FromCell(owner.World, owner.TargetActor.Location), false));
+
+				// We have gathered sufficient units. Attack the nearest enemy unit.
+				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackMoveState(), true);
 			}
+			else
+				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -68,9 +75,9 @@ namespace OpenRA.Mods.Common.AI
 			if (!owner.IsValid)
 				return;
 
-			if (!owner.TargetIsValid)
+			if (!owner.IsTargetValid)
 			{
-				var closestEnemy = owner.Bot.FindClosestEnemy(owner.Units.Random(owner.Random).CenterPosition);
+				var closestEnemy = FindClosestEnemy(owner);
 				if (closestEnemy != null)
 					owner.TargetActor = closestEnemy;
 				else
@@ -83,36 +90,35 @@ namespace OpenRA.Mods.Common.AI
 			var leader = owner.Units.ClosestTo(owner.TargetActor.CenterPosition);
 			if (leader == null)
 				return;
-			var ownUnits = owner.World.FindActorsInCircle(leader.CenterPosition, WRange.FromCells(owner.Units.Count) / 3)
-				.Where(a => a.Owner == owner.Units.FirstOrDefault().Owner && owner.Units.Contains(a)).ToHashSet();
+
+			var ownUnits = owner.World.FindActorsInCircle(leader.CenterPosition, WDist.FromCells(owner.Units.Count) / 3)
+				.Where(a => a.Owner == owner.Units.First().Owner && owner.Units.Contains(a)).ToHashSet();
+
 			if (ownUnits.Count < owner.Units.Count)
 			{
-				owner.World.IssueOrder(new Order("Stop", leader, false));
+				// Since units have different movement speeds, they get separated while approaching the target.
+				// Let them regroup into tighter formation.
+				owner.Bot.QueueOrder(new Order("Stop", leader, false));
 				foreach (var unit in owner.Units.Where(a => !ownUnits.Contains(a)))
-					owner.World.IssueOrder(new Order("AttackMove", unit, false) { TargetLocation = leader.Location });
+					owner.Bot.QueueOrder(new Order("AttackMove", unit, Target.FromCell(owner.World, leader.Location), false));
 			}
 			else
 			{
-				var enemies = owner.World.FindActorsInCircle(leader.CenterPosition, WRange.FromCells(12))
-					.Where(a1 => !a1.Destroyed && !a1.IsDead);
-				var enemynearby = enemies.Where(a1 => a1.HasTrait<ITargetable>() && leader.Owner.Stances[a1.Owner] == Stance.Enemy);
-				var target = enemynearby.ClosestTo(leader.CenterPosition);
+				var enemies = owner.World.FindActorsInCircle(leader.CenterPosition, WDist.FromCells(owner.Bot.Info.AttackScanRadius))
+					.Where(a => !a.IsDead && leader.Owner.Stances[a.Owner] == Stance.Enemy && !a.GetEnabledTargetTypes().IsEmpty);
+				var target = enemies.ClosestTo(leader.CenterPosition);
 				if (target != null)
 				{
 					owner.TargetActor = target;
 					owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsAttackState(), true);
-					return;
 				}
 				else
 					foreach (var a in owner.Units)
-						owner.World.IssueOrder(new Order("AttackMove", a, false) { TargetLocation = owner.TargetActor.Location });
+						owner.Bot.QueueOrder(new Order("AttackMove", a, Target.FromCell(owner.World, owner.TargetActor.Location), false));
 			}
 
 			if (ShouldFlee(owner))
-			{
 				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
-				return;
-			}
 		}
 
 		public void Deactivate(Squad owner) { }
@@ -127,9 +133,9 @@ namespace OpenRA.Mods.Common.AI
 			if (!owner.IsValid)
 				return;
 
-			if (!owner.TargetIsValid)
+			if (!owner.IsTargetValid)
 			{
-				var closestEnemy = owner.Bot.FindClosestEnemy(owner.Units.Random(owner.Random).CenterPosition);
+				var closestEnemy = FindClosestEnemy(owner);
 				if (closestEnemy != null)
 					owner.TargetActor = closestEnemy;
 				else
@@ -141,13 +147,10 @@ namespace OpenRA.Mods.Common.AI
 
 			foreach (var a in owner.Units)
 				if (!BusyAttack(a))
-					owner.World.IssueOrder(new Order("Attack", a, false) { TargetActor = owner.Bot.FindClosestEnemy(a.CenterPosition) });
+					owner.Bot.QueueOrder(new Order("Attack", a, Target.FromActor(owner.TargetActor), false));
 
 			if (ShouldFlee(owner))
-			{
 				owner.FuzzyStateMachine.ChangeState(owner, new GroundUnitsFleeState(), true);
-				return;
-			}
 		}
 
 		public void Deactivate(Squad owner) { }

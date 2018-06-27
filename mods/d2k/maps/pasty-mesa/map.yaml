@@ -1,4 +1,4 @@
-MapFormat: 7
+MapFormat: 11
 
 RequiresMod: d2k
 
@@ -14,45 +14,41 @@ Bounds: 4,4,48,48
 
 Visibility: Lobby
 
-Type: Conquest
-
-Videos:
-
-Options:
+Categories: Conquest
 
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Race: atreides
+		Faction: atreides
 	PlayerReference@Multi0:
 		Name: Multi0
 		Playable: True
-		Race: Random
+		Faction: Random
 		Enemies: Creeps
 	PlayerReference@Multi1:
 		Name: Multi1
 		Playable: True
-		Race: Random
+		Faction: Random
 		Enemies: Creeps
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Race: atreides
+		Faction: atreides
 		Enemies: Multi0, Multi1
 
 Actors:
-	Actor2: spicebloom
+	Actor2: spicebloom.spawnpoint
 		Location: 7,18
 		Owner: Neutral
-	Actor4: spicebloom
+	Actor4: spicebloom.spawnpoint
 		Location: 27,6
 		Owner: Neutral
-	Actor8: spicebloom
+	Actor8: spicebloom.spawnpoint
 		Location: 34,38
 		Owner: Neutral
-	Actor5: spicebloom
+	Actor5: spicebloom.spawnpoint
 		Location: 49,26
 		Owner: Neutral
 	Actor1: mpspawn
@@ -61,13 +57,13 @@ Actors:
 	Actor0: mpspawn
 		Location: 45,12
 		Owner: Neutral
-	Actor6: spicebloom
+	Actor6: spicebloom.spawnpoint
 		Location: 6,42
 		Owner: Neutral
-	Actor7: spicebloom
+	Actor7: spicebloom.spawnpoint
 		Location: 25,49
 		Owner: Neutral
-	Actor3: spicebloom
+	Actor3: spicebloom.spawnpoint
 		Location: 30,15
 		Owner: Neutral
 	Actor9: wormspawner
@@ -83,22 +79,4 @@ Actors:
 		Location: 4,4
 		Owner: Creeps
 
-Smudges:
-
-Rules:
-	World:
-		WormManager:
-			Minimum: 1
-			Maximum: 2
-
-Sequences:
-
-VoxelSequences:
-
-Weapons:
-
-Voices:
-
-Notifications:
-
-Translations:
+Rules: rules.yaml

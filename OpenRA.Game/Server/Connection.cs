@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -24,10 +25,11 @@ namespace OpenRA.Server
 		public int ExpectLength = 8;
 		public int Frame = 0;
 		public int MostRecentFrame = 0;
+		public bool Validated;
 
-		public int TimeSinceLastResponse { get { return Game.RunTime - lastReceivedTime; } }
+		public long TimeSinceLastResponse { get { return Game.RunTime - lastReceivedTime; } }
 		public bool TimeoutMessageShown = false;
-		int lastReceivedTime = 0;
+		long lastReceivedTime = 0;
 
 		/* client data */
 		public int PlayerIndex;
@@ -48,12 +50,12 @@ namespace OpenRA.Server
 			{
 				try
 				{
-					// NOTE(jsd): Poll the socket first to see if there's anything there.
+					// Poll the socket first to see if there's anything there.
 					// This avoids the exception with SocketErrorCode == `SocketError.WouldBlock` thrown
 					// from `socket.Receive(rx)`.
 					if (!Socket.Poll(0, SelectMode.SelectRead)) break;
 
-					if (0 < (len = Socket.Receive(rx)))
+					if ((len = Socket.Receive(rx)) > 0)
 						Data.AddRange(rx.Take(len));
 					else
 					{
@@ -64,7 +66,7 @@ namespace OpenRA.Server
 				}
 				catch (SocketException e)
 				{
-					// NOTE(jsd): This should no longer be needed with the socket.Poll call above.
+					// This should no longer be needed with the socket.Poll call above.
 					if (e.SocketErrorCode == SocketError.WouldBlock) break;
 
 					server.DropClient(this);
@@ -103,8 +105,10 @@ namespace OpenRA.Server
 
 						case ReceiveState.Data:
 							{
+								if (MostRecentFrame < Frame)
+									MostRecentFrame = Frame;
+
 								server.DispatchOrders(this, Frame, bytes);
-								MostRecentFrame = Frame;
 								ExpectLength = 8;
 								State = ReceiveState.Header;
 							} break;

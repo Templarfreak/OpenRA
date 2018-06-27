@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 using OpenRA.Scripting;
@@ -59,15 +60,15 @@ namespace OpenRA.Mods.Common.Scripting
 		public WVec Zero { get { return WVec.Zero; } }
 	}
 
-	[ScriptGlobal("WRange")]
-	public class WRangeGlobal : ScriptGlobal
+	[ScriptGlobal("WDist")]
+	public class WDistGlobal : ScriptGlobal
 	{
-		public WRangeGlobal(ScriptContext context) : base(context) { }
+		public WDistGlobal(ScriptContext context) : base(context) { }
 
-		[Desc("Create a new WRange.")]
-		public WRange New(int r) { return new WRange(r); }
+		[Desc("Create a new WDist.")]
+		public WDist New(int r) { return new WDist(r); }
 
-		[Desc("Create a new WRange by cell distance")]
-		public WRange FromCells(int numCells) { return WRange.FromCells(numCells); }
+		[Desc("Create a new WDist by cell distance.")]
+		public WDist FromCells(int numCells) { return WDist.FromCells(numCells); }
 	}
 }

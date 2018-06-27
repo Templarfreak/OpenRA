@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -21,22 +22,23 @@ namespace OpenRA.Mods.Common.Traits
 
 	class ExternalCapturableBar : ISelectionBar
 	{
-		ExternalCapturable cap;
+		readonly ExternalCapturable capturable;
 
 		public ExternalCapturableBar(Actor self)
 		{
-			this.cap = self.Trait<ExternalCapturable>();
+			capturable = self.Trait<ExternalCapturable>();
 		}
 
-		public float GetValue()
+		float ISelectionBar.GetValue()
 		{
 			// only show when building is being captured
-			if (!cap.CaptureInProgress)
+			if (!capturable.CaptureInProgress)
 				return 0f;
 
-			return (float)cap.CaptureProgressTime / (cap.Info.CaptureCompleteTime * 25);
+			return (float)capturable.CaptureProgressTime / (capturable.Info.CaptureCompleteTime * 25);
 		}
 
-		public Color GetColor() { return Color.Orange; }
+		Color ISelectionBar.GetColor() { return Color.Orange; }
+		bool ISelectionBar.DisplayWhenEmpty { get { return false; } }
 	}
 }

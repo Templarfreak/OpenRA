@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -12,17 +13,18 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using OpenRA.Graphics;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Calculates routes for mobile units based on the A* search algorithm.", " Attach this to the world actor.")]
-	public class PathFinderInfo : ITraitInfo
+	public class PathFinderInfo : ITraitInfo, Requires<LocomotorInfo>
 	{
 		public object Create(ActorInitializer init)
 		{
-			return new PathFinderCacheDecorator(new PathFinder(init.World), new PathCacheStorage(init.World));
+			return new PathFinderUnitPathCacheDecorator(new PathFinder(init.World), new PathCacheStorage(init.World));
 		}
 	}
 
@@ -32,9 +34,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// Calculates a path for the actor from source to destination
 		/// </summary>
 		/// <returns>A path from start to target</returns>
-		List<CPos> FindUnitPath(CPos source, CPos target, Actor self);
+		List<CPos> FindUnitPath(CPos source, CPos target, Actor self, Actor ignoreActor);
 
-		List<CPos> FindUnitPathToRange(CPos source, SubCell srcSub, WPos target, WRange range, Actor self);
+		List<CPos> FindUnitPathToRange(CPos source, SubCell srcSub, WPos target, WDist range, Actor self);
 
 		/// <summary>
 		/// Calculates a path given a search specification
@@ -59,70 +61,60 @@ namespace OpenRA.Mods.Common.Traits
 			this.world = world;
 		}
 
-		public List<CPos> FindUnitPath(CPos source, CPos target, Actor self)
+		public List<CPos> FindUnitPath(CPos source, CPos target, Actor self, Actor ignoreActor)
 		{
-			var mi = self.Info.Traits.Get<MobileInfo>();
+			var li = self.Info.TraitInfo<MobileInfo>().LocomotorInfo;
 
 			// If a water-land transition is required, bail early
 			var domainIndex = world.WorldActor.TraitOrDefault<DomainIndex>();
-			if (domainIndex != null)
-			{
-				var passable = mi.GetMovementClass(world.TileSet);
-				if (!domainIndex.IsPassable(source, target, (uint)passable))
-					return EmptyPath;
-			}
+			if (domainIndex != null && !domainIndex.IsPassable(source, target, li))
+				return EmptyPath;
 
-			var pb = FindBidiPath(
-				PathSearch.FromPoint(world, mi, self, target, source, true),
-				PathSearch.FromPoint(world, mi, self, source, target, true).Reverse());
+			List<CPos> pb;
+			using (var fromSrc = PathSearch.FromPoint(world, li, self, target, source, true).WithIgnoredActor(ignoreActor))
+			using (var fromDest = PathSearch.FromPoint(world, li, self, source, target, true).WithIgnoredActor(ignoreActor).Reverse())
+				pb = FindBidiPath(fromSrc, fromDest);
 
 			CheckSanePath2(pb, source, target);
 
 			return pb;
 		}
 
-		public List<CPos> FindUnitPathToRange(CPos source, SubCell srcSub, WPos target, WRange range, Actor self)
+		public List<CPos> FindUnitPathToRange(CPos source, SubCell srcSub, WPos target, WDist range, Actor self)
 		{
-			var mi = self.Info.Traits.Get<MobileInfo>();
+			var mi = self.Info.TraitInfo<MobileInfo>();
+			var li = mi.LocomotorInfo;
 			var targetCell = world.Map.CellContaining(target);
-			var rangeSquared = range.Range * range.Range;
 
 			// Correct for SubCell offset
-			target -= world.Map.OffsetOfSubCell(srcSub);
+			target -= world.Map.Grid.OffsetOfSubCell(srcSub);
 
 			// Select only the tiles that are within range from the requested SubCell
 			// This assumes that the SubCell does not change during the path traversal
-			var tilesInRange = world.Map.FindTilesInCircle(targetCell, range.Range / 1024 + 1)
-				.Where(t => (world.Map.CenterOfCell(t) - target).LengthSquared <= rangeSquared
-							&& mi.CanEnterCell(self.World as World, self as Actor, t));
+			var tilesInRange = world.Map.FindTilesInCircle(targetCell, range.Length / 1024 + 1)
+				.Where(t => (world.Map.CenterOfCell(t) - target).LengthSquared <= range.LengthSquared
+							&& mi.CanEnterCell(self.World, self, t));
 
 			// See if there is any cell within range that does not involve a cross-domain request
 			// Really, we only need to check the circle perimeter, but it's not clear that would be a performance win
 			var domainIndex = world.WorldActor.TraitOrDefault<DomainIndex>();
 			if (domainIndex != null)
 			{
-				var passable = mi.GetMovementClass(world.TileSet);
-				tilesInRange = new List<CPos>(tilesInRange.Where(t => domainIndex.IsPassable(source, t, (uint)passable)));
+				tilesInRange = new List<CPos>(tilesInRange.Where(t => domainIndex.IsPassable(source, t, li)));
 				if (!tilesInRange.Any())
 					return EmptyPath;
 			}
 
-			var path = FindBidiPath(
-				PathSearch.FromPoints(world, mi, self, tilesInRange, source, true),
-				PathSearch.FromPoint(world, mi, self, source, targetCell, true).Reverse());
-
-			return path;
+			using (var fromSrc = PathSearch.FromPoints(world, li, self, tilesInRange, source, true))
+			using (var fromDest = PathSearch.FromPoint(world, li, self, source, targetCell, true).Reverse())
+				return FindBidiPath(fromSrc, fromDest);
 		}
 
 		public List<CPos> FindPath(IPathSearch search)
 		{
-			var dbg = world.WorldActor.TraitOrDefault<PathfinderDebugOverlay>();
-			if (dbg != null && dbg.Visible)
-				search.Debug = true;
-
 			List<CPos> path = null;
 
-			while (!search.OpenQueue.Empty)
+			while (search.CanExpand)
 			{
 				var p = search.Expand();
 				if (search.IsTarget(p))
@@ -131,9 +123,6 @@ namespace OpenRA.Mods.Common.Traits
 					break;
 				}
 			}
-
-			if (dbg != null && dbg.Visible)
-				dbg.AddLayer(search.Considered, search.MaxCost, search.Owner);
 
 			search.Graph.Dispose();
 
@@ -150,14 +139,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			List<CPos> path = null;
 
-			var dbg = world.WorldActor.TraitOrDefault<PathfinderDebugOverlay>();
-			if (dbg != null && dbg.Visible)
-			{
-				fromSrc.Debug = true;
-				fromDest.Debug = true;
-			}
-
-			while (!fromSrc.OpenQueue.Empty && !fromDest.OpenQueue.Empty)
+			while (fromSrc.CanExpand && fromDest.CanExpand)
 			{
 				// make some progress on the first search
 				var p = fromSrc.Expand();
@@ -178,12 +160,6 @@ namespace OpenRA.Mods.Common.Traits
 					path = MakeBidiPath(fromSrc, fromDest, q);
 					break;
 				}
-			}
-
-			if (dbg != null && dbg.Visible)
-			{
-				dbg.AddLayer(fromSrc.Considered, fromSrc.MaxCost, fromSrc.Owner);
-				dbg.AddLayer(fromDest.Considered, fromDest.MaxCost, fromDest.Owner);
 			}
 
 			fromSrc.Graph.Dispose();

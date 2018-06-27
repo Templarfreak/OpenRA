@@ -1,26 +1,28 @@
 MCV:
-	Inherits: ^Vehicle
+	Inherits: ^Tank
+	Inherits@VOXELS: ^VoxelActor
 	Buildable:
 		Queue: Vehicle
-		BuildPaletteOrder: 110
-		Prerequisites: ~factory, tech
+		BuildPaletteOrder: 160
+		Prerequisites: ~factory, tech, ~techlevel.medium
+		Description: Deploys into another Construction Yard.\n  Unarmed
 	Valued:
-		Cost: 2000
+		Cost: 2500
 	Tooltip:
 		Name: Mobile Construction Vehicle
-		Description: Deploys into another Construction Yard.\n  Unarmed
 	Selectable:
 		Priority: 3
-		Bounds: 42,42
+		DecorationBounds: 42,42
 	Health:
-		HP: 600
+		HP: 100000
 	Armor:
-		Type: Light
+		Type: Heavy
 	Mobile:
-		Speed: 85
-		Crushes: wall, crate, infantry
+		Speed: 42
 	RevealsShroud:
-		Range: 4c0
+		RequiresCondition: !inside-tunnel
+		Range: 6c0
+		MaxHeightDelta: 3
 	MustBeDestroyed:
 		RequiredForShortGame: true
 	BaseBuilding:
@@ -28,109 +30,132 @@ MCV:
 		IntoActor: gacnst
 		Offset: -1,-1
 		Facing: 96
-		TransformSounds: facbld1.aud
+		TransformSounds: place2.aud
 		NoTransformSounds:
+		Voice: Move
+	SelectionDecorations:
 	RenderSprites:
-	RenderVoxels:
-	WithVoxelBody:
+		Image: mcv.gdi
+		FactionImages:
+			gdi: mcv.gdi
+			nod: mcv.nod
 
 HARV:
-	Inherits: ^Vehicle
+	Inherits: ^Tank
+	Inherits@VOXELS: ^VoxelActor
 	Valued:
 		Cost: 1400
 	Tooltip:
 		Name: Harvester
-		Description: Collects Tiberium for processing.\n  Unarmed
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 10
-		Prerequisites: ~factory, proc
-		InitialActivity: FindResources
+		Prerequisites: ~factory, proc, ~techlevel.low
+		Description: Collects Tiberium for processing.\n  Unarmed
 	Selectable:
 		Priority: 7
 		Bounds: 36,36
+		DecorationBounds: 36,36
 	Harvester:
-		Capacity: 20
+		DeliveryBuildings: proc
+		Capacity: 28
 		Resources: Tiberium, BlueTiberium
-		UnloadTicksPerBale: 1
-		SearchFromProcRadius: 24
-		SearchFromOrderRadius: 12
+		BaleLoadDelay: 15
+		BaleUnloadDelay: 15
+		FullyLoadedSpeed: 100
+		SearchFromProcRadius: 36
+		SearchFromOrderRadius: 18
+		HarvestVoice: Attack
+		DeliverVoice: Move
 	Mobile:
 		Speed: 71
-		Crushes: wall, crate
-		TerrainSpeeds:
-			Clear: 90
-			Rough: 70
-			Road: 100
-			Beach: 70
-			Tiberium: 80
-			BlueTiberium: 80
 	Health:
-		HP: 1000
+		HP: 100000
 	SelfHealing:
-		Ticks: 10
-		HealIfBelow: 50%
+		Step: 500
+		Delay: 10
+		HealIfBelow: 50
 		DamageCooldown: 200
 	Armor:
 		Type: Heavy
 	RevealsShroud:
+		RequiresCondition: !inside-tunnel
 		Range: 4c0
-	-GainsExperience:
-	RenderSprites:
-	RenderVoxels:
+		MaxHeightDelta: 3
+	-WithVoxelBody:
 	WithVoxelUnloadBody:
 	Explodes:
 		Weapon: TiberiumExplosion
-	WithHarvestAnimation:
-		Offset: 384,0,0
+	WithHarvestOverlay:
+		LocalOffset: 543,0,0
 		Palette: effect
+	SelectionDecorations:
+	RenderSprites:
+		Image: harv.gdi
+		FactionImages:
+			gdi: harv.gdi
+			nod: harv.nod
+	-DamagedByTerrain@VEINS:
+	-LeavesTrails@VEINS:
 
 LPST:
-	Inherits: ^Vehicle
+	Inherits: ^Tank
+	Inherits@VOXELS: ^VoxelActor
+	-AppearsOnRadar:
+	Buildable:
+		Queue: Vehicle
+		BuildPaletteOrder: 90
+		Prerequisites: ~factory, radar, ~techlevel.medium
+		Description: Can detect cloaked and subterranean\nunits when deployed.\n  Unarmed
 	Valued:
 		Cost: 950
 	Tooltip:
 		Name: Mobile Sensor Array
-		Description: Can detect cloaked and subterranean\nunits when deployed.\n  Unarmed
-	Buildable:
-		Queue: Vehicle
-		BuildPaletteOrder: 100
-		Prerequisites: ~factory, radar
+		RequiresCondition: !deployed
+	Tooltip@DEPLOYED:
+		Name: Mobile Sensor Array (deployed)
+		RequiresCondition: deployed
 	Health:
-		HP: 600
+		HP: 60000
 	Armor:
-		Type: Light
+		Type: Wood
 	Mobile:
 		Speed: 85
-		ROT: 5
+		TurnSpeed: 5
+		RequiresCondition: !empdisable && undeployed
 	RevealsShroud:
+		RequiresCondition: !inside-tunnel && undeployed
 		Range: 10c0
+		MaxHeightDelta: 3
+	RevealsShroud@DEPLOYED:
+		RequiresCondition: !undeployed
+		Range: 8c0
+		MaxHeightDelta: 3
+	WithMakeAnimation:
+	GrantCondition@PREVIEWWORKAROUND:
+		Condition: real-actor
 	RenderSprites:
-	RenderVoxels:
+		Image: lpst.gdi
+		FactionImages:
+			gdi: lpst.gdi
+			nod: lpst.nod
+	GrantConditionOnDeploy:
+		DeployedCondition: deployed
+		UndeployedCondition: undeployed
+		Facing: 160
+		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
+		DeploySound: place2.aud
+		UndeploySound: clicky1.aud
 	WithVoxelBody:
-	Transforms:
-		IntoActor: gadpsa
-		Facing: 159
-		TransformSounds:
-		NoTransformSounds:
-
-GGHUNT:
-	Inherits: ^Vehicle
-	Valued:
-		Cost: 1000
-	Tooltip:
-		Name: Hunter-Seeker Droid
-	Mobile:
-		ROT: 16
-		Speed: 355
-	Health:
-		HP: 500
-	Armor:
-		Type: Light
-	RevealsShroud:
-		Range: 7c0
-	RenderUnit:
-	DemoTruck:
-	Explodes:
-		Weapon: SuicideBomb
-		EmptyWeapon: SuicideBomb
+		RequiresCondition: undeployed
+	WithSpriteBody@deployed:
+		RequiresCondition: !undeployed && real-actor
+	DetectCloaked:
+		RequiresCondition: deployed
+		Range: 18c0
+	RenderDetectionCircle:
+		TrailCount: 3
+	Carryable:
+		RequiresCondition: undeployed
+	RenderVoxels:
+		Scale: 11.5

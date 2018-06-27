@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -15,118 +16,183 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	[Desc("Allows to execute build orders.", " Attach this to the player actor.")]
-	class PlaceBuildingInfo : TraitInfo<PlaceBuilding>
+	[Desc("Allows the player to execute build orders.", " Attach this to the player actor.")]
+	public class PlaceBuildingInfo : ITraitInfo
 	{
 		[Desc("Palette to use for rendering the placement sprite.")]
-		public readonly string Palette = "terrain";
+		[PaletteReference] public readonly string Palette = TileSet.TerrainPaletteInternalName;
+
+		[Desc("Palette to use for rendering the placement sprite for line build segments.")]
+		[PaletteReference] public readonly string LineBuildSegmentPalette = TileSet.TerrainPaletteInternalName;
+
+		[Desc("Play NewOptionsNotification this many ticks after building placement.")]
+		public readonly int NewOptionsNotificationDelay = 10;
+
+		[Desc("Notification to play after building placement if new construction options are available.")]
+		public readonly string NewOptionsNotification = "NewOptions";
+
+		public object Create(ActorInitializer init) { return new PlaceBuilding(this); }
 	}
 
-	class PlaceBuilding : IResolveOrder
+	public class PlaceBuilding : IResolveOrder, ITick
 	{
-		public void ResolveOrder(Actor self, Order order)
+		readonly PlaceBuildingInfo info;
+		bool triggerNotification;
+		int tick;
+
+		public PlaceBuilding(PlaceBuildingInfo info)
 		{
-			if (order.OrderString == "PlaceBuilding" || order.OrderString == "LineBuild" || order.OrderString == "PlacePlug")
+			this.info = info;
+		}
+
+		void IResolveOrder.ResolveOrder(Actor self, Order order)
+		{
+			var os = order.OrderString;
+			if (os != "PlaceBuilding" &&
+				os != "LineBuild" &&
+				os != "PlacePlug")
+				return;
+
+			self.World.AddFrameEndTask(w =>
 			{
-				self.World.AddFrameEndTask(w =>
+				var prevItems = GetNumBuildables(self.Owner);
+				var targetActor = w.GetActorById(order.ExtraData);
+
+				if (targetActor == null || targetActor.IsDead)
+					return;
+
+				var actorInfo = self.World.Map.Rules.Actors[order.TargetString];
+				var queue = targetActor.TraitsImplementing<ProductionQueue>()
+					.FirstOrDefault(q => q.CanBuild(actorInfo) && q.CurrentItem() != null && q.CurrentItem().Item == order.TargetString && q.CurrentItem().RemainingTime == 0);
+
+				if (queue == null)
+					return;
+
+				var producer = queue.MostLikelyProducer();
+				var faction = producer.Trait != null ? producer.Trait.Faction : self.Owner.Faction.InternalName;
+				var buildingInfo = actorInfo.TraitInfo<BuildingInfo>();
+
+				var buildableInfo = actorInfo.TraitInfoOrDefault<BuildableInfo>();
+				if (buildableInfo != null && buildableInfo.ForceFaction != null)
+					faction = buildableInfo.ForceFaction;
+
+				if (os == "LineBuild")
 				{
-					var prevItems = GetNumBuildables(self.Owner);
-
-					if (order.TargetActor.IsDead)
-						return;
-
-					var unit = self.World.Map.Rules.Actors[order.TargetString];
-					var queue = order.TargetActor.TraitsImplementing<ProductionQueue>()
-						.FirstOrDefault(q => q.CanBuild(unit) && q.CurrentItem() != null && q.CurrentItem().Item == order.TargetString && q.CurrentItem().RemainingTime == 0);
-
-					if (queue == null)
-						return;
-
-					var producer = queue.MostLikelyProducer();
-					var race = producer.Trait != null ? producer.Trait.Race : self.Owner.Country.Race;
-					var buildingInfo = unit.Traits.Get<BuildingInfo>();
-
-					var buildableInfo = unit.Traits.GetOrDefault<BuildableInfo>();
-					if (buildableInfo != null && buildableInfo.ForceRace != null)
-						race = buildableInfo.ForceRace;
-
-					if (order.OrderString == "LineBuild")
+					// Build the parent actor first
+					var placed = w.CreateActor(order.TargetString, new TypeDictionary
 					{
-						var playSounds = true;
-						foreach (var t in BuildingUtils.GetLineBuildCells(w, order.TargetLocation, order.TargetString, buildingInfo))
+						new LocationInit(order.TargetLocation),
+						new OwnerInit(order.Player),
+						new FactionInit(faction),
+					});
+
+					foreach (var s in buildingInfo.BuildSounds)
+						Game.Sound.PlayToPlayer(SoundType.World, order.Player, s, placed.CenterPosition);
+
+					// Build the connection segments
+					var segmentType = actorInfo.TraitInfo<LineBuildInfo>().SegmentType;
+					if (string.IsNullOrEmpty(segmentType))
+						segmentType = order.TargetString;
+
+					foreach (var t in BuildingUtils.GetLineBuildCells(w, order.TargetLocation, actorInfo, buildingInfo))
+					{
+						if (t.First == order.TargetLocation)
+							continue;
+
+						w.CreateActor(t.First == order.TargetLocation ? order.TargetString : segmentType, new TypeDictionary
 						{
-							var building = w.CreateActor(order.TargetString, new TypeDictionary
-							{
-								new LocationInit(t),
-								new OwnerInit(order.Player),
-								new RaceInit(race)
-							});
+							new LocationInit(t.First),
+							new OwnerInit(order.Player),
+							new FactionInit(faction),
+							new LineBuildDirectionInit(t.First.X == order.TargetLocation.X ? LineBuildDirection.Y : LineBuildDirection.X),
+							new LineBuildParentInit(new[] { t.Second, placed })
+						});
+					}
+				}
+				else if (os == "PlacePlug")
+				{
+					var host = self.World.WorldActor.Trait<BuildingInfluence>().GetBuildingAt(order.TargetLocation);
+					if (host == null)
+						return;
 
-							if (playSounds)
-								foreach (var s in buildingInfo.BuildSounds)
-									Sound.PlayToPlayer(order.Player, s, building.CenterPosition);
+					var plugInfo = actorInfo.TraitInfoOrDefault<PlugInfo>();
+					if (plugInfo == null)
+						return;
 
-							playSounds = false;
+					var location = host.Location;
+					var pluggable = host.TraitsImplementing<Pluggable>()
+						.FirstOrDefault(p => location + p.Info.Offset == order.TargetLocation && p.AcceptsPlug(host, plugInfo.Type));
+
+					if (pluggable == null)
+						return;
+
+					pluggable.EnablePlug(host, plugInfo.Type);
+					foreach (var s in buildingInfo.BuildSounds)
+						Game.Sound.PlayToPlayer(SoundType.World, order.Player, s, host.CenterPosition);
+				}
+				else
+				{
+					if (!self.World.CanPlaceBuilding(order.TargetLocation, actorInfo, buildingInfo, null)
+						|| !buildingInfo.IsCloseEnoughToBase(self.World, order.Player, actorInfo, order.TargetLocation))
+						return;
+
+					var replacementInfo = actorInfo.TraitInfoOrDefault<ReplacementInfo>();
+					if (replacementInfo != null)
+					{
+						var buildingInfluence = self.World.WorldActor.Trait<BuildingInfluence>();
+						foreach (var t in buildingInfo.Tiles(order.TargetLocation))
+						{
+							var host = buildingInfluence.GetBuildingAt(t);
+							if (host != null)
+								host.World.Remove(host);
 						}
 					}
-					else if (order.OrderString == "PlacePlug")
+
+					var building = w.CreateActor(order.TargetString, new TypeDictionary
 					{
-						var host = self.World.WorldActor.Trait<BuildingInfluence>().GetBuildingAt(order.TargetLocation);
-						if (host == null)
-							return;
+						new LocationInit(order.TargetLocation),
+						new OwnerInit(order.Player),
+						new FactionInit(faction),
+					});
 
-						var plugInfo = unit.Traits.GetOrDefault<PlugInfo>();
-						if (plugInfo == null)
-							return;
+					foreach (var s in buildingInfo.BuildSounds)
+						Game.Sound.PlayToPlayer(SoundType.World, order.Player, s, building.CenterPosition);
+				}
 
-						var location = host.Location;
-						var pluggable = host.TraitsImplementing<Pluggable>()
-							.FirstOrDefault(p => location + p.Info.Offset == order.TargetLocation && p.AcceptsPlug(host, plugInfo.Type));
+				if (producer.Actor != null)
+					foreach (var nbp in producer.Actor.TraitsImplementing<INotifyBuildingPlaced>())
+						nbp.BuildingPlaced(producer.Actor);
 
-						if (pluggable == null)
-							return;
+				queue.FinishProduction();
 
-						pluggable.EnablePlug(host, plugInfo.Type);
-						foreach (var s in buildingInfo.BuildSounds)
-							Sound.PlayToPlayer(order.Player, s, host.CenterPosition);
-					}
-					else
-					{
-						if (!self.World.CanPlaceBuilding(order.TargetString, buildingInfo, order.TargetLocation, null)
-							|| !buildingInfo.IsCloseEnoughToBase(self.World, order.Player, order.TargetString, order.TargetLocation))
-							return;
+				if (buildingInfo.RequiresBaseProvider)
+				{
+					// May be null if the build anywhere cheat is active
+					// BuildingInfo.IsCloseEnoughToBase has already verified that this is a valid build location
+					var provider = buildingInfo.FindBaseProvider(w, self.Owner, order.TargetLocation);
+					if (provider != null)
+						provider.BeginCooldown();
+				}
 
-						var building = w.CreateActor(order.TargetString, new TypeDictionary
-						{
-							new LocationInit(order.TargetLocation),
-							new OwnerInit(order.Player),
-							new RaceInit(race),
-						});
+				if (GetNumBuildables(self.Owner) > prevItems)
+					triggerNotification = true;
+			});
+		}
 
-						foreach (var s in buildingInfo.BuildSounds)
-							Sound.PlayToPlayer(order.Player, s, building.CenterPosition);
-					}
+		void ITick.Tick(Actor self)
+		{
+			if (!triggerNotification)
+				return;
 
-					if (producer.Actor != null)
-						foreach (var nbp in producer.Actor.TraitsImplementing<INotifyBuildingPlaced>())
-							nbp.BuildingPlaced(producer.Actor);
+			if (tick++ >= info.NewOptionsNotificationDelay)
+				PlayNotification(self);
+		}
 
-					queue.FinishProduction();
-
-					if (buildingInfo.RequiresBaseProvider)
-					{
-						// May be null if the build anywhere cheat is active
-						// BuildingInfo.IsCloseEnoughToBase has already verified that this is a valid build location
-						var provider = buildingInfo.FindBaseProvider(w, self.Owner, order.TargetLocation);
-						if (provider != null)
-							provider.Trait<BaseProvider>().BeginCooldown();
-					}
-
-					if (GetNumBuildables(self.Owner) > prevItems)
-						w.Add(new DelayedAction(10,
-							() => Sound.PlayNotification(self.World.Map.Rules, order.Player, "Speech", "NewOptions", order.Player.Country.Race)));
-				});
-			}
+		void PlayNotification(Actor self)
+		{
+			Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", info.NewOptionsNotification, self.Owner.Faction.InternalName);
+			triggerNotification = false;
+			tick = 0;
 		}
 
 		static int GetNumBuildables(Player p)

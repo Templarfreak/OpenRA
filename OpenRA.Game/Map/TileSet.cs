@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -12,7 +13,9 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using OpenRA.FileSystem;
 using OpenRA.Primitives;
+using OpenRA.Traits;
 
 namespace OpenRA
 {
@@ -24,6 +27,9 @@ namespace OpenRA
 		public readonly byte RampType;
 		public readonly Color LeftColor;
 		public readonly Color RightColor;
+
+		public readonly float ZOffset = 0.0f;
+		public readonly float ZRamp = 1.0f;
 
 		public MiniYaml Save(TileSet tileSet)
 		{
@@ -40,6 +46,12 @@ namespace OpenRA
 			if (RightColor != tileSet.TerrainInfo[TerrainType].Color)
 				root.Add(FieldSaver.SaveField(this, "RightColor"));
 
+			if (ZOffset != 0.0f)
+				root.Add(FieldSaver.SaveField(this, "ZOffset"));
+
+			if (ZRamp != 1.0f)
+				root.Add(FieldSaver.SaveField(this, "ZRamp"));
+
 			return new MiniYaml(tileSet.TerrainInfo[TerrainType].Type, root);
 		}
 	}
@@ -49,10 +61,10 @@ namespace OpenRA
 		static readonly TerrainTypeInfo Default = new TerrainTypeInfo();
 
 		public readonly string Type;
-		public readonly string[] TargetTypes = { };
-		public readonly string[] AcceptsSmudgeType = { };
-		public readonly bool IsWater = false; // TODO: Remove this
+		public readonly BitSet<TargetableType> TargetTypes;
+		public readonly HashSet<string> AcceptsSmudgeType = new HashSet<string>();
 		public readonly Color Color;
+		public readonly bool RestrictPlayerColor = false;
 		public readonly string CustomCursor;
 
 		// Private default ctor for serialization comparison
@@ -72,15 +84,16 @@ namespace OpenRA
 		public readonly int[] Frames;
 		public readonly int2 Size;
 		public readonly bool PickAny;
-		public readonly string Category;
+		public readonly string[] Categories;
+		public readonly string Palette;
 
-		TerrainTileInfo[] tileInfo;
+		readonly TerrainTileInfo[] tileInfo;
 
 		public TerrainTemplateInfo(ushort id, string[] images, int2 size, byte[] tiles)
 		{
-			this.Id = id;
-			this.Images = images;
-			this.Size = size;
+			Id = id;
+			Images = images;
+			Size = size;
 		}
 
 		public TerrainTemplateInfo(TileSet tileSet, MiniYaml my)
@@ -166,19 +179,18 @@ namespace OpenRA
 
 	public class TileSet
 	{
+		public const string TerrainPaletteInternalName = "terrain";
+
 		public readonly string Name;
 		public readonly string Id;
 		public readonly int SheetSize = 512;
-		public readonly string Palette;
-		public readonly string PlayerPalette;
-		public readonly int WaterPaletteRotationBase = 0x60;
-		public readonly byte MaxGroundHeight = 0;
 		public readonly Color[] HeightDebugColors = new[] { Color.Red };
 		public readonly string[] EditorTemplateOrder;
 		public readonly bool IgnoreTileSpriteOffsets;
+		public readonly bool EnableDepth = false;
 
 		[FieldLoader.Ignore]
-		public readonly Dictionary<ushort, TerrainTemplateInfo> Templates = new Dictionary<ushort, TerrainTemplateInfo>();
+		public readonly IReadOnlyDictionary<ushort, TerrainTemplateInfo> Templates;
 
 		[FieldLoader.Ignore]
 		public readonly TerrainTypeInfo[] TerrainInfo;
@@ -188,9 +200,10 @@ namespace OpenRA
 		// Private default ctor for serialization comparison
 		TileSet() { }
 
-		public TileSet(ModData modData, string filepath)
+		public TileSet(IReadOnlyFileSystem fileSystem, string filepath)
 		{
-			var yaml = MiniYaml.DictFromFile(filepath);
+			var yaml = MiniYaml.FromStream(fileSystem.Open(filepath), filepath)
+				.ToDictionary(x => x.Key, x => x.Value);
 
 			// General info
 			FieldLoader.Load(this, yaml["General"]);
@@ -218,14 +231,13 @@ namespace OpenRA
 
 			// Templates
 			Templates = yaml["Templates"].ToDictionary().Values
-				.Select(y => new TerrainTemplateInfo(this, y)).ToDictionary(t => t.Id);
+				.Select(y => new TerrainTemplateInfo(this, y)).ToDictionary(t => t.Id).AsReadOnly();
 		}
 
-		public TileSet(string name, string id, string palette, TerrainTypeInfo[] terrainInfo)
+		public TileSet(string name, string id, TerrainTypeInfo[] terrainInfo)
 		{
 			Name = name;
 			Id = id;
-			Palette = palette;
 			TerrainInfo = terrainInfo;
 
 			if (TerrainInfo.Length >= byte.MaxValue)

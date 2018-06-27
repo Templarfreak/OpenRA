@@ -1,62 +1,67 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Traits;
 
-namespace OpenRA.Mods.Common.Traits
+namespace OpenRA.Mods.Common.Traits.Render
 {
 	[Desc("Also returns a default selection size that is calculated automatically from the voxel dimensions.")]
-	public class WithVoxelBodyInfo : ITraitInfo, IQuantizeBodyOrientationInfo, IRenderActorPreviewVoxelsInfo, Requires<RenderVoxelsInfo>
+	public class WithVoxelBodyInfo : ConditionalTraitInfo, IRenderActorPreviewVoxelsInfo, Requires<RenderVoxelsInfo>
 	{
 		public readonly string Sequence = "idle";
 
-		public object Create(ActorInitializer init) { return new WithVoxelBody(init.Self, this); }
+		[Desc("Defines if the Voxel should have a shadow.")]
+		public readonly bool ShowShadow = true;
 
-		public IEnumerable<VoxelAnimation> RenderPreviewVoxels(ActorPreviewInitializer init, RenderVoxelsInfo rv, string image, WRot orientation, int facings, PaletteReference p)
+		public override object Create(ActorInitializer init) { return new WithVoxelBody(init.Self, this); }
+
+		public IEnumerable<ModelAnimation> RenderPreviewVoxels(
+			ActorPreviewInitializer init, RenderVoxelsInfo rv, string image, Func<WRot> orientation, int facings, PaletteReference p)
 		{
-			var body = init.Actor.Traits.Get<BodyOrientationInfo>();
-			var voxel = VoxelProvider.GetVoxel(image, "idle");
-			var bodyOrientation = new[] { body.QuantizeOrientation(orientation, facings) };
-			yield return new VoxelAnimation(voxel, () => WVec.Zero,
-				() => bodyOrientation,
-				() => false, () => 0);
+			var body = init.Actor.TraitInfo<BodyOrientationInfo>();
+			var model = init.World.ModelCache.GetModelSequence(image, Sequence);
+			yield return new ModelAnimation(model, () => WVec.Zero,
+				() => new[] { body.QuantizeOrientation(orientation(), facings) },
+				() => false, () => 0, ShowShadow);
 		}
-
-		public int QuantizedBodyFacings(ActorInfo ai, SequenceProvider sequenceProvider, string race) { return 0; }
 	}
 
-	public class WithVoxelBody : IAutoSelectionSize
+	public class WithVoxelBody : ConditionalTrait<WithVoxelBodyInfo>, IAutoMouseBounds
 	{
-		int2 size;
+		readonly ModelAnimation modelAnimation;
+		readonly RenderVoxels rv;
 
 		public WithVoxelBody(Actor self, WithVoxelBodyInfo info)
+			: base(info)
 		{
-			var body = self.Trait<IBodyOrientation>();
-			var rv = self.Trait<RenderVoxels>();
+			var body = self.Trait<BodyOrientation>();
+			rv = self.Trait<RenderVoxels>();
 
-			var voxel = VoxelProvider.GetVoxel(rv.Image, info.Sequence);
-			rv.Add(new VoxelAnimation(voxel, () => WVec.Zero,
+			var model = self.World.ModelCache.GetModelSequence(rv.Image, info.Sequence);
+			modelAnimation = new ModelAnimation(model, () => WVec.Zero,
 				() => new[] { body.QuantizeOrientation(self, self.Orientation) },
-				() => false, () => 0));
+				() => IsTraitDisabled, () => 0, info.ShowShadow);
 
-			// Selection size
-			var rvi = self.Info.Traits.Get<RenderVoxelsInfo>();
-			var s = (int)(rvi.Scale * voxel.Size.Aggregate(Math.Max));
-			size = new int2(s, s);
+			rv.Add(modelAnimation);
 		}
 
-		public int2 SelectionSize(Actor self) { return size; }
+		Rectangle IAutoMouseBounds.AutoMouseoverBounds(Actor self, WorldRenderer wr)
+		{
+			return modelAnimation.ScreenBounds(self.CenterPosition, wr, rv.Info.Scale);
+		}
 	}
 }

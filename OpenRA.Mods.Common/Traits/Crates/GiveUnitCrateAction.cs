@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -19,11 +20,11 @@ namespace OpenRA.Mods.Common.Traits
 	class GiveUnitCrateActionInfo : CrateActionInfo
 	{
 		[Desc("The list of units to spawn.")]
-		[ActorReference]
+		[ActorReference, FieldLoader.Require]
 		public readonly string[] Units = { };
 
-		[Desc("Races that are allowed to trigger this action")]
-		public readonly string[] ValidRaces = { };
+		[Desc("Factions that are allowed to trigger this action.")]
+		public readonly HashSet<string> ValidFactions = new HashSet<string>();
 
 		[Desc("Override the owner of the newly spawned unit: e.g. Creeps or Neutral")]
 		public readonly string Owner = null;
@@ -48,7 +49,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool CanGiveTo(Actor collector)
 		{
-			if (info.ValidRaces.Any() && !info.ValidRaces.Contains(collector.Owner.Country.Race))
+			if (collector.Owner.NonCombatant)
+				return false;
+
+			if (info.ValidFactions.Any() && !info.ValidFactions.Contains(collector.Owner.Faction.InternalName))
 				return false;
 
 			foreach (string unit in info.Units)
@@ -93,11 +97,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		IEnumerable<CPos> GetSuitableCells(CPos near, string unitName)
 		{
-			var mi = self.World.Map.Rules.Actors[unitName].Traits.Get<MobileInfo>();
+			var ip = self.World.Map.Rules.Actors[unitName].TraitInfo<IPositionableInfo>();
 
 			for (var i = -1; i < 2; i++)
 				for (var j = -1; j < 2; j++)
-					if (mi.CanEnterCell(self.World, self, near + new CVec(i, j)))
+					if (ip.CanEnterCell(self.World, self, near + new CVec(i, j)))
 						yield return near + new CVec(i, j);
 		}
 

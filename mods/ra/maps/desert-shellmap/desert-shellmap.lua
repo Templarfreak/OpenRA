@@ -1,16 +1,24 @@
+--[[
+   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   This file is part of OpenRA, which is free software. It is made
+   available to you under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of
+   the License, or (at your option) any later version. For more
+   information, see COPYING.
+]]
 if DateTime.IsHalloween then
 	UnitTypes = { "ant", "ant", "ant" }
 	BeachUnitTypes = { "ant", "ant" }
 	ProxyType = "powerproxy.parazombies"
 	ProducedUnitTypes =
 	{
-		{ AlliedBarracks1, { "e1", "e3" } },
-		{ AlliedBarracks2, { "e1", "e3" } },
-		{ SovietBarracks1, { "ant" } },
-		{ SovietBarracks2, { "ant" } },
-		{ SovietBarracks3, { "ant" } },
-		{ AlliedWarFactory1, { "jeep", "1tnk", "2tnk", "arty", "ctnk" } },
-		{ SovietWarFactory1, { "3tnk", "4tnk", "v2rl", "ttnk", "apc" } }
+		{ factory = AlliedBarracks1, types = { "e1", "e3" } },
+		{ factory = AlliedBarracks2, types = { "e1", "e3" } },
+		{ factory = SovietBarracks1, types = { "ant" } },
+		{ factory = SovietBarracks2, types = { "ant" } },
+		{ factory = SovietBarracks3, types = { "ant" } },
+		{ factory = AlliedWarFactory1, types = { "jeep", "1tnk", "2tnk", "arty", "ctnk" } },
+		{ factory = SovietWarFactory1, types = { "3tnk", "4tnk", "v2rl", "ttnk", "apc" } }
 	}
 else
 	UnitTypes = { "3tnk", "ftrk", "ttnk", "apc" }
@@ -18,13 +26,13 @@ else
 	ProxyType = "powerproxy.paratroopers"
 	ProducedUnitTypes =
 	{
-		{ AlliedBarracks1, { "e1", "e3" } },
-		{ AlliedBarracks2, { "e1", "e3" } },
-		{ SovietBarracks1, { "dog", "e1", "e2", "e3", "e4", "shok" } },
-		{ SovietBarracks2, { "dog", "e1", "e2", "e3", "e4", "shok" } },
-		{ SovietBarracks3, { "dog", "e1", "e2", "e3", "e4", "shok" } },
-		{ AlliedWarFactory1, { "jeep", "1tnk", "2tnk", "arty", "ctnk" } },
-		{ SovietWarFactory1, { "3tnk", "4tnk", "v2rl", "ttnk", "apc" } }
+		{ factory = AlliedBarracks1, types = { "e1", "e3" } },
+		{ factory = AlliedBarracks2, types = { "e1", "e3" } },
+		{ factory = SovietBarracks1, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
+		{ factory = SovietBarracks2, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
+		{ factory = SovietBarracks3, types = { "dog", "e1", "e2", "e3", "e4", "shok" } },
+		{ factory = AlliedWarFactory1, types = { "jeep", "1tnk", "2tnk", "arty", "ctnk" } },
+		{ factory = SovietWarFactory1, types = { "3tnk", "4tnk", "v2rl", "ttnk", "apc" } }
 	}
 end
 
@@ -33,12 +41,23 @@ HelicopterUnitTypes = { "e1", "e1", "e1", "e1", "e3", "e3" };
 
 ParadropWaypoints = { Paradrop1, Paradrop2, Paradrop3, Paradrop4, Paradrop5, Paradrop6, Paradrop7, Paradrop8 }
 
+Mig1Waypoints = { Mig11, Mig12, Mig13, Mig14 }
+Mig2Waypoints = { Mig21, Mig22, Mig23, Mig24 }
+
 BindActorTriggers = function(a)
 	if a.HasProperty("Hunt") then
 		if a.Owner == allies then
-			Trigger.OnIdle(a, a.Hunt)
+			Trigger.OnIdle(a, function(a)
+				if a.IsInWorld then
+					a.Hunt()
+				end
+			end)
 		else
-			Trigger.OnIdle(a, function(a) a.AttackMove(AlliedTechnologyCenter.Location) end)
+			Trigger.OnIdle(a, function(a)
+				if a.IsInWorld then
+					a.AttackMove(AlliedTechnologyCenter.Location)
+				end
+			end)
 		end
 	end
 
@@ -58,6 +77,18 @@ SendSovietUnits = function(entryCell, unitTypes, interval)
 		BindActorTriggers(unit)
 	end)
 	Trigger.OnAllKilled(units, function() SendSovietUnits(entryCell, unitTypes, interval) end)
+end
+
+SendMigs = function(waypoints)
+	local migEntryPath = { waypoints[1].Location, waypoints[2].Location }
+	local migs = Reinforcements.Reinforce(soviets, { "mig" }, migEntryPath, 4)
+	Utils.Do(migs, function(mig)
+		mig.Move(waypoints[3].Location)
+		mig.Move(waypoints[4].Location)
+		mig.Destroy()
+	end)
+
+	Trigger.AfterDelay(DateTime.Seconds(40), function() SendMigs(waypoints) end)
 end
 
 ShipAlliedUnits = function()
@@ -94,9 +125,9 @@ ParadropSovietUnits = function()
 end
 
 ProduceUnits = function(t)
-	local factory = t[1]
+	local factory = t.factory
 	if not factory.IsDead then
-		local unitType = t[2][Utils.RandomInteger(1, #t[2] + 1)]
+		local unitType = t.types[Utils.RandomInteger(1, #t.types + 1)]
 		factory.Wait(Actor.BuildTime(unitType))
 		factory.Produce(unitType)
 		factory.CallFunc(function() ProduceUnits(t) end)
@@ -105,16 +136,16 @@ end
 
 SetupAlliedUnits = function()
 	Utils.Do(Map.NamedActors, function(a)
-		if a.Owner == allies and a.HasProperty("AcceptsUpgrade") and a.AcceptsUpgrade("unkillable") then
-			a.GrantUpgrade("unkillable")
+		if a.Owner == allies and a.HasProperty("AcceptsCondition") and a.AcceptsCondition("unkillable") then
+			a.GrantCondition("unkillable")
 			a.Stance = "Defend"
 		end
 	end)
 end
 
 SetupFactories = function()
-	Utils.Do(ProducedUnitTypes, function(pair)
-		Trigger.OnProduction(pair[1], function(_, a) BindActorTriggers(a) end)
+	Utils.Do(ProducedUnitTypes, function(production)
+		Trigger.OnProduction(production.factory, function(_, a) BindActorTriggers(a) end)
 	end)
 end
 
@@ -155,6 +186,9 @@ WorldLoaded = function()
 	Trigger.AfterDelay(DateTime.Seconds(5), ChronoshiftAlliedUnits)
 	Utils.Do(ProducedUnitTypes, ProduceUnits)
 
+	Trigger.AfterDelay(DateTime.Seconds(30), function() SendMigs(Mig1Waypoints) end)
+	Trigger.AfterDelay(DateTime.Seconds(30), function() SendMigs(Mig2Waypoints) end)
+
 	SendSovietUnits(Entry1.Location, UnitTypes, 50)
 	SendSovietUnits(Entry2.Location, UnitTypes, 50)
 	SendSovietUnits(Entry3.Location, UnitTypes, 50)
@@ -162,6 +196,4 @@ WorldLoaded = function()
 	SendSovietUnits(Entry5.Location, UnitTypes, 50)
 	SendSovietUnits(Entry6.Location, UnitTypes, 50)
 	SendSovietUnits(Entry7.Location, BeachUnitTypes, 15)
-
-	Media.PlayMusic()
 end

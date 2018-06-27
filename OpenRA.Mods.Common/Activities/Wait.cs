@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -16,13 +17,12 @@ namespace OpenRA.Mods.Common.Activities
 	public class Wait : Activity
 	{
 		int remainingTicks;
-		bool interruptable = true;
 
 		public Wait(int period) { remainingTicks = period; }
-		public Wait(int period, bool interruptable)
+		public Wait(int period, bool interruptible)
 		{
 			remainingTicks = period;
-			this.interruptable = interruptable;
+			IsInterruptible = interruptible;
 		}
 
 		public override Activity Tick(Actor self)
@@ -30,26 +30,25 @@ namespace OpenRA.Mods.Common.Activities
 			return (remainingTicks-- == 0) ? NextActivity : this;
 		}
 
-		public override void Cancel(Actor self)
+		public override bool Cancel(Actor self, bool keepQueue = false)
 		{
-			if (!interruptable)
-				return;
+			if (!base.Cancel(self, keepQueue))
+				return false;
 
 			remainingTicks = 0;
-			base.Cancel(self);
+			return true;
 		}
 	}
 
 	public class WaitFor : Activity
 	{
 		Func<bool> f;
-		bool interruptable = true;
 
 		public WaitFor(Func<bool> f) { this.f = f; }
-		public WaitFor(Func<bool> f, bool interruptable)
+		public WaitFor(Func<bool> f, bool interruptible)
 		{
 			this.f = f;
-			this.interruptable = interruptable;
+			IsInterruptible = interruptible;
 		}
 
 		public override Activity Tick(Actor self)
@@ -57,13 +56,13 @@ namespace OpenRA.Mods.Common.Activities
 			return (f == null || f()) ? NextActivity : this;
 		}
 
-		public override void Cancel(Actor self)
+		public override bool Cancel(Actor self, bool keepQueue = false)
 		{
-			if (!interruptable)
-				return;
+			if (!base.Cancel(self, keepQueue))
+				return false;
 
 			f = null;
-			base.Cancel(self);
+			return true;
 		}
 	}
 }

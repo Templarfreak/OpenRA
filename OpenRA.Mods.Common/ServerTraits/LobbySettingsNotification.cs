@@ -1,17 +1,19 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Mods.Common.Traits;
 using OpenRA.Network;
 using OpenRA.Server;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Server
 {
@@ -23,45 +25,24 @@ namespace OpenRA.Mods.Common.Server
 				return;
 
 			var defaults = new Session.Global();
-			FieldLoader.Load(defaults, Game.ModData.Manifest.LobbyDefaults);
+			LobbyCommands.LoadMapSettings(server, defaults, server.Map.Rules);
 
-			if (server.LobbyInfo.GlobalSettings.FragileAlliances != defaults.FragileAlliances)
-				server.SendOrderTo(conn, "Message", "Diplomacy Changes: {0}".F(server.LobbyInfo.GlobalSettings.FragileAlliances));
+			var options = server.Map.Rules.Actors["player"].TraitInfos<ILobbyOptions>()
+				.Concat(server.Map.Rules.Actors["world"].TraitInfos<ILobbyOptions>())
+				.SelectMany(t => t.LobbyOptions(server.Map.Rules));
 
-			if (server.LobbyInfo.GlobalSettings.AllowCheats != defaults.AllowCheats)
-				server.SendOrderTo(conn, "Message", "Allow Cheats: {0}".F(server.LobbyInfo.GlobalSettings.AllowCheats));
+			var optionNames = new Dictionary<string, string>();
+			foreach (var o in options)
+				optionNames[o.Id] = o.Name;
 
-			if (server.LobbyInfo.GlobalSettings.Shroud != defaults.Shroud)
-				server.SendOrderTo(conn, "Message", "Shroud: {0}".F(server.LobbyInfo.GlobalSettings.Shroud));
-
-			if (server.LobbyInfo.GlobalSettings.Fog != defaults.Fog)
-				server.SendOrderTo(conn, "Message", "Fog of war: {0}".F(server.LobbyInfo.GlobalSettings.Fog));
-
-			if (server.LobbyInfo.GlobalSettings.Crates != defaults.Crates)
-				server.SendOrderTo(conn, "Message", "Crates Appear: {0}".F(server.LobbyInfo.GlobalSettings.Crates));
-
-			if (server.LobbyInfo.GlobalSettings.Creeps != defaults.Creeps)
-				server.SendOrderTo(conn, "Message", "Creeps Spawn: {0}".F(server.LobbyInfo.GlobalSettings.Creeps));
-
-			if (server.LobbyInfo.GlobalSettings.AllyBuildRadius != defaults.AllyBuildRadius)
-				server.SendOrderTo(conn, "Message", "Build off Ally ConYards: {0}".F(server.LobbyInfo.GlobalSettings.AllyBuildRadius));
-
-			if (server.LobbyInfo.GlobalSettings.StartingUnitsClass != defaults.StartingUnitsClass)
+			foreach (var kv in server.LobbyInfo.GlobalSettings.LobbyOptions)
 			{
-				var startUnitsInfo = server.Map.Rules.Actors["world"].Traits.WithInterface<MPStartUnitsInfo>();
-				var selectedClass = startUnitsInfo.Where(u => u.Class == server.LobbyInfo.GlobalSettings.StartingUnitsClass).Select(u => u.ClassName).FirstOrDefault();
-				var className = selectedClass != null ? selectedClass : server.LobbyInfo.GlobalSettings.StartingUnitsClass;
-				server.SendOrderTo(conn, "Message", "Starting Units: {0}".F(className));
+				Session.LobbyOptionState def;
+				string optionName;
+				if (!defaults.LobbyOptions.TryGetValue(kv.Key, out def) || kv.Value.Value != def.Value)
+					if (optionNames.TryGetValue(kv.Key, out optionName))
+						server.SendOrderTo(conn, "Message", optionName + ": " + kv.Value.Value);
 			}
-
-			if (server.LobbyInfo.GlobalSettings.StartingCash != defaults.StartingCash)
-				server.SendOrderTo(conn, "Message", "Starting Cash: ${0}".F(server.LobbyInfo.GlobalSettings.StartingCash));
-
-			if (server.LobbyInfo.GlobalSettings.TechLevel != defaults.TechLevel)
-				server.SendOrderTo(conn, "Message", "Tech Level: {0}".F(server.LobbyInfo.GlobalSettings.TechLevel));
-
-			if (server.LobbyInfo.GlobalSettings.ShortGame != defaults.ShortGame)
-				server.SendOrderTo(conn, "Message", "Short Game: {0}".F(server.LobbyInfo.GlobalSettings.ShortGame));
 		}
 	}
 }

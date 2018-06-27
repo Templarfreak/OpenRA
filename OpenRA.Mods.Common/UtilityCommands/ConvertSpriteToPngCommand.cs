@@ -1,34 +1,40 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using OpenRA.FileFormats;
 using OpenRA.Graphics;
 
 namespace OpenRA.Mods.Common.UtilityCommands
 {
 	class ConvertSpriteToPngCommand : IUtilityCommand
 	{
-		public string Name { get { return "--png"; } }
+		string IUtilityCommand.Name { get { return "--png"; } }
+
+		bool IUtilityCommand.ValidateArguments(string[] args)
+		{
+			return args.Length >= 3;
+		}
 
 		[Desc("SPRITEFILE PALETTE [--noshadow] [--nopadding]",
 			  "Convert a shp/tmp/R8 to a series of PNGs, optionally removing shadow")]
-		public void Run(ModData modData, string[] args)
+		void IUtilityCommand.Run(Utility utility, string[] args)
 		{
+			// HACK: The engine code assumes that Game.modData is set.
+			var modData = Game.ModData = utility.ModData;
+
 			var src = args[1];
 			var shadowIndex = new int[] { };
 			if (args.Contains("--noshadow"))
@@ -41,7 +47,7 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 			var palette = new ImmutablePalette(args[2], shadowIndex);
 
-			var frames = SpriteLoader.GetFrames(src, modData.SpriteLoaders);
+			var frames = FrameLoader.GetFrames(File.OpenRead(src), modData.SpriteLoaders);
 
 			var usePadding = !args.Contains("--nopadding");
 			var count = 0;

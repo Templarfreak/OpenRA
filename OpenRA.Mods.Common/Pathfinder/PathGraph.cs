@@ -1,16 +1,20 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Pathfinder
 {
@@ -23,7 +27,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 		/// <summary>
 		/// Gets all the Connections for a given node in the graph
 		/// </summary>
-		ICollection<GraphConnection> GetConnections(CPos position);
+		List<GraphConnection> GetConnections(CPos position);
 
 		/// <summary>
 		/// Retrieves an object given a node in the graph
@@ -38,7 +42,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 		bool InReverse { get; set; }
 
-		Actor IgnoredActor { get; set; }
+		Actor IgnoreActor { get; set; }
 
 		World World { get; }
 
@@ -47,19 +51,29 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 	public struct GraphConnection
 	{
-		public readonly CPos Source;
+		public static readonly CostComparer ConnectionCostComparer = CostComparer.Instance;
+
+		public sealed class CostComparer : IComparer<GraphConnection>
+		{
+			public static readonly CostComparer Instance = new CostComparer();
+			CostComparer() { }
+			public int Compare(GraphConnection x, GraphConnection y)
+			{
+				return x.Cost.CompareTo(y.Cost);
+			}
+		}
+
 		public readonly CPos Destination;
 		public readonly int Cost;
 
-		public GraphConnection(CPos source, CPos destination, int cost)
+		public GraphConnection(CPos destination, int cost)
 		{
-			Source = source;
 			Destination = destination;
 			Cost = cost;
 		}
 	}
 
-	public class PathGraph : IGraph<CellInfo>
+	sealed class PathGraph : IGraph<CellInfo>
 	{
 		public Actor Actor { get; private set; }
 		public World World { get; private set; }
@@ -67,22 +81,35 @@ namespace OpenRA.Mods.Common.Pathfinder
 		public Func<CPos, int> CustomCost { get; set; }
 		public int LaneBias { get; set; }
 		public bool InReverse { get; set; }
-		public Actor IgnoredActor { get; set; }
+		public Actor IgnoreActor { get; set; }
 
 		readonly CellConditions checkConditions;
-		readonly MobileInfo mobileInfo;
-		CellLayer<CellInfo> cellInfo;
+		readonly LocomotorInfo locomotorInfo;
+		readonly LocomotorInfo.WorldMovementInfo worldMovementInfo;
+		readonly CellInfoLayerPool.PooledCellInfoLayer pooledLayer;
+		readonly bool checkTerrainHeight;
+		CellLayer<CellInfo> groundInfo;
 
-		public const int InvalidNode = int.MaxValue;
+		readonly Dictionary<byte, Pair<ICustomMovementLayer, CellLayer<CellInfo>>> customLayerInfo =
+			new Dictionary<byte, Pair<ICustomMovementLayer, CellLayer<CellInfo>>>();
 
-		public PathGraph(CellLayer<CellInfo> cellInfo, MobileInfo mobileInfo, Actor actor, World world, bool checkForBlocked)
+		public PathGraph(CellInfoLayerPool layerPool, LocomotorInfo li, Actor actor, World world, bool checkForBlocked)
 		{
-			this.cellInfo = cellInfo;
+			pooledLayer = layerPool.Get();
+			groundInfo = pooledLayer.GetLayer();
+			locomotorInfo = li;
+			var layers = world.GetCustomMovementLayers().Values
+				.Where(cml => cml.EnabledForActor(actor.Info, locomotorInfo));
+
+			foreach (var cml in layers)
+				customLayerInfo[cml.Index] = Pair.New(cml, pooledLayer.GetLayer());
+
 			World = world;
-			this.mobileInfo = mobileInfo;
+			worldMovementInfo = locomotorInfo.GetWorldMovementInfo(world);
 			Actor = actor;
 			LaneBias = 1;
 			checkConditions = checkForBlocked ? CellConditions.TransientActors : CellConditions.None;
+			checkTerrainHeight = world.Map.Grid.MaximumTerrainHeight > 0;
 		}
 
 		// Sets of neighbors for each incoming direction. These exclude the neighbors which are guaranteed
@@ -102,22 +129,41 @@ namespace OpenRA.Mods.Common.Pathfinder
 			new[] { new CVec(1, -1), new CVec(1, 0), new CVec(-1, 1), new CVec(0, 1), new CVec(1, 1) },
 		};
 
-		public ICollection<GraphConnection> GetConnections(CPos position)
+		public List<GraphConnection> GetConnections(CPos position)
 		{
-			var previousPos = cellInfo[position].PreviousPos;
+			var info = position.Layer == 0 ? groundInfo : customLayerInfo[position.Layer].Second;
+			var previousPos = info[position].PreviousPos;
 
 			var dx = position.X - previousPos.X;
 			var dy = position.Y - previousPos.Y;
 			var index = dy * 3 + dx + 4;
 
-			var validNeighbors = new LinkedList<GraphConnection>();
 			var directions = DirectedNeighbors[index];
+			var validNeighbors = new List<GraphConnection>(directions.Length);
 			for (var i = 0; i < directions.Length; i++)
 			{
 				var neighbor = position + directions[i];
 				var movementCost = GetCostToNode(neighbor, directions[i]);
-				if (movementCost != InvalidNode)
-					validNeighbors.AddLast(new GraphConnection(position, neighbor, movementCost));
+				if (movementCost != Constants.InvalidNode)
+					validNeighbors.Add(new GraphConnection(neighbor, movementCost));
+			}
+
+			if (position.Layer == 0)
+			{
+				foreach (var cli in customLayerInfo.Values)
+				{
+					var layerPosition = new CPos(position.X, position.Y, cli.First.Index);
+					var entryCost = cli.First.EntryMovementCost(Actor.Info, locomotorInfo, layerPosition);
+					if (entryCost != Constants.InvalidNode)
+						validNeighbors.Add(new GraphConnection(layerPosition, entryCost));
+				}
+			}
+			else
+			{
+				var layerPosition = new CPos(position.X, position.Y, 0);
+				var exitCost = customLayerInfo[position.Layer].First.ExitMovementCost(Actor.Info, locomotorInfo, layerPosition);
+				if (exitCost != Constants.InvalidNode)
+					validNeighbors.Add(new GraphConnection(layerPosition, exitCost));
 			}
 
 			return validNeighbors;
@@ -125,19 +171,11 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 		int GetCostToNode(CPos destNode, CVec direction)
 		{
-			int movementCost;
-			if (mobileInfo.CanEnterCell(
-				World as World,
-				Actor as Actor,
-				destNode,
-				out movementCost,
-				IgnoredActor as Actor,
-				checkConditions) && !(CustomBlock != null && CustomBlock(destNode)))
-			{
+			var movementCost = locomotorInfo.MovementCostToEnterCell(worldMovementInfo, Actor, destNode, IgnoreActor, checkConditions);
+			if (movementCost != int.MaxValue && !(CustomBlock != null && CustomBlock(destNode)))
 				return CalculateCellCost(destNode, direction, movementCost);
-			}
 
-			return InvalidNode;
+			return Constants.InvalidNode;
 		}
 
 		int CalculateCellCost(CPos neighborCPos, CVec direction, int movementCost)
@@ -148,9 +186,23 @@ namespace OpenRA.Mods.Common.Pathfinder
 				cellCost = (cellCost * 34) / 24;
 
 			if (CustomCost != null)
-				cellCost += CustomCost(neighborCPos);
+			{
+				var customCost = CustomCost(neighborCPos);
+				if (customCost == Constants.InvalidNode)
+					return Constants.InvalidNode;
 
-			// directional bonuses for smoother flow!
+				cellCost += customCost;
+			}
+
+			// Prevent units from jumping over height discontinuities
+			if (checkTerrainHeight && neighborCPos.Layer == 0)
+			{
+				var from = neighborCPos - direction;
+				if (Math.Abs(World.Map.Height[neighborCPos] - World.Map.Height[from]) > 1)
+					return Constants.InvalidNode;
+			}
+
+			// Directional bonuses for smoother flow!
 			if (LaneBias != 0)
 			{
 				var ux = neighborCPos.X + (InReverse ? 1 : 0) & 1;
@@ -166,33 +218,17 @@ namespace OpenRA.Mods.Common.Pathfinder
 			return cellCost;
 		}
 
-		bool disposed;
-		public void Dispose()
-		{
-			if (disposed)
-				return;
-
-			disposed = true;
-
-			CellInfoLayerManager.Instance.PutBackIntoPool(cellInfo);
-			cellInfo = null;
-
-			GC.SuppressFinalize(this);
-		}
-
-		~PathGraph() { Dispose(); }
-
 		public CellInfo this[CPos pos]
 		{
-			get
-			{
-				return cellInfo[pos];
-			}
+			get { return (pos.Layer == 0 ? groundInfo : customLayerInfo[pos.Layer].Second)[pos]; }
+			set { (pos.Layer == 0 ? groundInfo : customLayerInfo[pos.Layer].Second)[pos] = value; }
+		}
 
-			set
-			{
-				cellInfo[pos] = value;
-			}
+		public void Dispose()
+		{
+			groundInfo = null;
+			customLayerInfo.Clear();
+			pooledLayer.Dispose();
 		}
 	}
 }

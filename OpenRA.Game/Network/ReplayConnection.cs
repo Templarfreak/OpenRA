@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -21,12 +22,13 @@ namespace OpenRA.Network
 		class Chunk
 		{
 			public int Frame;
-			public List<Pair<int, byte[]>> Packets = new List<Pair<int, byte[]>>();
+			public Pair<int, byte[]>[] Packets;
 		}
 
 		Queue<Chunk> chunks = new Queue<Chunk>();
 		List<byte[]> sync = new List<byte[]>();
 		int ordersFrame;
+		Dictionary<int, int> lastClientsFrame = new Dictionary<int, int>();
 
 		public int LocalClientId { get { return 0; } }
 		public ConnectionState ConnectionState { get { return ConnectionState.Connected; } }
@@ -43,6 +45,8 @@ namespace OpenRA.Network
 			// to avoid issues with all immediate orders being resolved on the first tick.
 			using (var rs = File.OpenRead(replayFilename))
 			{
+				var packets = new List<Pair<int, byte[]>>();
+
 				var chunk = new Chunk();
 
 				while (rs.Position < rs.Length)
@@ -53,7 +57,11 @@ namespace OpenRA.Network
 					var packetLen = rs.ReadInt32();
 					var packet = rs.ReadBytes(packetLen);
 					var frame = BitConverter.ToInt32(packet, 0);
-					chunk.Packets.Add(Pair.New(client, packet));
+					packets.Add(Pair.New(client, packet));
+
+					if (frame != int.MaxValue &&
+						(!lastClientsFrame.ContainsKey(client) || frame > lastClientsFrame[client]))
+						lastClientsFrame[client] = frame;
 
 					if (packet.Length == 5 && packet[4] == 0xBF)
 						continue; // disconnect
@@ -75,10 +83,37 @@ namespace OpenRA.Network
 					{
 						// Regular order - finalize the chunk
 						chunk.Frame = frame;
+						chunk.Packets = packets.ToArray();
+						packets.Clear();
 						chunks.Enqueue(chunk);
 						chunk = new Chunk();
 
 						TickCount = Math.Max(TickCount, frame);
+					}
+				}
+
+				var lastClientToDisconnect = lastClientsFrame.MaxBy(kvp => kvp.Value).Key;
+
+				// 2nd parse : replace all disconnect packets without frame with real
+				// disconnect frame
+				// NOTE: to modify/remove if a reconnect feature is set
+				foreach (var tmpChunk in chunks)
+				{
+					foreach (var tmpPacketPair in tmpChunk.Packets)
+					{
+						var client = tmpPacketPair.First;
+
+						// Don't replace the final disconnection packet - we still want this to end the replay.
+						if (client == lastClientToDisconnect)
+							continue;
+
+						var packet = tmpPacketPair.Second;
+						if (packet.Length == 5 && packet[4] == 0xBF)
+						{
+							var lastClientFrame = lastClientsFrame[client];
+							var lastFramePacket = BitConverter.GetBytes(lastClientFrame);
+							Array.Copy(lastFramePacket, packet, lastFramePacket.Length);
+						}
 					}
 				}
 			}
@@ -92,10 +127,10 @@ namespace OpenRA.Network
 
 		public void SendSync(int frame, byte[] syncData)
 		{
-			var ms = new MemoryStream();
-			ms.Write(BitConverter.GetBytes(frame));
-			ms.Write(syncData);
-			sync.Add(ms.ToArray());
+			var ms = new MemoryStream(4 + syncData.Length);
+			ms.WriteArray(BitConverter.GetBytes(frame));
+			ms.WriteArray(syncData);
+			sync.Add(ms.GetBuffer());
 
 			// Store the current frame so Receive() can return the next chunk of orders.
 			ordersFrame = frame + LobbyInfo.GlobalSettings.OrderLatency;

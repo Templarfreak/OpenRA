@@ -49,23 +49,27 @@ proc:
 	idle:
 		Length: 6
 		Tick: 120
+		Offset: 2,4
 	damaged-idle:
 		Start: 30
 		Length: 6
 		Tick: 120
+		Offset: 2,4
 	dead:
 		Start: 60
 		Tick: 800
+		Offset: 2,4
 	make: procmake
 		Length: *
 		Tick: 80
+		Offset: 2,4
 	resources: proctwr
 		Length: 6
-		Offset: -32,-21
+		Offset: -30,-17
 	damaged-resources: proctwr
 		Start: 6
 		Length: 6
-		Offset: -32,-21
+		Offset: -30,-17
 	bib: bib2
 		UseTilesetExtension: true
 		Length: *
@@ -74,16 +78,21 @@ proc:
 
 silo:
 	idle:
-		Length: 5
 		Offset: 0,-1
 	damaged-idle:
 		Start: 5
-		Length: 5
 		Offset: 0,-1
 	dead:
 		Start: 10
 		Offset: 0,-1
 		Tick: 800
+	stages:
+		Length: 5
+		Offset: 0,-1
+	damaged-stages:
+		Start: 5
+		Length: 5
+		Offset: 0,-1
 	make: silomake
 		Length: *
 		Tick: 80
@@ -100,6 +109,8 @@ silo:
 		AddExtension: False
 
 hand:
+	Defaults:
+		Offset: 0,-8
 	idle:
 	damaged-idle:
 		Start: 1
@@ -112,17 +123,19 @@ hand:
 	bib: bib3
 		UseTilesetExtension: true
 		Length: *
+		Offset: 0,0
 	icon: handicnh.tem
 		AddExtension: False
+		Offset: 0,0
 
 pyle:
 	idle:
 		Length: 10
-		Tick: 100		
+		Tick: 100
 	damaged-idle:
 		Start: 10
 		Length: 10
-		Tick: 100		
+		Tick: 100
 	dead:
 		Start: 20
 		Tick: 800
@@ -136,9 +149,13 @@ pyle:
 		AddExtension: False
 
 weap:
+	Defaults:
+		Offset: 0,-12
 	idle:
+		ZOffset: -511
 	damaged-idle:
 		Start: 1
+		ZOffset: -511
 	dead:
 		Start: 2
 		Tick: 800
@@ -155,19 +172,21 @@ weap:
 	bib: bib2
 		UseTilesetExtension: true
 		Length: *
+		Offset: 0,0
 	icon: weapicnh.tem
 		AddExtension: False
+		Offset: 0,0
 
 afld:
 	idle:
 		Tick: 120
 		ZOffset: -1023
-	active:
-		Length: 16
-		Tick: 120
-		ZOffset: -1023
 	damaged-idle:
 		Start: 16
+		Tick: 120
+		ZOffset: -1023
+	active:
+		Length: 16
 		Tick: 120
 		ZOffset: -1023
 	damaged-active:
@@ -175,6 +194,13 @@ afld:
 		Length: 16
 		Tick: 120
 		ZOffset: -1023
+	idle-dish: afld_d
+		Length: 16
+		Tick: 160
+	damaged-idle-dish: afld_d
+		Start: 16
+		Length: 16
+		Tick: 160
 	dead:
 		Start: 32
 		ZOffset: -1023
@@ -242,7 +268,7 @@ hpad:
 	damaged-active:
 		Start: 8
 		Length: 6
-		Tick: 100		
+		Tick: 100
 		ZOffset: -1023
 	dead:
 		Start: 14
@@ -306,11 +332,17 @@ eye:
 		AddExtension: False
 
 tmpl:
+	Defaults:
+		Offset: 0,-12
 	idle:
 	damaged-idle:
 		Start: 5
 	active:
 		Length: 5
+		Tick: 200
+	smoke: atomdoor
+		Length: *
+		Offset: -1,-47
 	damaged-active:
 		Start: 5
 		Length: 5
@@ -323,10 +355,14 @@ tmpl:
 	bib: bib2
 		UseTilesetExtension: true
 		Length: *
+		Offset: 0,0
 	icon: tmplicnh.tem
 		AddExtension: False
+		Offset: 0,0
 
 obli:
+	Defaults:
+		Offset: 0,-12
 	idle:
 	damaged-idle:
 		Start: 4
@@ -353,6 +389,7 @@ obli:
 		Offset: -1,-3
 	icon: obliicnh.tem
 		AddExtension: False
+		Offset: 0,0
 
 brik:
 	idle:
@@ -398,15 +435,19 @@ wood:
 gun:
 	idle:
 		Facings: 32
+		UseClassicFacingFudge: True
 	recoil:
 		Start: 32
 		Facings: 32
+		UseClassicFacingFudge: True
 	damaged-idle:
 		Start: 64
 		Facings: 32
+		UseClassicFacingFudge: True
 	damaged-recoil:
 		Start: 96
 		Facings: 32
+		UseClassicFacingFudge: True
 	make: gunmake
 		Length: *
 		Tick: 80
@@ -425,7 +466,7 @@ gun:
 
 sam:
 	closed-idle:
-		Start:0
+		Start: 0
 	opening:
 		Start: 1
 		Length: 16
@@ -433,12 +474,13 @@ sam:
 	idle:
 		Start: 17
 		Facings: 32
+		UseClassicFacingFudge: True
 	closing:
 		Start: 50
 		Length: 14
 		Tick: 30
 	damaged-closed-idle:
-		Start:64
+		Start: 64
 	damaged-opening:
 		Start: 65
 		Length: 16
@@ -446,6 +488,7 @@ sam:
 	damaged-idle:
 		Start: 81
 		Facings: 32
+		UseClassicFacingFudge: True
 	damaged-closing:
 		Start: 114
 		Length: 14
@@ -469,8 +512,13 @@ gtwr:
 	dead:
 		Start: 2
 		Tick: 800
-	make: gtwrmake
-		Length: *
+	make:
+		Combine:
+			gtwrmake:
+				Length: 17
+			gtwrmake:
+				Start: 19
+		Length: 18
 		Tick: 80
 	muzzle: minigun
 		Length: 6
@@ -487,22 +535,19 @@ gtwr:
 		AddExtension: False
 
 atwr:
+	Defaults:
+		Offset: 0,-13
 	idle:
-		Offset: 0,-1
 	damaged-idle:
 		Start: 1
-		Offset: 0,-1
 	dead:
 		Start: 2
-		Offset: 0,-1
 		Tick: 800
 	make: atwrmake
 		Length: *
 		Tick: 80
-		Offset: 0,-1
 	muzzle: gunfire2
 		Length: *
-		Offset: 0,-1
 	bib: mbGTWR
 		UseTilesetExtension: true
 		TilesetOverrides:
@@ -513,6 +558,7 @@ atwr:
 		Offset: -3,0
 	icon: atwricnh.tem
 		AddExtension: False
+		Offset: 0,0
 
 hosp:
 	idle:

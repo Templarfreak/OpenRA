@@ -1,15 +1,15 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -20,10 +20,10 @@ namespace OpenRA.Mods.Common.Traits
 		public object Create(ActorInitializer init) { return new PlayerStatistics(init.Self); }
 	}
 
-	public class PlayerStatistics : ITick, IResolveOrder
+	public class PlayerStatistics : ITick, IResolveOrder, INotifyCreated
 	{
-		World world;
-		Player player;
+		PlayerResources resources;
+		PlayerExperience experience;
 
 		public int OrderCount;
 
@@ -31,7 +31,15 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
-				return player.PlayerActor.Trait<PlayerResources>().Earned - earnedAtBeginningOfMinute;
+				return resources != null ? resources.Earned - earnedAtBeginningOfMinute : 0;
+			}
+		}
+
+		public int Experience
+		{
+			get
+			{
+				return experience != null ? experience.Experience : 0;
 			}
 		}
 
@@ -47,23 +55,25 @@ namespace OpenRA.Mods.Common.Traits
 		public int BuildingsKilled;
 		public int BuildingsDead;
 
-		public PlayerStatistics(Actor self)
+		public PlayerStatistics(Actor self) { }
+
+		void INotifyCreated.Created(Actor self)
 		{
-			world = self.World;
-			player = self.Owner;
+			resources = self.TraitOrDefault<PlayerResources>();
+			experience = self.TraitOrDefault<PlayerExperience>();
 		}
 
 		void UpdateEarnedThisMinute()
 		{
 			EarnedSamples.Enqueue(EarnedThisMinute);
-			earnedAtBeginningOfMinute = player.PlayerActor.Trait<PlayerResources>().Earned;
+			earnedAtBeginningOfMinute = resources != null ? resources.Earned : 0;
 			if (EarnedSamples.Count > 100)
 				EarnedSamples.Dequeue();
 		}
 
-		public void Tick(Actor self)
+		void ITick.Tick(Actor self)
 		{
-			if (world.WorldTick % 1500 == 1)
+			if (self.World.WorldTick % 1500 == 1)
 				UpdateEarnedThisMinute();
 		}
 
@@ -100,27 +110,27 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class UpdatesPlayerStatistics : INotifyKilled
 	{
-		public void Killed(Actor self, AttackInfo e)
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
 			if (self.Owner.WinState != WinState.Undefined)
 				return;
 
 			var attackerStats = e.Attacker.Owner.PlayerActor.Trait<PlayerStatistics>();
 			var defenderStats = self.Owner.PlayerActor.Trait<PlayerStatistics>();
-			if (self.HasTrait<Building>())
+			if (self.Info.HasTraitInfo<BuildingInfo>())
 			{
 				attackerStats.BuildingsKilled++;
 				defenderStats.BuildingsDead++;
 			}
-			else if (self.HasTrait<IPositionable>())
+			else if (self.Info.HasTraitInfo<IPositionableInfo>())
 			{
 				attackerStats.UnitsKilled++;
 				defenderStats.UnitsDead++;
 			}
 
-			if (self.HasTrait<Valued>())
+			if (self.Info.HasTraitInfo<ValuedInfo>())
 			{
-				var cost = self.Info.Traits.Get<ValuedInfo>().Cost;
+				var cost = self.Info.TraitInfo<ValuedInfo>().Cost;
 				attackerStats.KillsCost += cost;
 				defenderStats.DeathsCost += cost;
 			}

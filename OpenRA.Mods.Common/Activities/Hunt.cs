@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -19,18 +20,15 @@ namespace OpenRA.Mods.Common.Activities
 	public class Hunt : Activity
 	{
 		readonly IEnumerable<Actor> targets;
+		readonly IMove move;
 
 		public Hunt(Actor self)
 		{
+			move = self.Trait<IMove>();
 			var attack = self.Trait<AttackBase>();
-			targets = self.World.Actors.Where(a => self != a && !a.IsDead && a.IsInWorld && a.AppearsHostileTo(self)
-				&& a.HasTrait<Huntable>() && IsTargetable(a, self) && attack.HasAnyValidWeapons(Target.FromActor(a)));
-		}
-
-		bool IsTargetable(Actor self, Actor viewer)
-		{
-			var targetable = self.TraitOrDefault<ITargetable>();
-			return targetable != null && targetable.TargetableBy(self, viewer);
+			targets = self.World.ActorsHavingTrait<Huntable>().Where(
+				a => self != a && !a.IsDead && a.IsInWorld && a.AppearsHostileTo(self)
+				&& a.IsTargetableBy(self) && attack.HasAnyValidWeapons(Target.FromActor(a)));
 		}
 
 		public override Activity Tick(Actor self)
@@ -42,8 +40,8 @@ namespace OpenRA.Mods.Common.Activities
 			if (target == null)
 				return this;
 
-			return Util.SequenceActivities(
-				new AttackMoveActivity(self, new Move(self, target.Location, WRange.FromCells(2))),
+			return ActivityUtils.SequenceActivities(
+				new AttackMoveActivity(self, move.MoveTo(target.Location, 2)),
 				new Wait(25),
 				this);
 		}

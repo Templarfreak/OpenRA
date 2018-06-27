@@ -1,12 +1,15 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
+
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.AI
 {
@@ -19,6 +22,9 @@ namespace OpenRA.Mods.Common.AI
 
 	class UnitsForProtectionAttackState : GroundStateBase, IState
 	{
+		public const int BackoffTicks = 4;
+		internal int Backoff = BackoffTicks;
+
 		public void Activate(Squad owner) { }
 
 		public void Tick(Squad owner)
@@ -26,9 +32,9 @@ namespace OpenRA.Mods.Common.AI
 			if (!owner.IsValid)
 				return;
 
-			if (!owner.TargetIsValid)
+			if (!owner.IsTargetValid)
 			{
-				owner.TargetActor = owner.Bot.FindClosestEnemy(owner.CenterPosition, WRange.FromCells(8));
+				owner.TargetActor = owner.Bot.FindClosestEnemy(owner.CenterPosition, WDist.FromCells(owner.Bot.Info.ProtectionScanRadius));
 
 				if (owner.TargetActor == null)
 				{
@@ -37,8 +43,22 @@ namespace OpenRA.Mods.Common.AI
 				}
 			}
 
-			foreach (var a in owner.Units)
-				owner.World.IssueOrder(new Order("AttackMove", a, false) { TargetLocation = owner.TargetActor.Location });
+			if (!owner.IsTargetVisible)
+			{
+				if (Backoff < 0)
+				{
+					owner.FuzzyStateMachine.ChangeState(owner, new UnitsForProtectionFleeState(), true);
+					Backoff = BackoffTicks;
+					return;
+				}
+
+				Backoff--;
+			}
+			else
+			{
+				foreach (var a in owner.Units)
+					owner.Bot.QueueOrder(new Order("AttackMove", a, Target.FromCell(owner.World, owner.TargetActor.Location), false));
+			}
 		}
 
 		public void Deactivate(Squad owner) { }

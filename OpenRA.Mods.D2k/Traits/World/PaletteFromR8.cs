@@ -1,16 +1,16 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System.Collections.Generic;
 using System.IO;
-using OpenRA.FileSystem;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -19,12 +19,17 @@ namespace OpenRA.Mods.D2k.Traits
 {
 	class PaletteFromR8Info : ITraitInfo
 	{
+		[FieldLoader.Require, PaletteDefinition]
 		[Desc("Internal palette name")]
 		public readonly string Name = null;
+
+		[FieldLoader.Require]
 		[Desc("Filename to load")]
 		public readonly string Filename = null;
+
 		[Desc("Palette byte offset")]
 		public readonly long Offset = 0;
+
 		public readonly bool AllowModifiers = true;
 		public readonly bool InvertColor = false;
 
@@ -39,7 +44,7 @@ namespace OpenRA.Mods.D2k.Traits
 		public void LoadPalettes(WorldRenderer wr)
 		{
 			var colors = new uint[Palette.Size];
-			using (var s = GlobalFileSystem.Open(info.Filename))
+			using (var s = wr.World.Map.Open(info.Filename))
 			{
 				s.Seek(info.Offset, SeekOrigin.Begin);
 

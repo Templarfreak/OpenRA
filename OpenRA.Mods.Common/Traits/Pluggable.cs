@@ -1,69 +1,106 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Primitives;
+using OpenRA.Support;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class PluggableInfo : ITraitInfo, Requires<UpgradeManagerInfo>
+	public class PluggableInfo : ITraitInfo, UsesInit<PlugsInit>
 	{
 		[Desc("Footprint cell offset where a plug can be placed.")]
 		public readonly CVec Offset = CVec.Zero;
 
-		[FieldLoader.LoadUsing("LoadUpgrades")]
-		[Desc("Upgrades to grant for each accepted plug type.")]
-		public readonly Dictionary<string, string[]> Upgrades = null;
+		[FieldLoader.Require]
+		[Desc("Conditions to grant for each accepted plug type.",
+			"Key is the plug type.",
+			"Value is the condition that is granted when the plug is enabled.")]
+		public readonly Dictionary<string, string> Conditions = null;
 
-		static object LoadUpgrades(MiniYaml y)
+		[Desc("Requirements for accepting a plug type.",
+			"Key is the plug type that the requirements applies to.",
+			"Value is the condition expression defining the requirements to place the plug.")]
+		public readonly Dictionary<string, BooleanExpression> Requirements = new Dictionary<string, BooleanExpression>();
+
+		[GrantedConditionReference]
+		public IEnumerable<string> LinterConditions { get { return Conditions.Values; } }
+
+		[ConsumedConditionReference]
+		public IEnumerable<string> ConsumedConditions
 		{
-			MiniYaml upgrades;
-
-			if (!y.ToDictionary().TryGetValue("Upgrades", out upgrades))
-				return new Dictionary<string, string[]>();
-
-			return upgrades.Nodes.ToDictionary(
-				kv => kv.Key,
-				kv => FieldLoader.GetValue<string[]>("(value)", kv.Value.Value));
+			get { return Requirements.Values.SelectMany(r => r.Variables).Distinct(); }
 		}
 
-		public object Create(ActorInitializer init) { return new Pluggable(init.Self, this); }
+		public object Create(ActorInitializer init) { return new Pluggable(init, this); }
 	}
 
-	public class Pluggable
+	public class Pluggable : IObservesVariables, INotifyCreated
 	{
 		public readonly PluggableInfo Info;
-		readonly UpgradeManager upgradeManager;
+
+		readonly string initialPlug;
+		ConditionManager conditionManager;
+		int conditionToken = ConditionManager.InvalidConditionToken;
+		Dictionary<string, bool> plugTypesAvailability = null;
+
 		string active;
 
-		public Pluggable(Actor self, PluggableInfo info)
+		public Pluggable(ActorInitializer init, PluggableInfo info)
 		{
 			Info = info;
-			upgradeManager = self.Trait<UpgradeManager>();
+
+			var plugInit = init.Contains<PlugsInit>() ? init.Get<PlugsInit, Dictionary<CVec, string>>() : new Dictionary<CVec, string>();
+			if (plugInit.ContainsKey(Info.Offset))
+				initialPlug = plugInit[Info.Offset];
+
+			if (info.Requirements.Count > 0)
+			{
+				plugTypesAvailability = new Dictionary<string, bool>();
+				foreach (var plug in info.Requirements)
+					plugTypesAvailability[plug.Key] = true;
+			}
+		}
+
+		void INotifyCreated.Created(Actor self)
+		{
+			conditionManager = self.TraitOrDefault<ConditionManager>();
+
+			if (!string.IsNullOrEmpty(initialPlug))
+				EnablePlug(self, initialPlug);
 		}
 
 		public bool AcceptsPlug(Actor self, string type)
 		{
-			return active == null && Info.Upgrades.ContainsKey(type);
+			if (!Info.Conditions.ContainsKey(type))
+				return false;
+
+			if (!Info.Requirements.ContainsKey(type))
+				return active == null;
+
+			return plugTypesAvailability[type];
 		}
 
 		public void EnablePlug(Actor self, string type)
 		{
-			string[] upgrades;
-			if (!Info.Upgrades.TryGetValue(type, out upgrades))
+			string condition;
+			if (!Info.Conditions.TryGetValue(type, out condition))
 				return;
 
-			foreach (var u in upgrades)
-				upgradeManager.GrantUpgrade(self, u, this);
+			if (conditionToken != ConditionManager.InvalidConditionToken)
+				conditionManager.RevokeCondition(self, conditionToken);
 
+			conditionToken = conditionManager.GrantCondition(self, condition);
 			active = type;
 		}
 
@@ -72,8 +109,27 @@ namespace OpenRA.Mods.Common.Traits
 			if (type != active)
 				return;
 
-			foreach (var u in Info.Upgrades[type])
-				upgradeManager.RevokeUpgrade(self, u, this);
+			if (conditionToken != ConditionManager.InvalidConditionToken)
+				conditionToken = conditionManager.RevokeCondition(self, conditionToken);
+
+			active = null;
 		}
+
+		IEnumerable<VariableObserver> IObservesVariables.GetVariableObservers()
+		{
+			foreach (var req in Info.Requirements)
+				yield return new VariableObserver(
+					(self, variables) => plugTypesAvailability[req.Key] = req.Value.Evaluate(variables),
+					req.Value.Variables);
+		}
+	}
+
+	public class PlugsInit : IActorInit<Dictionary<CVec, string>>
+	{
+		[DictionaryFromYamlKey]
+		readonly Dictionary<CVec, string> value = new Dictionary<CVec, string>();
+		public PlugsInit() { }
+		public PlugsInit(Dictionary<CVec, string> init) { value = init; }
+		public Dictionary<CVec, string> Value(World world) { return value; }
 	}
 }

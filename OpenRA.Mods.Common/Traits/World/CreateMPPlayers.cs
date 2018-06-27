@@ -1,13 +1,16 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Network;
 using OpenRA.Traits;
@@ -19,42 +22,55 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class CreateMPPlayers : ICreatePlayers
 	{
-		public void CreatePlayers(World w)
+		void ICreatePlayers.CreatePlayers(World w)
 		{
 			var players = new MapPlayers(w.Map.PlayerDefinitions).Players;
+			var worldPlayers = new List<Player>();
+			var worldOwnerFound = false;
 
 			// Create the unplayable map players -- neutral, shellmap, scripted, etc.
 			foreach (var kv in players.Where(p => !p.Value.Playable))
 			{
-				var player = new Player(w, null, null, kv.Value);
-				w.AddPlayer(player);
+				var player = new Player(w, null, kv.Value);
+				worldPlayers.Add(player);
+
 				if (kv.Value.OwnsWorld)
-					w.WorldActor.Owner = player;
+				{
+					worldOwnerFound = true;
+					w.SetWorldOwner(player);
+				}
 			}
 
-			// Create the players which are bound through slots.
+			if (!worldOwnerFound)
+				throw new InvalidOperationException("Map {0} does not define a player actor owning the world.".F(w.Map.Title));
+
+			Player localPlayer = null;
+
+			// Create the regular playable players.
 			foreach (var kv in w.LobbyInfo.Slots)
 			{
 				var client = w.LobbyInfo.ClientInSlot(kv.Key);
 				if (client == null)
 					continue;
 
-				var player = new Player(w, client, kv.Value, players[kv.Value.PlayerReference]);
-				w.AddPlayer(player);
+				var player = new Player(w, client, players[kv.Value.PlayerReference]);
+				worldPlayers.Add(player);
 
 				if (client.Index == Game.LocalClientId)
-					w.SetLocalPlayer(player.InternalName);
+					localPlayer = player;
 			}
 
-			// create a player that is allied with everyone for shared observer shroud
-			w.AddPlayer(new Player(w, null, null, new PlayerReference
+			// Create a player that is allied with everyone for shared observer shroud.
+			worldPlayers.Add(new Player(w, null, new PlayerReference
 			{
 				Name = "Everyone",
 				NonCombatant = true,
 				Spectating = true,
-				Race = "Random",
-				Allies = w.Players.Where(p => !p.NonCombatant && p.Playable).Select(p => p.InternalName).ToArray()
+				Faction = "Random",
+				Allies = worldPlayers.Where(p => !p.NonCombatant && p.Playable).Select(p => p.InternalName).ToArray()
 			}));
+
+			w.SetPlayers(worldPlayers, localPlayer);
 
 			foreach (var p in w.Players)
 				foreach (var q in w.Players)

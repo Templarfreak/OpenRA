@@ -1,102 +1,75 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
-using OpenRA.GameRules;
 using OpenRA.Traits;
 
 namespace OpenRA.Test
 {
+	interface IMock : ITraitInfo { }
+	class MockTraitInfo : ITraitInfo { public object Create(ActorInitializer init) { return null; } }
+	class MockInheritInfo : MockTraitInfo { }
+	class MockAInfo : MockInheritInfo, IMock { }
+	class MockBInfo : MockTraitInfo, Requires<MockAInfo>, Requires<IMock>, Requires<MockInheritInfo> { }
+	class MockCInfo : MockTraitInfo, Requires<MockBInfo> { }
+	class MockDInfo : MockTraitInfo, Requires<MockEInfo> { }
+	class MockEInfo : MockTraitInfo, Requires<MockFInfo> { }
+	class MockFInfo : MockTraitInfo, Requires<MockDInfo> { }
+
 	[TestFixture]
 	public class ActorInfoTest
 	{
-		ActorInfo actorInfo;
-		Dictionary<string, MiniYaml> allUnits;
-
-		interface IMock : ITraitInfo { }
-		class MockTrait : ITraitInfo { public object Create(ActorInitializer init) { return null; } }
-		class MockInherit : MockTrait { }
-		class MockA : MockInherit, IMock { }
-		class MockB : MockTrait, Requires<MockA>, Requires<IMock>, Requires<MockInherit> { }
-		class MockC : MockTrait, Requires<MockB> { }
-		class MockD : MockTrait, Requires<MockE> { }
-		class MockE : MockTrait, Requires<MockF> { }
-		class MockF : MockTrait, Requires<MockD> { }
-
-		[SetUp]
-		public void SetUp()
+		[TestCase(TestName = "Trait ordering sorts in dependency order correctly")]
+		public void TraitOrderingSortsCorrectly()
 		{
-			allUnits = new Dictionary<string, MiniYaml>();
-			actorInfo = new ActorInfo("", new MiniYaml(""), allUnits);
-		}
+			var unorderedTraits = new ITraitInfo[] { new MockBInfo(), new MockCInfo(), new MockAInfo(), new MockBInfo() };
+			var actorInfo = new ActorInfo("test", unorderedTraits);
+			var orderedTraits = actorInfo.TraitsInConstructOrder().ToArray();
 
-		[TestCase(TestName = "Sort traits in order of dependency")]
-		public void TraitsInConstructOrderA()
-		{
-			actorInfo.Traits.Add(new MockC());
-			actorInfo.Traits.Add(new MockB());
-			actorInfo.Traits.Add(new MockA());
+			CollectionAssert.AreEquivalent(unorderedTraits, orderedTraits);
 
-			var i = new List<ITraitInfo>(actorInfo.TraitsInConstructOrder());
-
-			Assert.That(i[0], Is.InstanceOf<MockA>());
-			Assert.That(i[1], Is.InstanceOf<MockB>());
-			Assert.That(i[2], Is.InstanceOf<MockC>());
-		}
-
-		[TestCase(TestName = "Exception reports missing dependencies")]
-		public void TraitsInConstructOrderB()
-		{
-			actorInfo.Traits.Add(new MockB());
-			actorInfo.Traits.Add(new MockC());
-
-			try
+			for (var i = 0; i < orderedTraits.Length; i++)
 			{
-				var i = actorInfo.TraitsInConstructOrder();
-				throw new Exception("Exception not thrown!");
-			}
-			catch (Exception e)
-			{
-				Assert.That(e.Message, Is.StringContaining("MockA"));
-				Assert.That(e.Message, Is.StringContaining("MockB"));
-				Assert.That(e.Message, Is.StringContaining("MockC"));
-				Assert.That(e.Message, Is.StringContaining("MockInherit"), "Should recognize base classes");
-				Assert.That(e.Message, Is.StringContaining("IMock"), "Should recognize interfaces");
+				var traitTypesThatMustOccurBeforeThisTrait = ActorInfo.PrerequisitesOf(orderedTraits[i]);
+				var traitTypesThatOccurAfterThisTrait = orderedTraits.Skip(i + 1).Select(ti => ti.GetType());
+				var traitTypesThatShouldOccurEarlier = traitTypesThatOccurAfterThisTrait.Intersect(traitTypesThatMustOccurBeforeThisTrait);
+				CollectionAssert.IsEmpty(traitTypesThatShouldOccurEarlier, "Dependency order has not been satisfied.");
 			}
 		}
 
-		[TestCase(TestName = "Exception reports cyclic dependencies")]
-		public void TraitsInConstructOrderC()
+		[TestCase(TestName = "Trait ordering exception reports missing dependencies")]
+		public void TraitOrderingReportsMissingDependencies()
 		{
-			actorInfo.Traits.Add(new MockD());
-			actorInfo.Traits.Add(new MockE());
-			actorInfo.Traits.Add(new MockF());
+			var actorInfo = new ActorInfo("test", new MockBInfo(), new MockCInfo());
+			var ex = Assert.Throws<YamlException>(() => actorInfo.TraitsInConstructOrder());
 
-			try
-			{
-				var i = actorInfo.TraitsInConstructOrder();
-				throw new Exception("Exception not thrown!");
-			}
-			catch (Exception e)
-			{
-				var count = (
-					new Regex("MockD").Matches(e.Message).Count +
-					new Regex("MockE").Matches(e.Message).Count +
-					new Regex("MockF").Matches(e.Message).Count) / 3.0;
+			StringAssert.Contains(typeof(MockAInfo).Name, ex.Message, "Exception message did not report a missing dependency.");
+			StringAssert.Contains(typeof(MockBInfo).Name, ex.Message, "Exception message did not report a missing dependency.");
+			StringAssert.Contains(typeof(MockCInfo).Name, ex.Message, "Exception message did not report a missing dependency.");
+			StringAssert.Contains(typeof(MockInheritInfo).Name, ex.Message, "Exception message did not report a missing dependency (from a base class).");
+			StringAssert.Contains(typeof(IMock).Name, ex.Message, "Exception message did not report a missing dependency (from an interface).");
+		}
 
-				Assert.That(count, Is.EqualTo(Math.Floor(count)), "Should be symmetrical");
-			}
+		[TestCase(TestName = "Trait ordering exception reports cyclic dependencies")]
+		public void TraitOrderingReportsCyclicDependencies()
+		{
+			var actorInfo = new ActorInfo("test", new MockDInfo(), new MockEInfo(), new MockFInfo());
+			var ex = Assert.Throws<YamlException>(() => actorInfo.TraitsInConstructOrder());
+
+			StringAssert.Contains(typeof(MockDInfo).Name, ex.Message, "Exception message should report all cyclic dependencies.");
+			StringAssert.Contains(typeof(MockEInfo).Name, ex.Message, "Exception message should report all cyclic dependencies.");
+			StringAssert.Contains(typeof(MockFInfo).Name, ex.Message, "Exception message should report all cyclic dependencies.");
 		}
 	}
 }

@@ -1,16 +1,17 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.AI
@@ -56,7 +57,7 @@ namespace OpenRA.Mods.Common.AI
 		}
 
 		/// <summary>Evaluates the attractiveness of a position according to all considerations</summary>
-		public int GetAttractiveness(WPos pos, Player firedBy)
+		public int GetAttractiveness(WPos pos, Player firedBy, FrozenActorLayer frozenLayer)
 		{
 			var answer = 0;
 			var world = firedBy.World;
@@ -67,11 +68,21 @@ namespace OpenRA.Mods.Common.AI
 
 			foreach (var consideration in Considerations)
 			{
-				var radiusToUse = new WRange(consideration.CheckRadius.Range);
+				var radiusToUse = new WDist(consideration.CheckRadius.Length);
 
 				var checkActors = world.FindActorsInCircle(pos, radiusToUse);
 				foreach (var scrutinized in checkActors)
 					answer += consideration.GetAttractiveness(scrutinized, firedBy.Stances[scrutinized.Owner], firedBy);
+
+				var delta = new WVec(radiusToUse, radiusToUse, WDist.Zero);
+				var tl = world.Map.CellContaining(pos - delta);
+				var br = world.Map.CellContaining(pos + delta);
+				var checkFrozen = frozenLayer.FrozenActorsInRegion(new CellRegion(world.Map.Grid.Type, tl, br));
+
+				// IsValid check filters out Frozen Actors that have not initizialized their Owner
+				foreach (var scrutinized in checkFrozen)
+					if (scrutinized.IsValid)
+						answer += consideration.GetAttractiveness(scrutinized, firedBy.Stances[scrutinized.Owner], firedBy);
 			}
 
 			return answer;
@@ -89,6 +100,18 @@ namespace OpenRA.Mods.Common.AI
 			return answer;
 		}
 
+		public int GetAttractiveness(IEnumerable<FrozenActor> frozenActors, Player firedBy)
+		{
+			var answer = 0;
+
+			foreach (var consideration in Considerations)
+				foreach (var scrutinized in frozenActors)
+					if (scrutinized.IsValid && scrutinized.Visible)
+						answer += consideration.GetAttractiveness(scrutinized, firedBy.Stances[scrutinized.Owner], firedBy);
+
+			return answer;
+		}
+
 		public int GetNextScanTime(HackyAI ai) { return ai.Random.Next(MinimumScanTimeInterval, MaximumScanTimeInterval); }
 
 		/// <summary>Makes up part of a decision, describing how to evaluate a target.</summary>
@@ -100,7 +123,7 @@ namespace OpenRA.Mods.Common.AI
 			public readonly Stance Against = Stance.Enemy;
 
 			[Desc("What types should the desired targets of this power be?")]
-			public readonly string[] Types = { "Air", "Ground", "Water" };
+			public readonly BitSet<TargetableType> Types = new BitSet<TargetableType>("Air", "Ground", "Water");
 
 			[Desc("How attractive are these types of targets?")]
 			public readonly int Attractiveness = 100;
@@ -109,7 +132,7 @@ namespace OpenRA.Mods.Common.AI
 			public readonly DecisionMetric TargetMetric = DecisionMetric.None;
 
 			[Desc("What is the check radius of this decision?")]
-			public readonly WRange CheckRadius = WRange.FromCells(5);
+			public readonly WDist CheckRadius = WDist.FromCells(5);
 
 			public Consideration(MiniYaml yaml)
 			{
@@ -125,24 +148,53 @@ namespace OpenRA.Mods.Common.AI
 				if (a == null)
 					return 0;
 
-				var targetable = a.TraitOrDefault<ITargetable>();
-				if (targetable == null)
+				if (!a.IsTargetableBy(firedBy.PlayerActor) || !a.CanBeViewedByPlayer(firedBy))
 					return 0;
 
-				if (!targetable.TargetableBy(a, firedBy.PlayerActor))
-					return 0;
-
-				if (Types.Intersect(targetable.TargetTypes).Any())
+				if (Types.Overlaps(a.GetEnabledTargetTypes()))
 				{
 					switch (TargetMetric)
 					{
 						case DecisionMetric.Value:
-							var valueInfo = a.Info.Traits.GetOrDefault<ValuedInfo>();
+							var valueInfo = a.Info.TraitInfoOrDefault<ValuedInfo>();
 							return (valueInfo != null) ? valueInfo.Cost * Attractiveness : 0;
 
 						case DecisionMetric.Health:
 							var health = a.TraitOrDefault<Health>();
-							return (health != null) ? (health.HP / health.MaxHP) * Attractiveness : 0;
+
+							if (health == null)
+								return 0;
+
+							// Cast to long to avoid overflow when multiplying by the health
+							return (int)((long)health.HP * Attractiveness / health.MaxHP);
+
+						default:
+							return Attractiveness;
+					}
+				}
+
+				return 0;
+			}
+
+			public int GetAttractiveness(FrozenActor fa, Stance stance, Player firedBy)
+			{
+				if (stance != Against)
+					return 0;
+
+				if (fa == null || !fa.IsValid || !fa.Visible)
+					return 0;
+
+				if (Types.Overlaps(fa.TargetTypes))
+				{
+					switch (TargetMetric)
+					{
+						case DecisionMetric.Value:
+							var valueInfo = fa.Info.TraitInfoOrDefault<ValuedInfo>();
+							return (valueInfo != null) ? valueInfo.Cost * Attractiveness : 0;
+
+						case DecisionMetric.Health:
+							var healthInfo = fa.Info.TraitInfoOrDefault<HealthInfo>();
+							return (healthInfo != null) ? fa.HP * Attractiveness / healthInfo.HP : 0;
 
 						default:
 							return Attractiveness;

@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -25,62 +26,101 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[Desc("Used together with ClassicProductionQueue.")]
-	public class PrimaryBuildingInfo : TraitInfo<PrimaryBuilding> { }
-
-	public class PrimaryBuilding : IIssueOrder, IResolveOrder, ITags
+	public class PrimaryBuildingInfo : ConditionalTraitInfo
 	{
-		bool isPrimary = false;
-		public bool IsPrimary { get { return isPrimary; } }
+		[GrantedConditionReference]
+		[Desc("The condition to grant to self while this is the primary building.")]
+		public readonly string PrimaryCondition = null;
 
-		public IEnumerable<TagType> GetTags()
+		[Desc("The speech notification to play when selecting a primary building.")]
+		public readonly string SelectionNotification = "PrimaryBuildingSelected";
+
+		[Desc("List of production queues for which the primary flag should be set.",
+			"If empty, the list given in the `Produces` property of the `Production` trait will be used.")]
+		public readonly string[] ProductionQueues = { };
+
+		public override object Create(ActorInitializer init) { return new PrimaryBuilding(init.Self, this); }
+	}
+
+	public class PrimaryBuilding : ConditionalTrait<PrimaryBuildingInfo>, INotifyCreated, IIssueOrder, IResolveOrder
+	{
+		const string OrderID = "PrimaryProducer";
+
+		ConditionManager conditionManager;
+		int primaryToken = ConditionManager.InvalidConditionToken;
+
+		public bool IsPrimary { get; private set; }
+
+		public PrimaryBuilding(Actor self, PrimaryBuildingInfo info)
+			: base(info) { }
+
+		void INotifyCreated.Created(Actor self)
 		{
-			yield return isPrimary ? TagType.Primary : TagType.None;
+			conditionManager = self.TraitOrDefault<ConditionManager>();
 		}
 
-		public IEnumerable<IOrderTargeter> Orders
+		IEnumerable<IOrderTargeter> IIssueOrder.Orders
 		{
-			get { yield return new DeployOrderTargeter("PrimaryProducer", 1); }
+			get
+			{
+				if (IsTraitDisabled)
+					yield break;
+
+				yield return new DeployOrderTargeter(OrderID, 1);
+			}
 		}
 
-		public Order IssueOrder(Actor self, IOrderTargeter order, Target target, bool queued)
+		Order IIssueOrder.IssueOrder(Actor self, IOrderTargeter order, Target target, bool queued)
 		{
-			if (order.OrderID == "PrimaryProducer")
+			if (order.OrderID == OrderID)
 				return new Order(order.OrderID, self, false);
 
 			return null;
 		}
 
-		public void ResolveOrder(Actor self, Order order)
+		void IResolveOrder.ResolveOrder(Actor self, Order order)
 		{
-			if (order.OrderString == "PrimaryProducer")
-				SetPrimaryProducer(self, !isPrimary);
+			var forceRallyPoint = RallyPoint.IsForceSet(order);
+			if (order.OrderString == OrderID || forceRallyPoint)
+				SetPrimaryProducer(self, !IsPrimary || forceRallyPoint);
 		}
 
-		public void SetPrimaryProducer(Actor self, bool state)
+		public void SetPrimaryProducer(Actor self, bool isPrimary)
 		{
-			if (state == false)
+			IsPrimary = isPrimary;
+
+			if (isPrimary)
 			{
-				isPrimary = false;
-				return;
+				// Cancel existing primaries
+				// TODO: THIS IS SHIT
+				var queues = Info.ProductionQueues.Length == 0 ? self.Info.TraitInfos<ProductionInfo>().SelectMany(pi => pi.Produces) : Info.ProductionQueues;
+				foreach (var q in queues)
+				{
+					foreach (var b in self.World
+							.ActorsWithTrait<PrimaryBuilding>()
+							.Where(a =>
+								a.Actor != self &&
+								a.Actor.Owner == self.Owner &&
+								a.Trait.IsPrimary &&
+								a.Actor.Info.TraitInfos<ProductionInfo>().Any(pi => pi.Produces.Contains(q))))
+						b.Trait.SetPrimaryProducer(b.Actor, false);
+				}
+
+				if (conditionManager != null && primaryToken == ConditionManager.InvalidConditionToken && !string.IsNullOrEmpty(Info.PrimaryCondition))
+					primaryToken = conditionManager.GrantCondition(self, Info.PrimaryCondition);
+
+				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", Info.SelectionNotification, self.Owner.Faction.InternalName);
 			}
+			else if (primaryToken != ConditionManager.InvalidConditionToken)
+				primaryToken = conditionManager.RevokeCondition(self, primaryToken);
+		}
 
-			// TODO: THIS IS SHIT
-			// Cancel existing primaries
-			foreach (var p in self.Info.Traits.Get<ProductionInfo>().Produces)
-			{
-				var productionType = p;		// benign closure hazard
-				foreach (var b in self.World
-					.ActorsWithTrait<PrimaryBuilding>()
-					.Where(a =>
-						a.Actor.Owner == self.Owner &&
-						a.Trait.IsPrimary &&
-						a.Actor.Info.Traits.Get<ProductionInfo>().Produces.Contains(productionType)))
-					b.Trait.SetPrimaryProducer(b.Actor, false);
-			}
+		protected override void TraitEnabled(Actor self) { }
 
-			isPrimary = true;
-
-			Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", "PrimaryBuildingSelected", self.Owner.Country.Race);
+		protected override void TraitDisabled(Actor self)
+		{
+			if (IsPrimary)
+				SetPrimaryProducer(self, !IsPrimary);
 		}
 	}
 }

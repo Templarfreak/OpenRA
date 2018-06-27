@@ -1,14 +1,16 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Text;
 
@@ -49,6 +51,16 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			result.AppendLine();
 
 			return result.ToString();
+		}
+
+		public static IEnumerable<TSource> DistinctBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
+		{
+			var knownKeys = new HashSet<TKey>();
+			foreach (TSource element in source)
+			{
+				if (knownKeys.Add(keySelector(element)))
+					yield return element;
+			}
 		}
 	}
 }

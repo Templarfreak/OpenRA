@@ -1,70 +1,60 @@
 #region Copyright & License Information
 /*
-* Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
-* This file is part of OpenRA, which is free software. It is made
-* available to you under the terms of the GNU General Public License
-* as published by the Free Software Foundation. For more information,
-* see COPYING.
-*/
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * This file is part of OpenRA, which is free software. It is made
+ * available to you under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
+ */
 #endregion
 
 using System;
+using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.D2k.Traits
 {
-	class SandwormInfo : WandersInfo, Requires<MobileInfo>, Requires<RenderUnitInfo>, Requires<AttackBaseInfo>
+	class SandwormInfo : WandersInfo, Requires<MobileInfo>, Requires<AttackBaseInfo>
 	{
 		[Desc("Time between rescanning for targets (in ticks).")]
-		public readonly int TargetRescanInterval = 32;
+		public readonly int TargetRescanInterval = 125;
 
 		[Desc("The radius in which the worm \"searches\" for targets.")]
-		public readonly WRange MaxSearchRadius = WRange.FromCells(27);
+		public readonly WDist MaxSearchRadius = WDist.FromCells(20);
 
 		[Desc("The range at which the worm launches an attack regardless of noise levels.")]
-		public readonly WRange IgnoreNoiseAttackRange = WRange.FromCells(3);
+		public readonly WDist IgnoreNoiseAttackRange = WDist.FromCells(3);
 
 		[Desc("The chance this actor has of disappearing after it attacks (in %).")]
-		public readonly int ChanceToDisappear = 80;
-
-		[Desc("Name of the sequence that is used when the actor is idle or moving (not attacking).")]
-		public readonly string IdleSequence = "idle";
+		public readonly int ChanceToDisappear = 100;
 
 		public override object Create(ActorInitializer init) { return new Sandworm(init.Self, this); }
 	}
 
-	class Sandworm : Wanders, ITick, INotifyKilled
+	class Sandworm : Wanders, ITick, INotifyActorDisposing
 	{
-		public readonly SandwormInfo Info;
+		public readonly SandwormInfo WormInfo;
 
-		readonly WormManager manager;
-		readonly Lazy<Mobile> mobile;
-		readonly Lazy<RenderUnit> renderUnit;
-		readonly Lazy<AttackBase> attackTrait;
+		readonly ActorSpawnManager manager;
+		readonly Mobile mobile;
+		readonly AttackBase attackTrait;
 
 		public bool IsMovingTowardTarget { get; private set; }
 
 		public bool IsAttacking;
 
 		int targetCountdown;
+		bool disposed;
 
 		public Sandworm(Actor self, SandwormInfo info)
 			: base(self, info)
 		{
-			Info = info;
-			mobile = Exts.Lazy(self.Trait<Mobile>);
-			renderUnit = Exts.Lazy(self.Trait<RenderUnit>);
-			attackTrait = Exts.Lazy(self.Trait<AttackBase>);
-			manager = self.World.WorldActor.Trait<WormManager>();
-		}
-
-		public override void OnBecomingIdle(Actor self)
-		{
-			if (renderUnit.Value.DefaultAnimation.CurrentSequence.Name != Info.IdleSequence)
-				renderUnit.Value.DefaultAnimation.PlayRepeating("idle");
-
-			base.OnBecomingIdle(self);
+			WormInfo = info;
+			mobile = self.Trait<Mobile>();
+			attackTrait = self.Trait<AttackBase>();
+			manager = self.World.WorldActor.Trait<ActorSpawnManager>();
 		}
 
 		public override void DoAction(Actor self, CPos targetCell)
@@ -76,10 +66,10 @@ namespace OpenRA.Mods.D2k.Traits
 			if (IsMovingTowardTarget)
 				return;
 
-			self.QueueActivity(mobile.Value.MoveWithinRange(Target.FromCell(self.World, targetCell, SubCell.Any), WRange.FromCells(1)));
+			self.QueueActivity(mobile.MoveWithinRange(Target.FromCell(self.World, targetCell, SubCell.Any), WDist.FromCells(1)));
 		}
 
-		public void Tick(Actor self)
+		void ITick.Tick(Actor self)
 		{
 			if (--targetCountdown > 0 || IsAttacking || !self.IsInWorld)
 				return;
@@ -89,44 +79,31 @@ namespace OpenRA.Mods.D2k.Traits
 
 		void RescanForTargets(Actor self)
 		{
-			targetCountdown = Info.TargetRescanInterval;
+			targetCountdown = WormInfo.TargetRescanInterval;
 
-			var actorsInRange = self.World.FindActorsInCircle(self.CenterPosition, Info.MaxSearchRadius);
-			var noiseDirection = WVec.Zero;
+			// If close enough, we don't care about other actors.
+			var target = self.World.FindActorsInCircle(self.CenterPosition, WormInfo.IgnoreNoiseAttackRange)
+				.Select(t => Target.FromActor(t))
+				.FirstOrDefault(t => attackTrait.HasAnyValidWeapons(t));
 
-			foreach (var actor in actorsInRange)
+			if (target.Type == TargetType.Actor)
 			{
-				if (!actor.IsInWorld)
-					continue;
-
-				// TODO: Test if we really want to ignore actors that are on rock
-				if (!mobile.Value.CanEnterCell(actor.Location, null, false))
-					continue;
-
-				var noise = actor.TraitOrDefault<AttractsWorms>();
-				if (noise == null)
-					continue;
-
-				var distance = actor.CenterPosition - self.CenterPosition;
-				var length = distance.Length;
-
-				// Actor is too far to be heard
-				if (noise.Info.Range[noise.Info.Range.Length - 1].Range < length)
-					continue;
-
-				// If close enough, we don't care about other actors
-				if (length <= Info.IgnoreNoiseAttackRange.Range)
-				{
-					self.CancelActivity();
-					attackTrait.Value.ResolveOrder(self, new Order("Attack", actor, true) { TargetActor = actor });
-					return;
-				}
-
-				var direction = 1024 * distance / length;
-				var percentage = noise.GetNoisePercentageAtDistance(length);
-
-				noiseDirection += direction * noise.Info.Intensity * percentage / 100;
+				attackTrait.AttackTarget(target, false, true, false);
+				return;
 			}
+
+			Func<Actor, bool> isValidTarget = a =>
+			{
+				if (!a.Info.HasTraitInfo<AttractsWormsInfo>())
+					return false;
+
+				return mobile.CanEnterCell(a.Location, null, false);
+			};
+
+			var actorsInRange = self.World.FindActorsInCircle(self.CenterPosition, WormInfo.MaxSearchRadius)
+				.Where(isValidTarget).SelectMany(a => a.TraitsImplementing<AttractsWorms>());
+
+			var noiseDirection = actorsInRange.Aggregate(WVec.Zero, (a, b) => a + b.AttractionAtPosition(self.CenterPosition));
 
 			// No target was found
 			if (noiseDirection == WVec.Zero)
@@ -134,8 +111,15 @@ namespace OpenRA.Mods.D2k.Traits
 
 			var moveTo = self.World.Map.CellContaining(self.CenterPosition + noiseDirection);
 
-			while (!self.World.Map.Contains(moveTo) || !mobile.Value.CanEnterCell(moveTo, null, false))
+			while (!self.World.Map.Contains(moveTo) || !mobile.CanEnterCell(moveTo, null, false))
 			{
+				// without this check, this while can be infinity loop
+				if (moveTo == self.Location)
+				{
+					self.CancelActivity();
+					return;
+				}
+
 				noiseDirection /= 2;
 				moveTo = self.World.Map.CellContaining(self.CenterPosition + noiseDirection);
 			}
@@ -147,13 +131,17 @@ namespace OpenRA.Mods.D2k.Traits
 				return;
 			}
 
-			self.QueueActivity(false, mobile.Value.MoveTo(moveTo, 3));
+			self.QueueActivity(false, mobile.MoveTo(moveTo, 3));
 			IsMovingTowardTarget = true;
 		}
 
-		public void Killed(Actor self, AttackInfo e)
+		void INotifyActorDisposing.Disposing(Actor self)
 		{
-			manager.DecreaseWormCount();
+			if (disposed)
+				return;
+
+			manager.DecreaseActorCount();
+			disposed = true;
 		}
 	}
 }

@@ -1,14 +1,14 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System;
 using System.Linq;
 using Eluant;
 using OpenRA.Activities;
@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.Scripting
 		}
 
 		[ScriptActorPropertyActivity]
-		[Desc("Patrol along a set of given waypoints.  The action is repeated by default, " +
+		[Desc("Patrol along a set of given waypoints. The action is repeated by default, " +
 			"and the actor will wait for `wait` ticks at each waypoint.")]
 		public void Patrol(CPos[] waypoints, bool loop = true, int wait = 0)
 		{
@@ -72,6 +72,37 @@ namespace OpenRA.Mods.Common.Scripting
 			if (repeat)
 				using (var f = func.CopyReference() as LuaFunction)
 					Self.QueueActivity(new CallFunc(() => PatrolUntil(waypoints, f, wait)));
+		}
+	}
+
+	[ScriptPropertyGroup("Combat")]
+	public class GeneralCombatProperties : ScriptActorProperties, Requires<AttackBaseInfo>
+	{
+		readonly AttackBase attackBase;
+
+		public GeneralCombatProperties(ScriptContext context, Actor self)
+			: base(context, self)
+		{
+			attackBase = self.Trait<AttackBase>();
+		}
+
+		[Desc("Attack the target actor. The target actor needs to be visible.")]
+		public void Attack(Actor targetActor, bool allowMove = true, bool forceAttack = false)
+		{
+			var target = Target.FromActor(targetActor);
+			if (!target.IsValidFor(Self))
+				Log.Write("lua", "{1} is an invalid target for {0}!", Self, targetActor);
+
+			if (!targetActor.Info.HasTraitInfo<FrozenUnderFogInfo>() && !targetActor.CanBeViewedByPlayer(Self.Owner))
+				Log.Write("lua", "{1} is not revealed for player {0}!", Self.Owner, targetActor);
+
+			attackBase.AttackTarget(target, true, allowMove, forceAttack);
+		}
+
+		[Desc("Checks if the targeted actor is a valid target for this actor.")]
+		public bool CanTarget(Actor targetActor)
+		{
+			return Target.FromActor(targetActor).IsValidFor(Self);
 		}
 	}
 }

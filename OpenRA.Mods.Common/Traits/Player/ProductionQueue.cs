@@ -1,16 +1,18 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -20,20 +22,30 @@ namespace OpenRA.Mods.Common.Traits
 		"at the same time. Will only work together with the Production: trait.")]
 	public class ProductionQueueInfo : ITraitInfo
 	{
+		[FieldLoader.Require]
 		[Desc("What kind of production will be added (e.g. Building, Infantry, Vehicle, ...)")]
 		public readonly string Type = null;
 
 		[Desc("Group queues from separate buildings together into the same tab.")]
 		public readonly string Group = null;
 
-		[Desc("Only enable this queue for certain factions")]
-		public readonly string[] Race = { };
+		[Desc("Only enable this queue for certain factions.")]
+		public readonly HashSet<string> Factions = new HashSet<string>();
 
 		[Desc("Should the prerequisite remain enabled if the owner changes?")]
 		public readonly bool Sticky = true;
 
-		[Desc("This value is used to translate the unit cost into build time.")]
-		public readonly float BuildSpeed = 0.4f;
+		[Desc("Should right clicking on the icon instantly cancel the production instead of putting it on hold?")]
+		public readonly bool DisallowPaused = false;
+
+		[Desc("This percentage value is multiplied with actor cost to translate into build time (lower means faster).")]
+		public readonly int BuildDurationModifier = 100;
+
+		[Desc("Maximum number of a single actor type that can be queued (0 = infinite).")]
+		public readonly int ItemLimit = 999;
+
+		[Desc("Maximum number of items that can be queued across all actor types (0 = infinite).")]
+		public readonly int QueueLimit = 0;
 
 		[Desc("The build time is multiplied with this value on low power.")]
 		public readonly int LowPowerSlowdown = 3;
@@ -42,10 +54,15 @@ namespace OpenRA.Mods.Common.Traits
 			"The filename of the audio is defined per faction in notifications.yaml.")]
 		public readonly string ReadyAudio = "UnitReady";
 
-		[Desc("Notification played when you can't train another unit",
+		[Desc("Notification played when you can't train another actor",
 			"when the build limit exceeded or the exit is jammed.",
 			"The filename of the audio is defined per faction in notifications.yaml.")]
 		public readonly string BlockedAudio = "NoBuild";
+
+		[Desc("Notification played when you can't queue another actor",
+			"when the queue length limit is exceeded.",
+			"The filename of the audio is defined per faction in notifications.yaml.")]
+		public readonly string LimitedAudio = null;
 
 		[Desc("Notification played when user clicks on the build palette icon.",
 			"The filename of the audio is defined per faction in notifications.yaml.")]
@@ -60,21 +77,31 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CancelledAudio = "Cancelled";
 
 		public virtual object Create(ActorInitializer init) { return new ProductionQueue(init, init.Self.Owner.PlayerActor, this); }
+
+		public void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			if (LowPowerSlowdown <= 0)
+				throw new YamlException("Production queue must have LowPowerSlowdown of at least 1.");
+		}
 	}
 
-	public class ProductionQueue : IResolveOrder, ITick, ITechTreeElement, INotifyOwnerChanged, INotifyKilled, INotifySold, ISync, INotifyTransform
+	public class ProductionQueue : IResolveOrder, ITick, ITechTreeElement, INotifyOwnerChanged, INotifyKilled, INotifySold, ISync, INotifyTransform, INotifyCreated
 	{
 		public readonly ProductionQueueInfo Info;
 		readonly Actor self;
+
+		// A list of things we could possibly build
+		readonly Dictionary<ActorInfo, ProductionState> producible = new Dictionary<ActorInfo, ProductionState>();
+		readonly List<ProductionItem> queue = new List<ProductionItem>();
+		readonly IEnumerable<ActorInfo> allProducibles;
+		readonly IEnumerable<ActorInfo> buildableProducibles;
+
+		Production[] productionTraits;
 
 		// Will change if the owner changes
 		PowerManager playerPower;
 		PlayerResources playerResources;
 		protected DeveloperMode developerMode;
-
-		// A list of things we could possibly build
-		Dictionary<ActorInfo, ProductionState> produceable;
-		List<ProductionItem> queue = new List<ProductionItem>();
 
 		public Actor Actor { get { return self; } }
 
@@ -84,9 +111,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync] public int CurrentSlowdown { get { return QueueLength == 0 ? 0 : queue[0].Slowdown; } }
 		[Sync] public bool CurrentPaused { get { return QueueLength != 0 && queue[0].Paused; } }
 		[Sync] public bool CurrentDone { get { return QueueLength != 0 && queue[0].Done; } }
-		[Sync] public bool Enabled { get; private set; }
+		[Sync] public bool Enabled { get; protected set; }
 
-		public string Race { get; private set; }
+		public string Faction { get; private set; }
+		[Sync] public bool IsValidFaction { get; private set; }
 
 		public ProductionQueue(ActorInitializer init, Actor playerActor, ProductionQueueInfo info)
 		{
@@ -96,13 +124,21 @@ namespace OpenRA.Mods.Common.Traits
 			playerPower = playerActor.Trait<PowerManager>();
 			developerMode = playerActor.Trait<DeveloperMode>();
 
-			Race = init.Contains<RaceInit>() ? init.Get<RaceInit, string>() : self.Owner.Country.Race;
-			Enabled = !info.Race.Any() || info.Race.Contains(Race);
+			Faction = init.Contains<FactionInit>() ? init.Get<FactionInit, string>() : self.Owner.Faction.InternalName;
+			IsValidFaction = !info.Factions.Any() || info.Factions.Contains(Faction);
+			Enabled = IsValidFaction;
 
-			CacheProduceables(playerActor);
+			CacheProducibles(playerActor);
+			allProducibles = producible.Where(a => a.Value.Buildable || a.Value.Visible).Select(a => a.Key);
+			buildableProducibles = producible.Where(a => a.Value.Buildable).Select(a => a.Key);
 		}
 
-		void ClearQueue()
+		void INotifyCreated.Created(Actor self)
+		{
+			productionTraits = self.TraitsImplementing<Production>().ToArray();
+		}
+
+		protected void ClearQueue()
 		{
 			if (queue.Count == 0)
 				return;
@@ -112,7 +148,7 @@ namespace OpenRA.Mods.Common.Traits
 			queue.Clear();
 		}
 
-		public void OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
+		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
 			ClearQueue();
 
@@ -122,27 +158,27 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (!Info.Sticky)
 			{
-				Race = self.Owner.Country.Race;
-				Enabled = !Info.Race.Any() || Info.Race.Contains(Race);
+				Faction = self.Owner.Faction.InternalName;
+				IsValidFaction = !Info.Factions.Any() || Info.Factions.Contains(Faction);
 			}
 
-			// Regenerate the produceables and tech tree state
+			// Regenerate the producibles and tech tree state
 			oldOwner.PlayerActor.Trait<TechTree>().Remove(this);
-			CacheProduceables(newOwner.PlayerActor);
+			CacheProducibles(newOwner.PlayerActor);
 			newOwner.PlayerActor.Trait<TechTree>().Update();
 		}
 
-		public void Killed(Actor killed, AttackInfo e) { if (killed == self) { ClearQueue(); Enabled = false; } }
-		public void Selling(Actor self) { ClearQueue(); Enabled = false; }
-		public void Sold(Actor self) { }
+		void INotifyKilled.Killed(Actor killed, AttackInfo e) { if (killed == self) { ClearQueue(); Enabled = false; } }
+		void INotifySold.Selling(Actor self) { ClearQueue(); Enabled = false; }
+		void INotifySold.Sold(Actor self) { }
 
-		public void BeforeTransform(Actor self) { ClearQueue(); Enabled = false; }
-		public void OnTransform(Actor self) { }
-		public void AfterTransform(Actor self) { }
+		void INotifyTransform.BeforeTransform(Actor self) { ClearQueue(); Enabled = false; }
+		void INotifyTransform.OnTransform(Actor self) { }
+		void INotifyTransform.AfterTransform(Actor self) { }
 
-		void CacheProduceables(Actor playerActor)
+		void CacheProducibles(Actor playerActor)
 		{
-			produceable = new Dictionary<ActorInfo, ProductionState>();
+			producible.Clear();
 			if (!Enabled)
 				return;
 
@@ -150,9 +186,9 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in AllBuildables(Info.Type))
 			{
-				var bi = a.Traits.Get<BuildableInfo>();
+				var bi = a.TraitInfo<BuildableInfo>();
 
-				produceable.Add(a, new ProductionState());
+				producible.Add(a, new ProductionState());
 				ttc.Add(a.Name, bi.Prerequisites, bi.BuildLimit, this);
 			}
 		}
@@ -162,28 +198,28 @@ namespace OpenRA.Mods.Common.Traits
 			return self.World.Map.Rules.Actors.Values
 				.Where(x =>
 					x.Name[0] != '^' &&
-					x.Traits.Contains<BuildableInfo>() &&
-					x.Traits.Get<BuildableInfo>().Queue.Contains(category));
+					x.HasTraitInfo<BuildableInfo>() &&
+					x.TraitInfo<BuildableInfo>().Queue.Contains(category));
 		}
 
 		public void PrerequisitesAvailable(string key)
 		{
-			produceable[self.World.Map.Rules.Actors[key]].Buildable = true;
+			producible[self.World.Map.Rules.Actors[key]].Buildable = true;
 		}
 
 		public void PrerequisitesUnavailable(string key)
 		{
-			produceable[self.World.Map.Rules.Actors[key]].Buildable = false;
+			producible[self.World.Map.Rules.Actors[key]].Buildable = false;
 		}
 
 		public void PrerequisitesItemHidden(string key)
 		{
-			produceable[self.World.Map.Rules.Actors[key]].Visible = false;
+			producible[self.World.Map.Rules.Actors[key]].Visible = false;
 		}
 
 		public void PrerequisitesItemVisible(string key)
 		{
-			produceable[self.World.Map.Rules.Actors[key]].Visible = true;
+			producible[self.World.Map.Rules.Actors[key]].Visible = true;
 		}
 
 		public ProductionItem CurrentItem()
@@ -191,48 +227,109 @@ namespace OpenRA.Mods.Common.Traits
 			return queue.ElementAtOrDefault(0);
 		}
 
-		public IEnumerable<ProductionItem> AllQueued()
+		public virtual IEnumerable<ProductionItem> AllQueued()
 		{
 			return queue;
 		}
 
 		public virtual IEnumerable<ActorInfo> AllItems()
 		{
-			if (self.World.AllowDevCommands && developerMode.AllTech)
-				return produceable.Select(a => a.Key);
+			if (developerMode.AllTech)
+				return producible.Keys;
 
-			return produceable.Where(a => a.Value.Buildable || a.Value.Visible).Select(a => a.Key);
+			return allProducibles;
 		}
 
 		public virtual IEnumerable<ActorInfo> BuildableItems()
 		{
 			if (!Enabled)
 				return Enumerable.Empty<ActorInfo>();
-			if (self.World.AllowDevCommands && developerMode.AllTech)
-				return produceable.Select(a => a.Key);
+			if (developerMode.AllTech)
+				return producible.Keys;
 
-			return produceable.Where(a => a.Value.Buildable).Select(a => a.Key);
+			return buildableProducibles;
 		}
 
 		public bool CanBuild(ActorInfo actor)
 		{
 			ProductionState ps;
-			if (!produceable.TryGetValue(actor, out ps))
+			if (!producible.TryGetValue(actor, out ps))
 				return false;
 
-			return ps.Buildable || (self.World.AllowDevCommands && developerMode.AllTech);
+			return ps.Buildable || developerMode.AllTech;
 		}
 
-		public virtual void Tick(Actor self)
+		void ITick.Tick(Actor self)
+		{
+			Tick(self);
+		}
+
+		protected virtual void Tick(Actor self)
+		{
+			// PERF: Avoid LINQ when checking whether all production traits are disabled/paused
+			var anyEnabledProduction = false;
+			var anyUnpausedProduction = false;
+			foreach (var p in productionTraits)
+			{
+				anyEnabledProduction |= !p.IsTraitDisabled;
+				anyUnpausedProduction |= !p.IsTraitPaused;
+			}
+
+			if (!anyEnabledProduction)
+				ClearQueue();
+
+			Enabled = IsValidFaction && anyEnabledProduction;
+
+			TickInner(self, !anyUnpausedProduction);
+		}
+
+		protected virtual void TickInner(Actor self, bool allProductionPaused)
 		{
 			while (queue.Count > 0 && BuildableItems().All(b => b.Name != queue[0].Item))
 			{
-				playerResources.GiveCash(queue[0].TotalCost - queue[0].RemainingCost); // refund what's been paid so far.
+				// Refund what's been paid so far
+				playerResources.GiveCash(queue[0].TotalCost - queue[0].RemainingCost);
 				FinishProduction();
 			}
 
-			if (queue.Count > 0)
+			if (queue.Count > 0 && !allProductionPaused)
 				queue[0].Tick(playerResources);
+		}
+
+		public bool CanQueue(ActorInfo actor, out string notificationAudio)
+		{
+			notificationAudio = Info.BlockedAudio;
+
+			var bi = actor.TraitInfoOrDefault<BuildableInfo>();
+			if (bi == null)
+				return false;
+
+			if (!developerMode.AllTech)
+			{
+				if (Info.QueueLimit > 0 && queue.Count >= Info.QueueLimit)
+				{
+					notificationAudio = Info.LimitedAudio;
+					return false;
+				}
+
+				var queueCount = queue.Count(i => i.Item == actor.Name);
+				if (Info.ItemLimit > 0 && queueCount >= Info.ItemLimit)
+				{
+					notificationAudio = Info.LimitedAudio;
+					return false;
+				}
+
+				if (bi.BuildLimit > 0)
+				{
+					var owned = self.Owner.World.ActorsHavingTrait<Buildable>()
+						.Count(a => a.Info.Name == actor.Name && a.Owner == self.Owner);
+					if (queueCount + owned >= bi.BuildLimit)
+						return false;
+				}
+			}
+
+			notificationAudio = Info.QueuedAudio;
+			return true;
 		}
 
 		public void ResolveOrder(Actor self, Order order)
@@ -240,93 +337,101 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Enabled)
 				return;
 
+			var rules = self.World.Map.Rules;
 			switch (order.OrderString)
 			{
 				case "StartProduction":
+					var unit = rules.Actors[order.TargetString];
+					var bi = unit.TraitInfo<BuildableInfo>();
+
+					// Not built by this queue
+					if (!bi.Queue.Contains(Info.Type))
+						return;
+
+					// You can't build that
+					if (BuildableItems().All(b => b.Name != order.TargetString))
+						return;
+
+					// Check if the player is trying to build more units that they are allowed
+					var fromLimit = int.MaxValue;
+					if (!developerMode.AllTech)
 					{
-						var unit = self.World.Map.Rules.Actors[order.TargetString];
-						var bi = unit.Traits.Get<BuildableInfo>();
-						if (!bi.Queue.Contains(Info.Type))
-							return; /* Not built by this queue */
+						if (Info.QueueLimit > 0)
+							fromLimit = Info.QueueLimit - queue.Count;
 
-						var cost = unit.Traits.Contains<ValuedInfo>() ? unit.Traits.Get<ValuedInfo>().Cost : 0;
-						var time = GetBuildTime(order.TargetString);
+						if (Info.ItemLimit > 0)
+							fromLimit = Math.Min(fromLimit, Info.ItemLimit - queue.Count(i => i.Item == order.TargetString));
 
-						if (BuildableItems().All(b => b.Name != order.TargetString))
-							return;	/* you can't build that!! */
-
-						// Check if the player is trying to build more units that they are allowed
-						var fromLimit = int.MaxValue;
-						if (!developerMode.AllTech && bi.BuildLimit > 0)
+						if (bi.BuildLimit > 0)
 						{
 							var inQueue = queue.Count(pi => pi.Item == order.TargetString);
-							var owned = self.Owner.World.ActorsWithTrait<Buildable>().Count(a => a.Actor.Info.Name == order.TargetString && a.Actor.Owner == self.Owner);
-							fromLimit = bi.BuildLimit - (inQueue + owned);
-
-							if (fromLimit <= 0)
-								return;
+							var owned = self.Owner.World.ActorsHavingTrait<Buildable>().Count(a => a.Info.Name == order.TargetString && a.Owner == self.Owner);
+							fromLimit = Math.Min(fromLimit, bi.BuildLimit - (inQueue + owned));
 						}
 
-						var amountToBuild = Math.Min(fromLimit, order.ExtraData);
-						for (var n = 0; n < amountToBuild; n++)
+						if (fromLimit <= 0)
+							return;
+					}
+
+					var valued = unit.TraitInfoOrDefault<ValuedInfo>();
+					var cost = valued != null ? valued.Cost : 0;
+					var time = GetBuildTime(unit, bi);
+					var amountToBuild = Math.Min(fromLimit, order.ExtraData);
+					for (var n = 0; n < amountToBuild; n++)
+					{
+						var hasPlayedSound = false;
+						BeginProduction(new ProductionItem(this, order.TargetString, cost, playerPower, () => self.World.AddFrameEndTask(_ =>
 						{
-							var hasPlayedSound = false;
-							BeginProduction(new ProductionItem(this, order.TargetString, cost, playerPower, () => self.World.AddFrameEndTask(_ =>
+							var isBuilding = unit.HasTraitInfo<BuildingInfo>();
+
+							if (isBuilding && !hasPlayedSound)
+								hasPlayedSound = Game.Sound.PlayNotification(rules, self.Owner, "Speech", Info.ReadyAudio, self.Owner.Faction.InternalName);
+							else if (!isBuilding)
 							{
-								var isBuilding = unit.Traits.Contains<BuildingInfo>();
-
-								if (isBuilding && !hasPlayedSound)
-									hasPlayedSound = Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", Info.ReadyAudio, self.Owner.Country.Race);
-								else if (!isBuilding)
-								{
-									if (BuildUnit(order.TargetString))
-										Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", Info.ReadyAudio, self.Owner.Country.Race);
-									else if (!hasPlayedSound && time > 0)
-										hasPlayedSound = Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", Info.BlockedAudio, self.Owner.Country.Race);
-								}
-							})));
-						}
-
-						break;
+								if (BuildUnit(unit))
+									Game.Sound.PlayNotification(rules, self.Owner, "Speech", Info.ReadyAudio, self.Owner.Faction.InternalName);
+								else if (!hasPlayedSound && time > 0)
+									hasPlayedSound = Game.Sound.PlayNotification(rules, self.Owner, "Speech", Info.BlockedAudio, self.Owner.Faction.InternalName);
+							}
+						})));
 					}
 
+					break;
 				case "PauseProduction":
-					{
-						if (queue.Count > 0 && queue[0].Item == order.TargetString)
-							queue[0].Pause(order.ExtraData != 0);
+					if (queue.Count > 0 && queue[0].Item == order.TargetString)
+						queue[0].Pause(order.ExtraData != 0);
 
-						break;
-					}
-
+					break;
 				case "CancelProduction":
-					{
-						CancelProduction(order.TargetString, order.ExtraData);
-						break;
-					}
+					CancelProduction(order.TargetString, order.ExtraData);
+					break;
 			}
 		}
 
-		public virtual int GetBuildTime(string unitString)
+		public virtual int GetBuildTime(ActorInfo unit, BuildableInfo bi)
 		{
-			var unit = self.World.Map.Rules.Actors[unitString];
-			if (unit == null || !unit.Traits.Contains<BuildableInfo>())
+			if (developerMode.FastBuild)
 				return 0;
 
-			if (self.World.AllowDevCommands && self.Owner.PlayerActor.Trait<DeveloperMode>().FastBuild)
-				return 0;
+			var time = bi.BuildDuration;
+			if (time == -1)
+			{
+				var valued = unit.TraitInfoOrDefault<ValuedInfo>();
+				time = valued != null ? valued.Cost : 0;
+			}
 
-			var time = unit.GetBuildTime() * Info.BuildSpeed;
-
-			return (int)time;
+			time = time * bi.BuildDurationModifier * Info.BuildDurationModifier / 10000;
+			return time;
 		}
 
 		protected void CancelProduction(string itemName, uint numberToCancel)
 		{
 			for (var i = 0; i < numberToCancel; i++)
-				CancelProductionInner(itemName);
+				if (!CancelProductionInner(itemName))
+					break;
 		}
 
-		void CancelProductionInner(string itemName)
+		bool CancelProductionInner(string itemName)
 		{
 			var lastIndex = queue.FindLastIndex(a => a.Item == itemName);
 
@@ -335,9 +440,15 @@ namespace OpenRA.Mods.Common.Traits
 			else if (lastIndex == 0)
 			{
 				var item = queue[0];
-				playerResources.GiveCash(item.TotalCost - item.RemainingCost);	// refund what has been paid
+
+				// Refund what has been paid
+				playerResources.GiveCash(item.TotalCost - item.RemainingCost);
 				FinishProduction();
 			}
+			else
+				return false;
+
+			return true;
 		}
 
 		public void FinishProduction()
@@ -354,23 +465,34 @@ namespace OpenRA.Mods.Common.Traits
 		// Returns the actor/trait that is most likely (but not necessarily guaranteed) to produce something in this queue
 		public virtual TraitPair<Production> MostLikelyProducer()
 		{
-			var trait = self.TraitsImplementing<Production>().FirstOrDefault(p => p.Info.Produces.Contains(Info.Type));
-			return new TraitPair<Production> { Actor = self, Trait = trait };
+			var traits = productionTraits.Where(p => !p.IsTraitDisabled && p.Info.Produces.Contains(Info.Type));
+			var unpaused = traits.FirstOrDefault(a => !a.IsTraitPaused);
+			return new TraitPair<Production>(self, unpaused != null ? unpaused : traits.FirstOrDefault());
 		}
 
 		// Builds a unit from the actor that holds this queue (1 queue per building)
 		// Returns false if the unit can't be built
-		protected virtual bool BuildUnit(string name)
+		protected virtual bool BuildUnit(ActorInfo unit)
 		{
-			// Cannot produce if i'm dead
-			if (!self.IsInWorld || self.IsDead)
+			var mostLikelyProducerTrait = MostLikelyProducer().Trait;
+
+			// Cannot produce if I'm dead or trait is disabled
+			if (!self.IsInWorld || self.IsDead || mostLikelyProducerTrait == null)
 			{
-				CancelProduction(name, 1);
-				return true;
+				CancelProduction(unit.Name, 1);
+				return false;
 			}
 
-			var sp = self.TraitsImplementing<Production>().FirstOrDefault(p => p.Info.Produces.Contains(Info.Type));
-			if (sp != null && !self.IsDisabled() && sp.Produce(self, self.World.Map.Rules.Actors[name], Race))
+			var inits = new TypeDictionary
+			{
+				new OwnerInit(self.Owner),
+				new FactionInit(BuildableInfo.GetInitialFaction(unit, Faction))
+			};
+
+			var bi = unit.TraitInfo<BuildableInfo>();
+			var type = developerMode.AllTech ? Info.Type : (bi.BuildAtProductionType ?? Info.Type);
+
+			if (!mostLikelyProducerTrait.IsTraitPaused && mostLikelyProducerTrait.Produce(self, unit, type, inits))
 			{
 				FinishProduction();
 				return true;
@@ -410,6 +532,8 @@ namespace OpenRA.Mods.Common.Traits
 		public bool Started { get; private set; }
 		public int Slowdown { get; private set; }
 
+		readonly ActorInfo ai;
+		readonly BuildableInfo bi;
 		readonly PowerManager pm;
 
 		public ProductionItem(ProductionQueue queue, string item, int cost, PowerManager pm, Action onComplete)
@@ -420,13 +544,15 @@ namespace OpenRA.Mods.Common.Traits
 			OnComplete = onComplete;
 			Queue = queue;
 			this.pm = pm;
+			ai = Queue.Actor.World.Map.Rules.Actors[Item];
+			bi = ai.TraitInfo<BuildableInfo>();
 		}
 
 		public void Tick(PlayerResources pr)
 		{
 			if (!Started)
 			{
-				var time = Queue.GetBuildTime(Item);
+				var time = Queue.GetBuildTime(ai, bi);
 				if (time > 0)
 					RemainingTime = TotalTime = time;
 
@@ -453,7 +579,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			var costThisFrame = RemainingCost / RemainingTime;
-			if (costThisFrame != 0 && !pr.TakeCash(costThisFrame))
+			if (costThisFrame != 0 && !pr.TakeCash(costThisFrame, true))
 				return;
 
 			RemainingCost -= costThisFrame;

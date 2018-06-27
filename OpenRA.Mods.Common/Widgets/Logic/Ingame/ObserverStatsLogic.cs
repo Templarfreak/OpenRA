@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -13,6 +14,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
+using OpenRA.Mods.Common.Lint;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Network;
 using OpenRA.Traits;
@@ -20,30 +22,40 @@ using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	public class ObserverStatsLogic
+	public enum ObserverStatsPanel { Basic, Economy, Production, Combat, Graph }
+
+	[ChromeLogicArgsHotkeys("StatisticsBasicKey", "StatisticsEconomyKey", "StatisticsProductionKey", "StatisticsCombatKey", "StatisticsGraphKey")]
+	public class ObserverStatsLogic : ChromeLogic
 	{
-		ContainerWidget basicStatsHeaders;
-		ContainerWidget economyStatsHeaders;
-		ContainerWidget productionStatsHeaders;
-		ContainerWidget combatStatsHeaders;
-		ContainerWidget earnedThisMinuteGraphHeaders;
-		ScrollPanelWidget playerStatsPanel;
-		ScrollItemWidget basicPlayerTemplate;
-		ScrollItemWidget economyPlayerTemplate;
-		ScrollItemWidget productionPlayerTemplate;
-		ScrollItemWidget combatPlayerTemplate;
-		ContainerWidget earnedThisMinuteGraphTemplate;
-		ScrollItemWidget teamTemplate;
-		DropDownButtonWidget statsDropDown;
-		IEnumerable<Player> players;
-		World world;
-		WorldRenderer worldRenderer;
+		readonly ContainerWidget basicStatsHeaders;
+		readonly ContainerWidget economyStatsHeaders;
+		readonly ContainerWidget productionStatsHeaders;
+		readonly ContainerWidget combatStatsHeaders;
+		readonly ContainerWidget earnedThisMinuteGraphHeaders;
+		readonly ScrollPanelWidget playerStatsPanel;
+		readonly ScrollItemWidget basicPlayerTemplate;
+		readonly ScrollItemWidget economyPlayerTemplate;
+		readonly ScrollItemWidget productionPlayerTemplate;
+		readonly ScrollItemWidget combatPlayerTemplate;
+		readonly ContainerWidget earnedThisMinuteGraphTemplate;
+		readonly ScrollItemWidget teamTemplate;
+		readonly IEnumerable<Player> players;
+		readonly World world;
+		readonly WorldRenderer worldRenderer;
 
 		[ObjectCreator.UseCtor]
-		public ObserverStatsLogic(World world, WorldRenderer worldRenderer, Widget widget, Action onExit)
+		public ObserverStatsLogic(World world, ModData modData, WorldRenderer worldRenderer, Widget widget,
+			Action onExit, ObserverStatsPanel activePanel, Dictionary<string, MiniYaml> logicArgs)
 		{
 			this.world = world;
 			this.worldRenderer = worldRenderer;
+
+			MiniYaml yaml;
+			string[] keyNames = Enum.GetNames(typeof(ObserverStatsPanel));
+			var statsHotkeys = new HotkeyReference[keyNames.Length];
+			for (var i = 0; i < keyNames.Length; i++)
+				statsHotkeys[i] = logicArgs.TryGetValue("Statistics" + keyNames[i] + "Key", out yaml) ? modData.Hotkeys[yaml.Value] : new HotkeyReference();
+
 			players = world.Players.Where(p => !p.NonCombatant);
 
 			basicStatsHeaders = widget.Get<ContainerWidget>("BASIC_STATS_HEADERS");
@@ -63,79 +75,40 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			teamTemplate = playerStatsPanel.Get<ScrollItemWidget>("TEAM_TEMPLATE");
 
-			statsDropDown = widget.Get<DropDownButtonWidget>("STATS_DROPDOWN");
-			statsDropDown.GetText = () => "Basic";
-			statsDropDown.OnMouseDown = _ =>
+			var statsDropDown = widget.Get<DropDownButtonWidget>("STATS_DROPDOWN");
+			Func<string, ContainerWidget, Action, StatsDropDownOption> createStatsOption = (title, headers, a) =>
 			{
-				var options = new List<StatsDropDownOption>
+				return new StatsDropDownOption
 				{
-					new StatsDropDownOption
+					Title = title,
+					IsSelected = () => headers.Visible,
+					OnClick = () =>
 					{
-						Title = "Basic",
-						IsSelected = () => basicStatsHeaders.Visible,
-						OnClick = () =>
-						{
-							ClearStats();
-							statsDropDown.GetText = () => "Basic";
-							DisplayStats(BasicStats);
-						}
-					},
-					new StatsDropDownOption
-					{
-						Title = "Economy",
-						IsSelected = () => economyStatsHeaders.Visible,
-						OnClick = () =>
-						{
-							ClearStats();
-							statsDropDown.GetText = () => "Economy";
-							DisplayStats(EconomyStats);
-						}
-					},
-					new StatsDropDownOption
-					{
-						Title = "Production",
-						IsSelected = () => productionStatsHeaders.Visible,
-						OnClick = () =>
-						{
-							ClearStats();
-							statsDropDown.GetText = () => "Production";
-							DisplayStats(ProductionStats);
-						}
-					},
-					new StatsDropDownOption
-					{
-						Title = "Combat",
-						IsSelected = () => combatStatsHeaders.Visible,
-						OnClick = () =>
-						{
-							ClearStats();
-							statsDropDown.GetText = () => "Combat";
-							DisplayStats(CombatStats);
-						}
-					},
-					new StatsDropDownOption
-					{
-						Title = "Earnings (graph)",
-						IsSelected = () => earnedThisMinuteGraphHeaders.Visible,
-						OnClick = () =>
-						{
-							ClearStats();
-							statsDropDown.GetText = () => "Earnings (graph)";
-							EarnedThisMinuteGraph();
-						}
+						ClearStats();
+						statsDropDown.GetText = () => title;
+						a();
 					}
 				};
-				Func<StatsDropDownOption, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
-				{
-					var item = ScrollItemWidget.Setup(template, option.IsSelected, option.OnClick);
-					item.Get<LabelWidget>("LABEL").GetText = () => option.Title;
-					return item;
-				};
-				statsDropDown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 150, options, setupItem);
 			};
 
-			ClearStats();
-			DisplayStats(BasicStats);
+			var statsDropDownOptions = new StatsDropDownOption[]
+			{
+				createStatsOption("Basic", basicStatsHeaders, () => DisplayStats(BasicStats)),
+				createStatsOption("Economy", economyStatsHeaders, () => DisplayStats(EconomyStats)),
+				createStatsOption("Production", productionStatsHeaders, () => DisplayStats(ProductionStats)),
+				createStatsOption("Combat", combatStatsHeaders, () => DisplayStats(CombatStats)),
+				createStatsOption("Earnings (graph)", earnedThisMinuteGraphHeaders, () => EarnedThisMinuteGraph())
+			};
+
+			Func<StatsDropDownOption, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
+			{
+				var item = ScrollItemWidget.Setup(template, option.IsSelected, option.OnClick);
+				item.Get<LabelWidget>("LABEL").GetText = () => option.Title;
+				return item;
+			};
+
+			statsDropDown.OnMouseDown = _ => statsDropDown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 150, statsDropDownOptions, setupItem);
+			statsDropDownOptions[(int)activePanel].OnClick();
 
 			var close = widget.GetOrNull<ButtonWidget>("CLOSE");
 			if (close != null)
@@ -145,6 +118,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					Ui.Root.RemoveChild(widget);
 					onExit();
 				};
+
+			var keyListener = statsDropDown.Get<LogicKeyListenerWidget>("STATS_DROPDOWN_KEYHANDLER");
+			keyListener.AddHandler(e =>
+			{
+				if (e.Event == KeyInputEvent.Down && !e.IsRepeat)
+				{
+					for (var i = 0; i < statsHotkeys.Length; i++)
+					{
+						if (statsHotkeys[i].IsActivatedBy(e))
+						{
+							Game.Sound.PlayNotification(modData.DefaultRules, null, "Sounds", "ClickSound", null);
+							statsDropDownOptions[i].OnClick();
+							return true;
+						}
+					}
+				}
+
+				return false;
+			});
 		}
 
 		void ClearStats()
@@ -170,6 +162,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					(p.PlayerActor.TraitOrDefault<PlayerStatistics>() ?? new PlayerStatistics(p.PlayerActor)).EarnedSamples.Select(s => (float)s)));
 
 			playerStatsPanel.AddChild(template);
+			playerStatsPanel.ScrollToTop();
 		}
 
 		void DisplayStats(Func<Player, ScrollItemWidget> createItem)
@@ -199,8 +192,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var stats = player.PlayerActor.TraitOrDefault<PlayerStatistics>();
 			if (stats == null) return template;
-			template.Get<LabelWidget>("KILLS_COST").GetText = () => "$" + stats.KillsCost;
-			template.Get<LabelWidget>("DEATHS_COST").GetText = () => "$" + stats.DeathsCost;
+			template.Get<LabelWidget>("ASSETS_DESTROYED").GetText = () => "$" + stats.KillsCost;
+			template.Get<LabelWidget>("ASSETS_LOST").GetText = () => "$" + stats.DeathsCost;
 			template.Get<LabelWidget>("UNITS_KILLED").GetText = () => stats.UnitsKilled.ToString();
 			template.Get<LabelWidget>("UNITS_DEAD").GetText = () => stats.UnitsDead.ToString();
 			template.Get<LabelWidget>("BUILDINGS_KILLED").GetText = () => stats.BuildingsKilled.ToString();
@@ -218,6 +211,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			template.Get<ObserverProductionIconsWidget>("PRODUCTION_ICONS").GetPlayer = () => player;
 			template.Get<ObserverSupportPowerIconsWidget>("SUPPORT_POWER_ICONS").GetPlayer = () => player;
+			template.IgnoreChildMouseOver = false;
 
 			return template;
 		}
@@ -233,19 +227,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var stats = player.PlayerActor.TraitOrDefault<PlayerStatistics>();
 			if (stats == null) return template;
 
-			template.Get<LabelWidget>("CASH").GetText = () => "$" + (res.DisplayCash + res.DisplayResources);
+			template.Get<LabelWidget>("CASH").GetText = () => "$" + (res.Cash + res.Resources);
 			template.Get<LabelWidget>("EARNED_MIN").GetText = () => AverageEarnedPerMinute(res.Earned);
 			template.Get<LabelWidget>("EARNED_THIS_MIN").GetText = () => "$" + stats.EarnedThisMinute;
 			template.Get<LabelWidget>("EARNED").GetText = () => "$" + res.Earned;
 			template.Get<LabelWidget>("SPENT").GetText = () => "$" + res.Spent;
 
 			var assets = template.Get<LabelWidget>("ASSETS");
-			assets.GetText = () => "$" + world.Actors
-				.Where(a => a.Owner == player && !a.IsDead && a.Info.Traits.WithInterface<ValuedInfo>().Any())
-				.Sum(a => a.Info.Traits.WithInterface<ValuedInfo>().First().Cost);
+			assets.GetText = () => "$" + world.ActorsHavingTrait<Valued>()
+				.Where(a => a.Owner == player && !a.IsDead)
+				.Sum(a => a.Info.TraitInfos<ValuedInfo>().First().Cost);
 
 			var harvesters = template.Get<LabelWidget>("HARVESTERS");
-			harvesters.GetText = () => world.Actors.Count(a => a.Owner == player && !a.IsDead && a.HasTrait<Harvester>()).ToString();
+			harvesters.GetText = () => world.ActorsHavingTrait<Harvester>().Count(a => a.Owner == player && !a.IsDead).ToString();
 
 			return template;
 		}
@@ -258,7 +252,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			LobbyUtils.AddPlayerFlagAndName(template, player);
 
 			var res = player.PlayerActor.Trait<PlayerResources>();
-			template.Get<LabelWidget>("CASH").GetText = () => "$" + (res.DisplayCash + res.DisplayResources);
+			template.Get<LabelWidget>("CASH").GetText = () => "$" + (res.Cash + res.Resources);
 			template.Get<LabelWidget>("EARNED_MIN").GetText = () => AverageEarnedPerMinute(res.Earned);
 
 			var powerRes = player.PlayerActor.Trait<PowerManager>();
@@ -270,7 +264,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (stats == null) return template;
 			template.Get<LabelWidget>("KILLS").GetText = () => (stats.UnitsKilled + stats.BuildingsKilled).ToString();
 			template.Get<LabelWidget>("DEATHS").GetText = () => (stats.UnitsDead + stats.BuildingsDead).ToString();
-			template.Get<LabelWidget>("KD_RATIO").GetText = () => KillDeathRatio(stats.UnitsKilled + stats.BuildingsKilled, stats.UnitsDead + stats.BuildingsDead);
+			template.Get<LabelWidget>("ASSETS_DESTROYED").GetText = () => "$" + stats.KillsCost;
+			template.Get<LabelWidget>("ASSETS_LOST").GetText = () => "$" + stats.DeathsCost;
+			template.Get<LabelWidget>("EXPERIENCE").GetText = () => stats.Experience.ToString();
 			template.Get<LabelWidget>("ACTIONS_MIN").GetText = () => AverageOrdersPerMinute(stats.OrderCount);
 
 			return template;
@@ -280,7 +276,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			return ScrollItemWidget.Setup(template, () => false, () =>
 			{
-				var playerBase = world.Actors.FirstOrDefault(a => !a.IsDead && a.HasTrait<BaseBuilding>() && a.Owner == player);
+				var playerBase = world.ActorsHavingTrait<BaseBuilding>().FirstOrDefault(a => !a.IsDead && a.Owner == player);
 				if (playerBase != null)
 					worldRenderer.Viewport.Center(playerBase.CenterPosition);
 			});

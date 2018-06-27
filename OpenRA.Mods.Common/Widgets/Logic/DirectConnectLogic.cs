@@ -1,6 +1,6 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation. For more information,
@@ -13,10 +13,12 @@ using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	public class DirectConnectLogic
+	public class DirectConnectLogic : ChromeLogic
 	{
+		static readonly Action DoNothing = () => { };
+
 		[ObjectCreator.UseCtor]
-		public DirectConnectLogic(Widget widget, Action onExit, Action openLobby)
+		public DirectConnectLogic(Widget widget, Action onExit, Action openLobby, string directConnectHost, int directConnectPort)
 		{
 			var panel = widget;
 			var ipField = panel.Get<TextFieldWidget>("IP");
@@ -33,11 +35,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				Game.Settings.Player.LastServer = "{0}:{1}".F(ipField.Text, port);
 				Game.Settings.Save();
 
-				Ui.CloseWindow();
-				ConnectionLogic.Connect(ipField.Text, port, "", openLobby, onExit);
+				ConnectionLogic.Connect(ipField.Text, port, "", () => { Ui.CloseWindow(); openLobby(); }, DoNothing);
 			};
 
 			panel.Get<ButtonWidget>("BACK_BUTTON").OnClick = () => { Ui.CloseWindow(); onExit(); };
+
+			if (directConnectHost != null)
+			{
+				// The connection window must be opened at the end of the tick for the widget hierarchy to
+				// work out, but we also want to prevent the server browser from flashing visible for one tick.
+				widget.Visible = false;
+				Game.RunAfterTick(() =>
+				{
+					ConnectionLogic.Connect(directConnectHost, directConnectPort, "", () => { Ui.CloseWindow(); openLobby(); }, DoNothing);
+					widget.Visible = true;
+				});
+			}
 		}
 	}
 }

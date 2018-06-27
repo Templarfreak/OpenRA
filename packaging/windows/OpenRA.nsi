@@ -1,4 +1,4 @@
-; Copyright 2007-2015 OpenRA developers (see AUTHORS)
+; Copyright 2007-2018 OpenRA developers (see AUTHORS)
 ; This file is part of OpenRA.
 ;
 ;  OpenRA is free software: you can redistribute it and/or modify
@@ -18,22 +18,22 @@
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
 !include "WordFunc.nsh"
-!include "nsProcess.nsh"
 
 Name "OpenRA"
 OutFile "OpenRA.Setup.exe"
 
-InstallDir $PROGRAMFILES\OpenRA
-InstallDirRegKey HKLM "Software\OpenRA" "InstallDir"
+InstallDir "$PROGRAMFILES\OpenRA${SUFFIX}"
+InstallDirRegKey HKLM "Software\OpenRA${SUFFIX}" "InstallDir"
 
 SetCompressor lzma
+RequestExecutionLevel admin
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "${SRCDIR}\COPYING"
 !insertmacro MUI_PAGE_DIRECTORY
 
 !define MUI_STARTMENUPAGE_REGISTRY_ROOT "HKLM"
-!define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\OpenRA"
+!define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\OpenRA${SUFFIX}"
 !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME "Start Menu Folder"
 !define MUI_STARTMENUPAGE_DEFAULTFOLDER "OpenRA"
 
@@ -53,43 +53,76 @@ Var StartMenuFolder
 ;Section Definitions
 ;***************************
 Section "-Reg" Reg
-	WriteRegStr HKLM "Software\OpenRA" "InstallDir" $INSTDIR
+
+	; Installation directory
+	WriteRegStr HKLM "Software\OpenRA${SUFFIX}" "InstallDir" $INSTDIR
+
+	; Join server URL Scheme
+	WriteRegStr HKLM "Software\Classes\openra-ra-${TAG}" "" "URL:Join OpenRA server"
+	WriteRegStr HKLM "Software\Classes\openra-ra-${TAG}" "URL Protocol" ""
+	WriteRegStr HKLM "Software\Classes\openra-ra-${TAG}\DefaultIcon" "" "$INSTDIR\RedAlert.ico,0"
+	WriteRegStr HKLM "Software\Classes\openra-ra-${TAG}\Shell\Open\Command" "" "$INSTDIR\RedAlert.exe Launch.URI=%1"
+
+	WriteRegStr HKLM "Software\Classes\openra-cnc-${TAG}" "" "URL:Join OpenRA server"
+	WriteRegStr HKLM "Software\Classes\openra-cnc-${TAG}" "URL Protocol" ""
+	WriteRegStr HKLM "Software\Classes\openra-cnc-${TAG}\DefaultIcon" "" "$INSTDIR\TiberianDawn.ico,0"
+	WriteRegStr HKLM "Software\Classes\openra-cnc-${TAG}\Shell\Open\Command" "" "$INSTDIR\TiberianDawn.exe Launch.URI=%1"
+
+	WriteRegStr HKLM "Software\Classes\openra-d2k-${TAG}" "" "URL:Join OpenRA server"
+	WriteRegStr HKLM "Software\Classes\openra-d2k-${TAG}" "URL Protocol" ""
+	WriteRegStr HKLM "Software\Classes\openra-d2k-${TAG}\DefaultIcon" "" "$INSTDIR\Dune2000.ico,0"
+	WriteRegStr HKLM "Software\Classes\openra-d2k-${TAG}\Shell\Open\Command" "" "$INSTDIR\Dune2000.exe Launch.URI=%1"
+
+	; Remove obsolete file associations
+	DeleteRegKey HKLM "Software\Classes\.orarep"
+	DeleteRegKey HKLM "Software\Classes\OpenRA_replay"
+	DeleteRegKey HKLM "Software\Classes\.oramod"
+	DeleteRegKey HKLM "Software\Classes\OpenRA_mod"
+	DeleteRegKey HKLM "Software\Classes\openra"
+
 SectionEnd
 
 Section "Game" GAME
+	SectionIn RO
+
 	RMDir /r "$INSTDIR\mods"
 	SetOutPath "$INSTDIR\mods"
 	File /r "${SRCDIR}\mods\common"
 	File /r "${SRCDIR}\mods\cnc"
 	File /r "${SRCDIR}\mods\d2k"
 	File /r "${SRCDIR}\mods\ra"
-	File /r "${SRCDIR}\mods\modchooser"
+	File /r "${SRCDIR}\mods\modcontent"
 
 	SetOutPath "$INSTDIR"
-	File "${SRCDIR}\OpenRA.exe"
+	File "${SRCDIR}\RedAlert.exe"
+	File "${SRCDIR}\TiberianDawn.exe"
+	File "${SRCDIR}\Dune2000.exe"
 	File "${SRCDIR}\OpenRA.Game.exe"
+	File "${SRCDIR}\OpenRA.Game.exe.config"
 	File "${SRCDIR}\OpenRA.Utility.exe"
-	File "${SRCDIR}\OpenRA.Renderer.Null.dll"
-	File "${SRCDIR}\OpenRA.Renderer.Sdl2.dll"
+	File "${SRCDIR}\OpenRA.Server.exe"
+	File "${SRCDIR}\OpenRA.Platforms.Default.dll"
 	File "${SRCDIR}\ICSharpCode.SharpZipLib.dll"
 	File "${SRCDIR}\FuzzyLogicLibrary.dll"
-	File "${SRCDIR}\Mono.Nat.dll"
+	File "${SRCDIR}\Open.Nat.dll"
+	File "${SRCDIR}\VERSION"
 	File "${SRCDIR}\AUTHORS"
 	File "${SRCDIR}\COPYING"
 	File "${SRCDIR}\README.html"
 	File "${SRCDIR}\CHANGELOG.html"
 	File "${SRCDIR}\CONTRIBUTING.html"
-	File "${SRCDIR}\DOCUMENTATION.html"
 	File "${SRCDIR}\OpenRA.ico"
+	File "${SRCDIR}\RedAlert.ico"
+	File "${SRCDIR}\TiberianDawn.ico"
+	File "${SRCDIR}\Dune2000.ico"
 	File "${SRCDIR}\SharpFont.dll"
 	File "${SRCDIR}\SDL2-CS.dll"
+	File "${SRCDIR}\OpenAL-CS.dll"
 	File "${SRCDIR}\global mix database.dat"
 	File "${SRCDIR}\MaxMind.Db.dll"
-	File "${SRCDIR}\MaxMind.GeoIP2.dll"
-	File "${SRCDIR}\Newtonsoft.Json.dll"
-	File "${SRCDIR}\RestSharp.dll"
-	File "${SRCDIR}\GeoLite2-Country.mmdb"
+	File "${SRCDIR}\GeoLite2-Country.mmdb.gz"
 	File "${SRCDIR}\eluant.dll"
+	File "${SRCDIR}\rix0rrr.BeaconLib.dll"
 	File "${DEPSDIR}\soft_oal.dll"
 	File "${DEPSDIR}\SDL2.dll"
 	File "${DEPSDIR}\freetype6.dll"
@@ -97,10 +130,12 @@ Section "Game" GAME
 
 	!insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 		CreateDirectory "$SMPROGRAMS\$StartMenuFolder"
-		CreateShortCut "$SMPROGRAMS\$StartMenuFolder\OpenRA.lnk" $OUTDIR\OpenRA.exe "" \
-			"$OUTDIR\OpenRA.exe" "" "" "" ""
-		CreateShortCut "$SMPROGRAMS\$StartMenuFolder\README.lnk" $OUTDIR\README.html "" \
-			"$OUTDIR\README.html" "" "" "" ""
+		CreateShortCut "$SMPROGRAMS\$StartMenuFolder\Red Alert${SUFFIX}.lnk" $OUTDIR\RedAlert.exe "" \
+			"$OUTDIR\RedAlert.exe" "" "" "" ""
+		CreateShortCut "$SMPROGRAMS\$StartMenuFolder\Tiberian Dawn${SUFFIX}.lnk" $OUTDIR\TiberianDawn.exe "" \
+			"$OUTDIR\TiberianDawn.exe" "" "" "" ""
+		CreateShortCut "$SMPROGRAMS\$StartMenuFolder\Dune 2000${SUFFIX}.lnk" $OUTDIR\Dune2000.exe "" \
+			"$OUTDIR\Dune2000.exe" "" "" "" ""
 	!insertmacro MUI_STARTMENU_WRITE_END
 
 	SetOutPath "$INSTDIR\lua"
@@ -109,26 +144,33 @@ Section "Game" GAME
 	SetOutPath "$INSTDIR\glsl"
 	File "${SRCDIR}\glsl\*.frag"
 	File "${SRCDIR}\glsl\*.vert"
+
+	; Estimated install size for the control panel properties
+	${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
+	IntFmt $0 "0x%08X" $0
+	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "EstimatedSize" "$0"
+
+	SetShellVarContext all
+	CreateDirectory "$APPDATA\OpenRA\ModMetadata"
+	nsExec::ExecToLog '"$INSTDIR\OpenRA.Utility.exe" ra --register-mod "$INSTDIR\RedAlert.exe" system'
+	nsExec::ExecToLog '"$INSTDIR\OpenRA.Utility.exe" ra --clear-invalid-mod-registrations system'
+	nsExec::ExecToLog '"$INSTDIR\OpenRA.Utility.exe" cnc --register-mod "$INSTDIR\TiberianDawn.exe" system'
+	nsExec::ExecToLog '"$INSTDIR\OpenRA.Utility.exe" cnc --clear-invalid-mod-registrations system'
+	nsExec::ExecToLog '"$INSTDIR\OpenRA.Utility.exe" d2k --register-mod "$INSTDIR\Dune2000.exe" system'
+	nsExec::ExecToLog '"$INSTDIR\OpenRA.Utility.exe" d2k --clear-invalid-mod-registrations system'
+	SetShellVarContext current
+
 SectionEnd
 
-Section "Editor" EDITOR
+Section "Desktop Shortcut" DESKTOPSHORTCUT
 	SetOutPath "$INSTDIR"
-	File "${SRCDIR}\OpenRA.Editor.exe"
-
-	!insertmacro MUI_STARTMENU_WRITE_BEGIN Application
-		CreateDirectory "$SMPROGRAMS\$StartMenuFolder"
-		CreateShortCut "$SMPROGRAMS\$StartMenuFolder\OpenRA Editor.lnk" $OUTDIR\OpenRA.Editor.exe "" \
-			"$OUTDIR\OpenRA.Editor.exe" "" "" "" ""
-	!insertmacro MUI_STARTMENU_WRITE_END
+	CreateShortCut "$DESKTOP\OpenRA - Red Alert${SUFFIX}.lnk" $INSTDIR\RedAlert.exe "" \
+		"$INSTDIR\RedAlert.exe" "" "" "" ""
+	CreateShortCut "$DESKTOP\OpenRA - Tiberian Dawn${SUFFIX}.lnk" $INSTDIR\TiberianDawn.exe "" \
+		"$INSTDIR\TiberianDawn.exe" "" "" "" ""
+	CreateShortCut "$DESKTOP\OpenRA - Dune 2000${SUFFIX}.lnk" $INSTDIR\Dune2000.exe "" \
+		"$INSTDIR\Dune2000.exe" "" "" "" ""
 SectionEnd
-
-SectionGroup /e "Settings"
-	Section "Desktop Shortcut" DESKTOPSHORTCUT
-		SetOutPath "$INSTDIR"
-		CreateShortCut "$DESKTOP\OpenRA.lnk" $INSTDIR\OpenRA.exe "" \
-			"$INSTDIR\OpenRA.exe" "" "" "" ""
-	SectionEnd
-SectionGroupEnd
 
 ;***************************
 ;Dependency Sections
@@ -143,15 +185,8 @@ Section "-DotNet" DotNet
 	IfErrors error 0
 	IntCmp $0 1 done error done
 	error:
-		MessageBox MB_YESNO ".NET Framework v4.0 or later is required to run OpenRA. $\n \
-		Do you wish for the installer to launch your web browser in order to download and install it?" \
-		IDYES download IDNO error2
-	download:
-		ExecShell "open" "http://www.microsoft.com/en-us/download/details.aspx?id=17113"
-		Goto done
-	error2:
-		MessageBox MB_OK "Installation will continue, but be aware that OpenRA will not run unless .NET v4.0 \
-		or later is installed."
+		MessageBox MB_OK ".NET Framework v4.5 or later is required to run OpenRA."
+		Abort
 	done:
 SectionEnd
 
@@ -160,50 +195,54 @@ SectionEnd
 ;***************************
 Section "-Uninstaller"
 	WriteUninstaller $INSTDIR\uninstaller.exe
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA" "DisplayName" "OpenRA"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA" "UninstallString" "$INSTDIR\uninstaller.exe"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA" "InstallLocation" "$INSTDIR"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA" "DisplayIcon" "$INSTDIR\OpenRA.ico"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA" "Publisher" "OpenRA developers"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA" "URLInfoAbout" "http://openra.net"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA" "NoModify" "1"
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA" "NoRepair" "1"
-
-	!insertmacro MUI_STARTMENU_WRITE_BEGIN Application
-		CreateShortCut "$SMPROGRAMS\$StartMenuFolder\Uninstall.lnk" "$INSTDIR\uninstaller.exe" "" \
-			"" "" "" "" "Uninstall OpenRA"
-	!insertmacro MUI_STARTMENU_WRITE_END
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "DisplayName" "OpenRA${SUFFIX}"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "UninstallString" "$INSTDIR\uninstaller.exe"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "InstallLocation" "$INSTDIR"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "DisplayIcon" "$INSTDIR\OpenRA.ico"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "Publisher" "OpenRA developers"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "URLInfoAbout" "http://openra.net"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "Readme" "$INSTDIR\README.html"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "DisplayVersion" "${TAG}"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "NoModify" "1"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}" "NoRepair" "1"
 SectionEnd
 
 !macro Clean UN
 Function ${UN}Clean
+	nsExec::ExecToLog '"$INSTDIR\OpenRA.Utility.exe" ra --unregister-mod system'
+	nsExec::ExecToLog '"$INSTDIR\OpenRA.Utility.exe" cnc --unregister-mod system'
+	nsExec::ExecToLog '"$INSTDIR\OpenRA.Utility.exe" d2k --unregister-mod system'
+
 	RMDir /r $INSTDIR\mods
 	RMDir /r $INSTDIR\maps
 	RMDir /r $INSTDIR\glsl
 	RMDir /r $INSTDIR\lua
-	Delete $INSTDIR\OpenRA.exe
+	Delete $INSTDIR\RedAlert.exe
+	Delete $INSTDIR\TiberianDawn.exe
+	Delete $INSTDIR\Dune2000.exe
 	Delete $INSTDIR\OpenRA.Game.exe
+	Delete $INSTDIR\OpenRA.Game.exe.config
 	Delete $INSTDIR\OpenRA.Utility.exe
-	Delete $INSTDIR\OpenRA.Editor.exe
-	Delete $INSTDIR\OpenRA.Renderer.Null.dll
-	Delete $INSTDIR\OpenRA.Renderer.Sdl2.dll
+	Delete $INSTDIR\OpenRA.Server.exe
+	Delete $INSTDIR\OpenRA.Platforms.Default.dll
 	Delete $INSTDIR\ICSharpCode.SharpZipLib.dll
 	Delete $INSTDIR\FuzzyLogicLibrary.dll
-	Delete $INSTDIR\Mono.Nat.dll
+	Delete $INSTDIR\Open.Nat.dll
 	Delete $INSTDIR\SharpFont.dll
+	Delete $INSTDIR\VERSION
 	Delete $INSTDIR\AUTHORS
 	Delete $INSTDIR\COPYING
 	Delete $INSTDIR\README.html
 	Delete $INSTDIR\CHANGELOG.html
 	Delete $INSTDIR\CONTRIBUTING.html
-	Delete $INSTDIR\DOCUMENTATION.html
 	Delete $INSTDIR\OpenRA.ico
+	Delete $INSTDIR\RedAlert.ico
+	Delete $INSTDIR\TiberianDawn.ico
+	Delete $INSTDIR\Dune2000.ico
 	Delete "$INSTDIR\global mix database.dat"
 	Delete $INSTDIR\MaxMind.Db.dll
-	Delete $INSTDIR\MaxMind.GeoIP2.dll
-	Delete $INSTDIR\Newtonsoft.Json.dll
-	Delete $INSTDIR\RestSharp.dll
-	Delete $INSTDIR\GeoLite2-Country.mmdb
+	Delete $INSTDIR\GeoLite2-Country.mmdb.gz
 	Delete $INSTDIR\KopiLua.dll
 	Delete $INSTDIR\soft_oal.dll
 	Delete $INSTDIR\SDL2.dll
@@ -211,15 +250,31 @@ Function ${UN}Clean
 	Delete $INSTDIR\eluant.dll
 	Delete $INSTDIR\freetype6.dll
 	Delete $INSTDIR\SDL2-CS.dll
+	Delete $INSTDIR\OpenAL-CS.dll
+	Delete $INSTDIR\rix0rrr.BeaconLib.dll
 	RMDir /r $INSTDIR\Support
-	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA"
+
+	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenRA${SUFFIX}"
+	DeleteRegKey HKLM "Software\Classes\openra-ra-${TAG}"
+	DeleteRegKey HKLM "Software\Classes\openra-cnc-${TAG}"
+	DeleteRegKey HKLM "Software\Classes\openra-d2k-${TAG}"
+
 	Delete $INSTDIR\uninstaller.exe
 	RMDir $INSTDIR
-	
+
 	!insertmacro MUI_STARTMENU_GETFOLDER Application $StartMenuFolder
-	RMDir /r "$SMPROGRAMS\$StartMenuFolder"
-	Delete $DESKTOP\OpenRA.lnk
-	DeleteRegKey HKLM "Software\OpenRA"
+
+	; Clean up start menu: Delete all our icons, and the OpenRA folder
+	; *only* if we were the only installed version
+	Delete "$SMPROGRAMS\$StartMenuFolder\Red Alert${SUFFIX}.lnk"
+	Delete "$SMPROGRAMS\$StartMenuFolder\Tiberian Dawn${SUFFIX}.lnk"
+	Delete "$SMPROGRAMS\$StartMenuFolder\Dune 2000${SUFFIX}.lnk"
+	RMDir "$SMPROGRAMS\$StartMenuFolder"
+
+	Delete "$DESKTOP\OpenRA - Red Alert${SUFFIX}.lnk"
+	Delete "$DESKTOP\OpenRA - Tiberian Dawn${SUFFIX}.lnk"
+	Delete "$DESKTOP\OpenRA - Dune 2000${SUFFIX}.lnk"
+	DeleteRegKey HKLM "Software\OpenRA${SUFFIX}"
 FunctionEnd
 !macroend
 
@@ -227,31 +282,17 @@ FunctionEnd
 !insertmacro Clean "un."
 
 Section "Uninstall"
-	${nsProcess::FindProcess} "OpenRA.Game.exe" $R0
-	IntCmp $R0 0 gameRunning
-	${nsProcess::FindProcess} "OpenRA.exe" $R0
-	IntCmp $R0 0 gameRunning
-	${nsProcess::FindProcess} "OpenRA.Editor.exe" $R0
-	IntCmp $R0 0 gameRunning
-	${nsProcess::Unload}
 	Call un.Clean
-	Goto end
-	gameRunning:
-		MessageBox MB_OK|MB_ICONEXCLAMATION "OpenRA is running. Please close it first" /SD IDOK
-		abort
-	end:
 SectionEnd
 
 ;***************************
 ;Section Descriptions
 ;***************************
 LangString DESC_GAME ${LANG_ENGLISH} "OpenRA engine, official mods and dependencies"
-LangString DESC_EDITOR ${LANG_ENGLISH} "OpenRA map editor"
 LangString DESC_DESKTOPSHORTCUT ${LANG_ENGLISH} "Place shortcut on the Desktop."
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
 	!insertmacro MUI_DESCRIPTION_TEXT ${GAME} $(DESC_GAME)
-	!insertmacro MUI_DESCRIPTION_TEXT ${EDITOR} $(DESC_EDITOR)
 	!insertmacro MUI_DESCRIPTION_TEXT ${DESKTOPSHORTCUT} $(DESC_DESKTOPSHORTCUT)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 

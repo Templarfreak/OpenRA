@@ -1,23 +1,25 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using Eluant;
 using OpenRA.Effects;
-using OpenRA.FileFormats;
 using OpenRA.FileSystem;
 using OpenRA.GameRules;
+using OpenRA.Graphics;
 using OpenRA.Mods.Common.Effects;
+using OpenRA.Mods.Common.FileFormats;
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Scripting;
 
 namespace OpenRA.Mods.Common.Scripting
@@ -25,47 +27,48 @@ namespace OpenRA.Mods.Common.Scripting
 	[ScriptGlobal("Media")]
 	public class MediaGlobal : ScriptGlobal
 	{
-		World world;
+		readonly World world;
+		readonly MusicPlaylist playlist;
+
 		public MediaGlobal(ScriptContext context)
 			: base(context)
 		{
 			world = context.World;
+			playlist = world.WorldActor.Trait<MusicPlaylist>();
 		}
 
 		[Desc("Play an announcer voice listed in notifications.yaml")]
 		public void PlaySpeechNotification(Player player, string notification)
 		{
-			Sound.PlayNotification(world.Map.Rules, player, "Speech", notification, player != null ? player.Country.Race : null);
+			Game.Sound.PlayNotification(world.Map.Rules, player, "Speech", notification, player != null ? player.Faction.InternalName : null);
 		}
 
 		[Desc("Play a sound listed in notifications.yaml")]
 		public void PlaySoundNotification(Player player, string notification)
 		{
-			Sound.PlayNotification(world.Map.Rules, player, "Sounds", notification, player != null ? player.Country.Race : null);
+			Game.Sound.PlayNotification(world.Map.Rules, player, "Sounds", notification, player != null ? player.Faction.InternalName : null);
 		}
 
-		MusicInfo previousMusic;
-		Action onComplete;
-		[Desc("Play track defined in music.yaml or keep it empty for a random song.")]
+		[Desc("Play a sound file")]
+		public void PlaySound(string file)
+		{
+			// TODO: Investigate how scripts use this function, and think about exposing the UI vs World distinction if needed
+			Game.Sound.Play(SoundType.World, file);
+		}
+
+		[Desc("Play track defined in music.yaml or map.yaml, or keep track empty for playing a random song.")]
 		public void PlayMusic(string track = null, LuaFunction func = null)
 		{
-			if (!Game.Settings.Sound.MapMusic)
+			if (!playlist.IsMusicAvailable)
 				return;
 
-			var music = world.Map.Rules.InstalledMusic.Select(a => a.Value).ToArray();
-			if (!music.Any())
-				return;
-
-			var musicInfo = !string.IsNullOrEmpty(track) ? world.Map.Rules.Music[track]
-			: Game.Settings.Sound.Repeat && previousMusic != null ? previousMusic
-			: Game.Settings.Sound.Shuffle ? music.Random(Game.CosmeticRandom)
-			: previousMusic == null ? music.First()
-			: music.SkipWhile(s => s != previousMusic).Skip(1).First();
+			var musicInfo = !string.IsNullOrEmpty(track) ? GetMusicTrack(track)
+				: playlist.GetNextSong();
 
 			if (func != null)
 			{
-				var f = func.CopyReference() as LuaFunction;
-				onComplete = () =>
+				var f = (LuaFunction)func.CopyReference();
+				Action onComplete = () =>
 				{
 					try
 					{
@@ -77,28 +80,48 @@ namespace OpenRA.Mods.Common.Scripting
 						Context.FatalError(e.Message);
 					}
 				};
+
+				playlist.Play(musicInfo, onComplete);
 			}
 			else
-				onComplete = () => { };
+				playlist.Play(musicInfo);
+		}
 
-			Sound.PlayMusicThen(musicInfo, onComplete);
+		[Desc("Play track defined in music.yaml or map.yaml as background music." +
+			" If music is already playing use Media.StopMusic() to stop it" +
+			" and the background music will start automatically." +
+			" Keep the track empty to disable background music.")]
+		public void SetBackgroundMusic(string track = null)
+		{
+			if (!playlist.IsMusicAvailable)
+				return;
 
-			previousMusic = Sound.CurrentMusic;
+			playlist.SetBackgroundMusic(string.IsNullOrEmpty(track) ? null : GetMusicTrack(track));
+		}
+
+		MusicInfo GetMusicTrack(string track)
+		{
+			var music = world.Map.Rules.Music;
+			if (music.ContainsKey(track))
+				return music[track];
+
+			Log.Write("lua", "Missing music track: " + track);
+			return null;
 		}
 
 		[Desc("Stop the current song.")]
 		public void StopMusic()
 		{
-			Sound.StopMusic();
+			playlist.Stop();
 		}
 
-		Action onCompleteFullscreen;
 		[Desc("Play a VQA video fullscreen. File name has to include the file extension.")]
 		public void PlayMovieFullscreen(string movie, LuaFunction func = null)
 		{
+			Action onCompleteFullscreen;
 			if (func != null)
 			{
-				var f = func.CopyReference() as LuaFunction;
+				var f = (LuaFunction)func.CopyReference();
 				onCompleteFullscreen = () =>
 				{
 					try
@@ -118,15 +141,14 @@ namespace OpenRA.Mods.Common.Scripting
 			Media.PlayFMVFullscreen(world, movie, onCompleteFullscreen);
 		}
 
-		Action onLoadComplete;
-		Action onCompleteRadar;
 		[Desc("Play a VQA video in the radar window. File name has to include the file extension. " +
 			"Returns true on success, if the movie wasn't found the function returns false and the callback is executed.")]
 		public bool PlayMovieInRadar(string movie, LuaFunction playComplete = null)
 		{
+			Action onCompleteRadar;
 			if (playComplete != null)
 			{
-				var f = playComplete.CopyReference() as LuaFunction;
+				var f = (LuaFunction)playComplete.CopyReference();
 				onCompleteRadar = () =>
 				{
 					try
@@ -143,10 +165,10 @@ namespace OpenRA.Mods.Common.Scripting
 			else
 				onCompleteRadar = () => { };
 
-			Stream s = null;
+			Stream s;
 			try
 			{
-				s = GlobalFileSystem.Open(movie);
+				s = world.Map.Open(movie);
 			}
 			catch (FileNotFoundException e)
 			{
@@ -157,7 +179,7 @@ namespace OpenRA.Mods.Common.Scripting
 
 			AsyncLoader l = new AsyncLoader(Media.LoadVqa);
 			IAsyncResult ar = l.BeginInvoke(s, null, null);
-			onLoadComplete = () =>
+			Action onLoadComplete = () =>
 			{
 				Media.StopFMVInRadar();
 				world.AddFrameEndTask(_ => Media.PlayFMVInRadar(world, l.EndInvoke(ar), onCompleteRadar));
@@ -168,24 +190,33 @@ namespace OpenRA.Mods.Common.Scripting
 		}
 
 		[Desc("Display a text message to the player.")]
-		public void DisplayMessage(string text, string prefix = "Mission")
+		public void DisplayMessage(string text, string prefix = "Mission", HSLColor? color = null)
 		{
 			if (string.IsNullOrEmpty(text))
 				return;
 
-			Color c = Color.White;
+			Color c = color.HasValue ? HSLColor.RGBFromHSL(color.Value.H / 255f, color.Value.S / 255f, color.Value.L / 255f) : Color.White;
 			Game.AddChatLine(c, prefix, text);
-		} // TODO: expose HSLColor to Lua and add as parameter
+		}
+
+		[Desc("Displays a debug message to the player, if \"Show Map Debug Messages\" is checked in the settings.")]
+		public void Debug(string text)
+		{
+			if (string.IsNullOrEmpty(text) || !Game.Settings.Debug.LuaDebug)
+				return;
+
+			Game.Debug(text);
+		}
 
 		[Desc("Display a text message at the specified location.")]
-		public void FloatingText(string text, WPos position, int duration = 30)
+		public void FloatingText(string text, WPos position, int duration = 30, HSLColor? color = null)
 		{
 			if (string.IsNullOrEmpty(text) || !world.Map.Contains(world.Map.CellContaining(position)))
 				return;
 
-			Color c = Color.White;
+			Color c = color.HasValue ? HSLColor.RGBFromHSL(color.Value.H / 255f, color.Value.S / 255f, color.Value.L / 255f) : Color.White;
 			world.AddFrameEndTask(w => w.Add(new FloatingText(position, c, text, duration)));
-		} // TODO: expose HSLColor to Lua and add as parameter
+		}
 
 		public delegate VqaReader AsyncLoader(Stream s);
 	}

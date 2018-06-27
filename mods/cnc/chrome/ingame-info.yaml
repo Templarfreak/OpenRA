@@ -2,7 +2,7 @@ Container@GAME_INFO_PANEL:
 	X: (WINDOW_RIGHT - WIDTH) / 2
 	Y: (WINDOW_BOTTOM - HEIGHT) / 2
 	Width: 512
-	Height: 375
+	Height: 405
 	Logic: GameInfoLogic
 	Visible: False
 	Children:
@@ -39,6 +39,12 @@ Container@GAME_INFO_PANEL:
 					Width: 140
 					Height: 35
 					Visible: False
+				Button@BUTTON4:
+					X: 450
+					Y: 5
+					Width: 140
+					Height: 35
+					Visible: False
 		Background@BACKGROUND:
 			Y: 39
 			Width: PARENT_RIGHT
@@ -50,6 +56,10 @@ Container@GAME_INFO_PANEL:
 					Width: PARENT_RIGHT
 					Height: PARENT_BOTTOM
 				Container@OBJECTIVES_PANEL:
+					Width: PARENT_RIGHT
 				Container@DEBUG_PANEL:
+					Width: PARENT_RIGHT
+					Height: PARENT_BOTTOM
+				Container@CHAT_PANEL:
 					Width: PARENT_RIGHT
 					Height: PARENT_BOTTOM

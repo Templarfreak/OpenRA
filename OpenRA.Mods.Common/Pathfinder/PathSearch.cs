@@ -1,15 +1,18 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 
@@ -17,6 +20,16 @@ namespace OpenRA.Mods.Common.Pathfinder
 {
 	public sealed class PathSearch : BasePathSearch
 	{
+		// PERF: Maintain a pool of layers used for paths searches for each world. These searches are performed often
+		// so we wish to avoid the high cost of initializing a new search space every time by reusing the old ones.
+		static readonly ConditionalWeakTable<World, CellInfoLayerPool> LayerPoolTable = new ConditionalWeakTable<World, CellInfoLayerPool>();
+		static readonly ConditionalWeakTable<World, CellInfoLayerPool>.CreateValueCallback CreateLayerPool = world => new CellInfoLayerPool(world.Map);
+
+		static CellInfoLayerPool LayerPoolForWorld(World world)
+		{
+			return LayerPoolTable.GetValue(world, CreateLayerPool);
+		}
+
 		public override IEnumerable<Pair<CPos, int>> Considered
 		{
 			get { return considered; }
@@ -32,18 +45,27 @@ namespace OpenRA.Mods.Common.Pathfinder
 			considered = new LinkedList<Pair<CPos, int>>();
 		}
 
-		public static IPathSearch Search(World world, MobileInfo mi, Actor self, bool checkForBlocked)
+		public static IPathSearch Search(World world, LocomotorInfo li, Actor self, bool checkForBlocked, Func<CPos, bool> goalCondition)
 		{
-			var graph = new PathGraph(CellInfoLayerManager.Instance.NewLayer(world.Map), mi, self, world, checkForBlocked);
-			return new PathSearch(graph);
+			var graph = new PathGraph(LayerPoolForWorld(world), li, self, world, checkForBlocked);
+			var search = new PathSearch(graph);
+			search.isGoal = goalCondition;
+			search.heuristic = loc => 0;
+			return search;
 		}
 
-		public static IPathSearch FromPoint(World world, MobileInfo mi, Actor self, CPos from, CPos target, bool checkForBlocked)
+		public static IPathSearch FromPoint(World world, LocomotorInfo li, Actor self, CPos from, CPos target, bool checkForBlocked)
 		{
-			var graph = new PathGraph(CellInfoLayerManager.Instance.NewLayer(world.Map), mi, self, world, checkForBlocked);
+			var graph = new PathGraph(LayerPoolForWorld(world), li, self, world, checkForBlocked);
 			var search = new PathSearch(graph)
 			{
 				heuristic = DefaultEstimator(target)
+			};
+
+			search.isGoal = loc =>
+			{
+				var locInfo = search.Graph[loc];
+				return locInfo.EstimatedTotal - locInfo.CostSoFar == 0;
 			};
 
 			if (world.Map.Contains(from))
@@ -52,12 +74,18 @@ namespace OpenRA.Mods.Common.Pathfinder
 			return search;
 		}
 
-		public static IPathSearch FromPoints(World world, MobileInfo mi, Actor self, IEnumerable<CPos> froms, CPos target, bool checkForBlocked)
+		public static IPathSearch FromPoints(World world, LocomotorInfo li, Actor self, IEnumerable<CPos> froms, CPos target, bool checkForBlocked)
 		{
-			var graph = new PathGraph(CellInfoLayerManager.Instance.NewLayer(world.Map), mi, self, world, checkForBlocked);
+			var graph = new PathGraph(LayerPoolForWorld(world), li, self, world, checkForBlocked);
 			var search = new PathSearch(graph)
 			{
 				heuristic = DefaultEstimator(target)
+			};
+
+			search.isGoal = loc =>
+			{
+				var locInfo = search.Graph[loc];
+				return locInfo.EstimatedTotal - locInfo.CostSoFar == 0;
 			};
 
 			foreach (var sl in froms.Where(sl => world.Map.Contains(sl)))
@@ -68,9 +96,11 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 		protected override void AddInitialCell(CPos location)
 		{
-			Graph[location] = new CellInfo(0, heuristic(location), location, CellStatus.Open);
-			OpenQueue.Add(location);
-			startPoints.Add(location);
+			var cost = heuristic(location);
+			Graph[location] = new CellInfo(0, cost, location, CellStatus.Open);
+			var connection = new GraphConnection(location, cost);
+			OpenQueue.Add(connection);
+			StartPoints.Add(connection);
 			considered.AddLast(new Pair<CPos, int>(location, 0));
 		}
 
@@ -83,17 +113,13 @@ namespace OpenRA.Mods.Common.Pathfinder
 		/// <returns>The most promising node of the iteration</returns>
 		public override CPos Expand()
 		{
-			var currentMinNode = OpenQueue.Pop();
+			var currentMinNode = OpenQueue.Pop().Destination;
 
 			var currentCell = Graph[currentMinNode];
 			Graph[currentMinNode] = new CellInfo(currentCell.CostSoFar, currentCell.EstimatedTotal, currentCell.PreviousPos, CellStatus.Closed);
 
-			if (Graph.CustomCost != null)
-			{
-				var c = Graph.CustomCost(currentMinNode);
-				if (c == int.MaxValue)
-					return currentMinNode;
-			}
+			if (Graph.CustomCost != null && Graph.CustomCost(currentMinNode) == Constants.InvalidNode)
+				return currentMinNode;
 
 			foreach (var connection in Graph.GetConnections(currentMinNode))
 			{
@@ -116,10 +142,11 @@ namespace OpenRA.Mods.Common.Pathfinder
 				else
 					hCost = heuristic(neighborCPos);
 
-				Graph[neighborCPos] = new CellInfo(gCost, gCost + hCost, currentMinNode, CellStatus.Open);
+				var estimatedCost = gCost + hCost;
+				Graph[neighborCPos] = new CellInfo(gCost, estimatedCost, currentMinNode, CellStatus.Open);
 
 				if (neighborCell.Status != CellStatus.Open)
-					OpenQueue.Add(neighborCPos);
+					OpenQueue.Add(new GraphConnection(neighborCPos, estimatedCost));
 
 				if (Debug)
 				{

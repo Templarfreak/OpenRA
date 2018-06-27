@@ -1,34 +1,25 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System.Linq;
+using System.Collections.Generic;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Actor can capture ProximityCapturable actors.")]
-	public class ProximityCaptorInfo : ITraitInfo
+	public class ProximityCaptorInfo : TraitInfo<ProximityCaptor>
 	{
-		public readonly string[] Types = { };
-		public object Create(ActorInitializer init) { return new ProximityCaptor(this); }
+		[FieldLoader.Require]
+		public readonly HashSet<string> Types = new HashSet<string>();
 	}
 
-	public class ProximityCaptor
-	{
-		public readonly ProximityCaptorInfo Info;
-
-		public ProximityCaptor(ProximityCaptorInfo info) { Info = info; }
-
-		public bool HasAny(string[] typesList)
-		{
-			return typesList.Any(flag => Info.Types.Contains(flag));
-		}
-	}
+	public class ProximityCaptor { }
 }

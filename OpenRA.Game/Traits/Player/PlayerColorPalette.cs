@@ -1,14 +1,14 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System.Collections.Generic;
 using OpenRA.Graphics;
 
 namespace OpenRA.Traits
@@ -17,13 +17,17 @@ namespace OpenRA.Traits
 	public class PlayerColorPaletteInfo : ITraitInfo
 	{
 		[Desc("The name of the palette to base off.")]
-		public readonly string BasePalette = null;
+		[PaletteReference] public readonly string BasePalette = null;
+
 		[Desc("The prefix for the resulting player palettes")]
-		public readonly string BaseName = "player";
+		[PaletteDefinition(true)] public readonly string BaseName = "player";
+
 		[Desc("Remap these indices to player colors.")]
 		public readonly int[] RemapIndex = { };
+
 		[Desc("Luminosity range to span.")]
 		public readonly float Ramp = 0.05f;
+
 		[Desc("Allow palette modifiers to change the palette.")]
 		public readonly bool AllowModifiers = true;
 

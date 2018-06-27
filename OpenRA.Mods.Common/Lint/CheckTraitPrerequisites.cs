@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -14,11 +15,12 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Lint
 {
-	public class CheckTraitPrerequisites : ILintPass
+	public class CheckTraitPrerequisites : ILintRulesPass
 	{
-		public void Run(Action<string> emitError, Action<string> emitWarning, Map map)
+		public void Run(Action<string> emitError, Action<string> emitWarning, Ruleset rules)
 		{
-			foreach (var actorInfo in map.Rules.Actors.Where(a => !a.Key.StartsWith("^")))
+			foreach (var actorInfo in rules.Actors)
+			{
 				try
 				{
 					var hasTraits = actorInfo.Value.TraitsInConstructOrder().Any();
@@ -29,6 +31,7 @@ namespace OpenRA.Mods.Common.Lint
 				{
 					emitError("Actor {0} is not constructible; failure: {1}".F(actorInfo.Key, e.Message));
 				}
+			}
 		}
 	}
 }

@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -23,7 +24,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string Effect = null;
 
 		[Desc("Palette to draw the animation in.")]
-		public readonly string Palette = "effect";
+		[PaletteReference] public readonly string Palette = "effect";
 
 		[Desc("Audio clip to play when the crate is collected.")]
 		public readonly string Notification = null;
@@ -72,7 +73,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual void Activate(Actor collector)
 		{
-			Sound.PlayToPlayer(collector.Owner, info.Notification);
+			Game.Sound.PlayToPlayer(SoundType.World, collector.Owner, info.Notification);
 
 			if (info.Effect != null)
 				collector.World.AddFrameEndTask(w => w.Add(new CrateEffect(collector, info.Effect, info.Palette)));

@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -14,7 +15,7 @@ using System.Linq;
 
 namespace OpenRA.Traits
 {
-	public enum TargetType { Invalid, Actor, Terrain, FrozenActor }
+	public enum TargetType : byte { Invalid, Actor, Terrain, FrozenActor }
 	public struct Target
 	{
 		public static readonly Target[] None = { };
@@ -22,22 +23,22 @@ namespace OpenRA.Traits
 
 		TargetType type;
 		Actor actor;
-		ITargetable targetable;
 		FrozenActor frozen;
 		WPos pos;
+		CPos? cell;
+		SubCell? subCell;
 		int generation;
 
 		public static Target FromPos(WPos p) { return new Target { pos = p, type = TargetType.Terrain }; }
 		public static Target FromCell(World w, CPos c, SubCell subCell = SubCell.FullCell)
 		{
-			return new Target { pos = w.Map.CenterOfSubCell(c, subCell), type = TargetType.Terrain };
-		}
-
-		public static Target FromOrder(World w, Order o)
-		{
-			return o.TargetActor != null
-				? FromActor(o.TargetActor)
-				: FromCell(w, o.TargetLocation);
+			return new Target
+			{
+				pos = w.Map.CenterOfSubCell(c, subCell),
+				cell = c,
+				subCell = subCell,
+				type = TargetType.Terrain
+			};
 		}
 
 		public static Target FromActor(Actor a)
@@ -48,7 +49,6 @@ namespace OpenRA.Traits
 			return new Target
 			{
 				actor = a,
-				targetable = a.TraitOrDefault<ITargetable>(),
 				type = TargetType.Actor,
 				generation = a.Generation,
 			};
@@ -83,15 +83,35 @@ namespace OpenRA.Traits
 			if (targeter == null || Type == TargetType.Invalid)
 				return false;
 
-			if (targetable != null && !targetable.TargetableBy(actor, targeter))
+			if (actor != null && !actor.IsTargetableBy(targeter))
 				return false;
 
 			return true;
 		}
 
+		// Currently all or nothing.
+		// TODO: either replace based on target type or put in singleton trait
 		public bool RequiresForceFire
 		{
-			get { return targetable != null && targetable.RequiresForceFire; }
+			get
+			{
+				if (actor == null)
+					return false;
+
+				// PERF: Avoid LINQ.
+				var isTargetable = false;
+				foreach (var targetable in actor.Targetables)
+				{
+					if (!targetable.IsTraitEnabled())
+						continue;
+
+					isTargetable = true;
+					if (!targetable.RequiresForceFire)
+						return false;
+				}
+
+				return isTargetable;
+			}
 		}
 
 		// Representative position - see Positions for the full set of targetable positions.
@@ -123,12 +143,10 @@ namespace OpenRA.Traits
 				switch (Type)
 				{
 					case TargetType.Actor:
-						var targetable = actor.TraitOrDefault<ITargetable>();
-						if (targetable == null)
+						if (!actor.Targetables.Any(Exts.IsTraitEnabled))
 							return new[] { actor.CenterPosition };
 
-						var positions = targetable.TargetablePositions(actor);
-						return positions.Any() ? positions : new[] { actor.CenterPosition };
+						return actor.GetTargetablePositions();
 					case TargetType.FrozenActor:
 						return new[] { frozen.CenterPosition };
 					case TargetType.Terrain:
@@ -140,14 +158,13 @@ namespace OpenRA.Traits
 			}
 		}
 
-		public bool IsInRange(WPos origin, WRange range)
+		public bool IsInRange(WPos origin, WDist range)
 		{
 			if (Type == TargetType.Invalid)
 				return false;
 
 			// Target ranges are calculated in 2D, so ignore height differences
-			var rangeSquared = range.Range * range.Range;
-			return Positions.Any(t => (t - origin).HorizontalLengthSquared <= rangeSquared);
+			return Positions.Any(t => (t - origin).HorizontalLengthSquared <= range.LengthSquared);
 		}
 
 		public override string ToString()
@@ -168,5 +185,12 @@ namespace OpenRA.Traits
 					return "Invalid";
 			}
 		}
+
+		// Expose internal state for serialization by the orders code *only*
+		internal TargetType SerializableType { get { return type; } }
+		internal Actor SerializableActor { get { return actor; } }
+		internal CPos? SerializableCell { get { return cell; } }
+		internal SubCell? SerializableSubCell { get { return subCell; } }
+		internal WPos SerializablePos { get { return pos; } }
 	}
 }

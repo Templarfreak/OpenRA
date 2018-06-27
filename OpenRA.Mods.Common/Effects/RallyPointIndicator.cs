@@ -1,69 +1,114 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System.Collections.Generic;
-using System.Linq;
 using OpenRA.Effects;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
 
 namespace OpenRA.Mods.Common.Effects
 {
-	class RallyPointIndicator : IEffect
+	class RallyPointIndicator : IEffect, IEffectAboveShroud
 	{
 		readonly Actor building;
 		readonly RallyPoint rp;
-		readonly string palettePrefix;
 		readonly Animation flag;
 		readonly Animation circles;
+		readonly ExitInfo[] exits;
 
-		public RallyPointIndicator(Actor building, string palettePrefix)
+		readonly WPos[] targetLine = new WPos[2];
+		CPos cachedLocation;
+
+		public RallyPointIndicator(Actor building, RallyPoint rp, ExitInfo[] exits)
 		{
 			this.building = building;
-			this.palettePrefix = palettePrefix;
+			this.rp = rp;
+			this.exits = exits;
 
-			rp = building.Trait<RallyPoint>();
+			if (rp.Info.Image != null)
+			{
+				flag = new Animation(building.World, rp.Info.Image);
+				flag.PlayRepeating(rp.Info.FlagSequence);
 
-			flag = new Animation(building.World, "rallypoint");
-			circles = new Animation(building.World, "rallypoint");
-
-			flag.PlayRepeating("flag");
-			circles.Play("circles");
+				circles = new Animation(building.World, rp.Info.Image);
+				circles.Play(rp.Info.CirclesSequence);
+			}
 		}
 
-		CPos cachedLocation;
-		public void Tick(World world)
+		void IEffect.Tick(World world)
 		{
-			flag.Tick();
-			circles.Tick();
+			if (flag != null)
+				flag.Tick();
+
+			if (circles != null)
+				circles.Tick();
+
 			if (cachedLocation != rp.Location)
 			{
 				cachedLocation = rp.Location;
-				circles.Play("circles");
+
+				var rallyPos = world.Map.CenterOfCell(cachedLocation);
+				var exitPos = building.CenterPosition;
+
+				// Find closest exit
+				var dist = int.MaxValue;
+				foreach (var exit in exits)
+				{
+					var ep = building.CenterPosition + exit.SpawnOffset;
+					var len = (rallyPos - ep).Length;
+					if (len < dist)
+					{
+						dist = len;
+						exitPos = ep;
+					}
+				}
+
+				targetLine[0] = exitPos;
+				targetLine[1] = rallyPos;
+
+				if (circles != null)
+					circles.Play(rp.Info.CirclesSequence);
 			}
 
 			if (!building.IsInWorld || building.IsDead)
 				world.AddFrameEndTask(w => w.Remove(this));
 		}
 
-		public IEnumerable<IRenderable> Render(WorldRenderer wr)
+		IEnumerable<IRenderable> IEffect.Render(WorldRenderer wr) { return SpriteRenderable.None; }
+
+		IEnumerable<IRenderable> IEffectAboveShroud.RenderAboveShroud(WorldRenderer wr)
 		{
-			if (building.Owner != building.World.LocalPlayer)
+			if (!building.IsInWorld || !building.Owner.IsAlliedWith(building.World.LocalPlayer))
 				return SpriteRenderable.None;
 
-			if (!building.IsInWorld || !building.World.Selection.Actors.Contains(building))
+			if (!building.World.Selection.Contains(building))
 				return SpriteRenderable.None;
 
-			var pos = wr.World.Map.CenterOfCell(cachedLocation);
-			var palette = wr.Palette(palettePrefix + building.Owner.InternalName);
-			return circles.Render(pos, palette).Concat(flag.Render(pos, palette));
+			return RenderInner(wr);
+		}
+
+		IEnumerable<IRenderable> RenderInner(WorldRenderer wr)
+		{
+			var palette = wr.Palette(rp.PaletteName);
+
+			if (Game.Settings.Game.DrawTargetLine)
+				yield return new TargetLineRenderable(targetLine, building.Owner.Color.RGB);
+
+			if (circles != null)
+				foreach (var r in circles.Render(targetLine[1], palette))
+					yield return r;
+
+			if (flag != null)
+				foreach (var r in flag.Render(targetLine[1], palette))
+					yield return r;
 		}
 	}
 }

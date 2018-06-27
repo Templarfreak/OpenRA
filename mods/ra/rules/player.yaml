@@ -1,38 +1,50 @@
+^BasePlayer:
+	AlwaysVisible:
+	Shroud:
+
+EditorPlayer:
+	Inherits: ^BasePlayer
+
 Player:
+	Inherits: ^BasePlayer
 	TechTree:
 	ClassicProductionQueue@Building:
 		Type: Building
-		BuildSpeed: .4
 		LowPowerSlowdown: 3
 		QueuedAudio: Building
 		ReadyAudio: ConstructionComplete
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
 	ClassicProductionQueue@Defense:
 		Type: Defense
-		BuildSpeed: .4
 		LowPowerSlowdown: 3
 		QueuedAudio: Building
 		ReadyAudio: ConstructionComplete
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
 	ClassicProductionQueue@Vehicle:
 		Type: Vehicle
-		BuildSpeed: .4
 		LowPowerSlowdown: 3
+		QueuedAudio: Building
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
+		BuildTimeSpeedReduction: 100, 75, 60, 50
 	ClassicProductionQueue@Infantry:
 		Type: Infantry
-		BuildSpeed: .4
 		LowPowerSlowdown: 3
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
 	ClassicProductionQueue@Ship:
 		Type: Ship
-		BuildSpeed: .4
 		LowPowerSlowdown: 3
+		QueuedAudio: Building
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
 	ClassicProductionQueue@Aircraft:
 		Type: Aircraft
-		BuildSpeed: .4
 		LowPowerSlowdown: 3
+		QueuedAudio: Building
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
 	PlaceBuilding:
 	SupportPowerManager:
@@ -42,10 +54,26 @@ Player:
 	PowerManager:
 	AllyRepair:
 	PlayerResources:
-	ActorGroupProxy:
+		InsufficientFundsNotification: InsufficientFunds
 	DeveloperMode:
+		CheckboxDisplayOrder: 9
 	GpsWatcher:
 	Shroud:
+		FogCheckboxDisplayOrder: 3
+	LobbyPrerequisiteCheckbox@GLOBALBOUNTY:
+		ID: bounty
+		Label: Kill Bounties
+		Description: Players receive cash bonuses when killing enemy units
+		Enabled: False
+		DisplayOrder: 8
+		Prerequisites: global-bounty
+	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
+		ID: factundeploy
+		Label: Redeployable MCVs
+		Description: Allow undeploying Construction Yard.
+		Enabled: True
+		DisplayOrder: 7
+		Prerequisites: global-factundeploy
 	FrozenActorLayer:
 	BaseAttackNotifier:
 	PlayerStatistics:
@@ -53,15 +81,27 @@ Player:
 	ProvidesTechPrerequisite@infonly:
 		Name: Infantry Only
 		Prerequisites: techlevel.infonly
+		Id: infantryonly
 	ProvidesTechPrerequisite@low:
 		Name: Low
 		Prerequisites: techlevel.infonly, techlevel.low
+		Id: low
 	ProvidesTechPrerequisite@medium:
 		Name: Medium
 		Prerequisites: techlevel.infonly, techlevel.low, techlevel.medium
+		Id: medium
+	ProvidesTechPrerequisite@high:
+		Name: No Superweapons
+		Prerequisites: techlevel.infonly, techlevel.low, techlevel.medium, techlevel.high
+		Id: nosuperweapons
 	ProvidesTechPrerequisite@unrestricted:
 		Name: Unrestricted
-		Prerequisites: techlevel.infonly, techlevel.low, techlevel.medium, techlevel.unrestricted
-	GlobalUpgradeManager:
+		Prerequisites: techlevel.infonly, techlevel.low, techlevel.medium, techlevel.high, techlevel.unrestricted
+		Id: unrestricted
+	GrantConditionOnPrerequisiteManager:
 	EnemyWatcher:
-
+	VeteranProductionIconOverlay:
+		Image: iconchevrons
+		Sequence: veteran
+	ResourceStorageWarning:
+	PlayerExperience:

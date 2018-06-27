@@ -1,10 +1,8 @@
-MapFormat: 7
+MapFormat: 11
 
 RequiresMod: ra
 
 Title: Desert Shellmap
-
-Description: Desert Shellmap
 
 Author: Scott_NZ
 
@@ -16,33 +14,27 @@ Bounds: 1,1,126,126
 
 Visibility: Shellmap
 
-Type: Shellmap
-
-Videos:
-
-Options:
+Categories: Shellmap
 
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Race: allies
-		Allies: Allies
+		Faction: allies
 	PlayerReference@Creeps:
 		Name: Creeps
 		NonCombatant: True
-		Race: allies
+		Faction: allies
 	PlayerReference@Allies:
 		Name: Allies
-		Race: allies
-		ColorRamp: 161,134,200
-		Allies: Neutral
+		Faction: allies
+		Color: ABB7E4
 		Enemies: Soviets
 	PlayerReference@Soviets:
 		Name: Soviets
-		Race: soviet
-		ColorRamp: 3,255,127
+		Faction: soviet
+		Color: FE1100
 		Enemies: Allies
 
 Actors:
@@ -140,7 +132,7 @@ Actors:
 		Location: 64,63
 		Owner: Allies
 	Actor153: apwr
-		Location: 93,87
+		Location: 93,88
 		Owner: Allies
 	Actor49: brik
 		Location: 71,63
@@ -164,10 +156,10 @@ Actors:
 		Location: 74,67
 		Owner: Allies
 	Actor50: apwr
-		Location: 51,14
+		Location: 51,15
 		Owner: Soviets
 	Actor63: tsla
-		Location: 48,31
+		Location: 48,32
 		Owner: Soviets
 	Actor56: v23
 		Location: 24,36
@@ -239,7 +231,7 @@ Actors:
 		Location: 14,56
 		Owner: Neutral
 	Actor62: apwr
-		Location: 38,17
+		Location: 38,18
 		Owner: Soviets
 	Actor72: brik
 		Location: 87,70
@@ -295,10 +287,10 @@ Actors:
 		Location: 94,28
 		Owner: Soviets
 	Actor103: apwr
-		Location: 118,36
+		Location: 118,37
 		Owner: Soviets
 	Actor101: apwr
-		Location: 115,38
+		Location: 115,39
 		Owner: Soviets
 	Actor110: fcom
 		Location: 106,44
@@ -307,13 +299,13 @@ Actors:
 		Location: 114,43
 		Owner: Soviets
 	Actor104: apwr
-		Location: 115,35
+		Location: 115,36
 		Owner: Soviets
 	Actor91: apwr
-		Location: 118,39
+		Location: 118,40
 		Owner: Soviets
 	Actor108: tsla
-		Location: 95,33
+		Location: 95,34
 		Owner: Soviets
 	Actor112: ftur
 		Location: 93,29
@@ -325,7 +317,7 @@ Actors:
 		Location: 37,28
 		Owner: Soviets
 	Actor115: tsla
-		Location: 40,24
+		Location: 40,25
 		Owner: Soviets
 	Actor117: fix
 		Location: 106,34
@@ -341,13 +333,13 @@ Actors:
 		Location: 112,49
 		Owner: Soviets
 	Actor126: tsla
-		Location: 110,27
+		Location: 110,28
 		Owner: Soviets
 	Actor124: dome
 		Location: 118,46
 		Owner: Soviets
 	Actor125: tsla
-		Location: 111,43
+		Location: 111,44
 		Owner: Soviets
 	Actor127: rock2
 		Location: 103,54
@@ -359,13 +351,13 @@ Actors:
 		Location: 99,28
 		Owner: Soviets
 	Actor130: apwr
-		Location: 119,33
+		Location: 119,34
 		Owner: Soviets
 	Actor131: t08
 		Location: 121,43
 		Owner: Neutral
 	Actor132: apwr
-		Location: 116,32
+		Location: 116,33
 		Owner: Soviets
 	Actor133: oilb
 		Location: 76,37
@@ -426,7 +418,7 @@ Actors:
 		Owner: Allies
 		Facing: 110
 	Actor150: apwr
-		Location: 94,90
+		Location: 94,91
 		Owner: Allies
 	Actor35: pbox
 		Location: 68,85
@@ -484,11 +476,11 @@ Actors:
 		Location: 107,52
 		Owner: Soviets
 	Actor54: agun
-		Location: 76,92
+		Location: 76,93
 		Owner: Allies
 		Facing: 150
 	Actor155: apwr
-		Location: 90,87
+		Location: 90,88
 		Owner: Allies
 	Actor213: brik
 		Location: 60,80
@@ -511,34 +503,34 @@ Actors:
 		Location: 72,83
 		Owner: Allies
 	Actor89: apwr
-		Location: 93,84
+		Location: 93,85
 		Owner: Allies
 	Actor161: powr
 		Location: 89,90
 		Owner: Allies
 	Actor84: apwr
-		Location: 38,9
+		Location: 38,10
 		Owner: Soviets
 	Actor96: apwr
-		Location: 38,12
+		Location: 38,13
 		Owner: Soviets
 	Actor98: apwr
-		Location: 34,12
+		Location: 34,13
 		Owner: Soviets
 	Actor99: apwr
-		Location: 34,9
+		Location: 34,10
 		Owner: Soviets
 	Actor100: apwr
-		Location: 30,12
+		Location: 30,13
 		Owner: Soviets
 	Actor189: apwr
-		Location: 30,9
+		Location: 30,10
 		Owner: Soviets
 	Actor190: apwr
-		Location: 26,12
+		Location: 26,13
 		Owner: Soviets
 	Actor191: apwr
-		Location: 26,9
+		Location: 26,10
 		Owner: Soviets
 	Actor120: brik
 		Location: 95,70
@@ -559,7 +551,7 @@ Actors:
 		Location: 59,80
 		Owner: Allies
 	Actor149: apwr
-		Location: 92,93
+		Location: 92,94
 		Owner: Allies
 	Actor38: brik
 		Location: 72,67
@@ -618,7 +610,7 @@ Actors:
 		Location: 53,62
 		Owner: Allies
 	Actor151: apwr
-		Location: 91,90
+		Location: 91,91
 		Owner: Allies
 	Actor31: t08
 		Location: 56,58
@@ -673,7 +665,7 @@ Actors:
 		Location: 44,67
 		Owner: Allies
 	Actor66: gap
-		Location: 62,70
+		Location: 62,71
 		Owner: Allies
 	Actor218: sbag
 		Location: 43,68
@@ -866,7 +858,7 @@ Actors:
 		Location: 49,77
 		Owner: Allies
 	Actor256: gap
-		Location: 74,75
+		Location: 74,76
 		Owner: Allies
 	Actor313: brik
 		Location: 37,70
@@ -929,7 +921,7 @@ Actors:
 		Location: 63,81
 		Owner: Allies
 	Actor148: apwr
-		Location: 95,93
+		Location: 95,94
 		Owner: Allies
 	Actor324: e3
 		Location: 73,68
@@ -1073,7 +1065,7 @@ Actors:
 		Location: 81,91
 		Owner: Allies
 	Actor364: gap
-		Location: 77,90
+		Location: 77,91
 		Owner: Allies
 	Actor366: brik
 		Location: 59,60
@@ -1142,10 +1134,10 @@ Actors:
 		Location: 96,79
 		Owner: Allies
 	Actor79: agun
-		Location: 70,65
+		Location: 70,66
 		Owner: Allies
 	Actor118: agun
-		Location: 47,69
+		Location: 47,70
 		Owner: Allies
 		Facing: 64
 	SovietWarFactory1: weap
@@ -1215,10 +1207,10 @@ Actors:
 		Location: 60,93
 		Owner: Neutral
 	Chinook1Entry: waypoint
-		Location: 44,126
+		Location: 45,126
 		Owner: Neutral
 	Chinook2Entry: waypoint
-		Location: 47,126
+		Location: 48,126
 		Owner: Neutral
 	Paradrop1: waypoint
 		Location: 70,50
@@ -1247,115 +1239,31 @@ Actors:
 	ChronoshiftLocation: waypoint
 		Location: 80,65
 		Owner: Neutral
+	Mig11: waypoint
+		Location: 94,1
+		Owner: Neutral
+	Mig12: waypoint
+		Location: 68,33
+		Owner: Neutral
+	Mig13: waypoint
+		Location: 41,38
+		Owner: Neutral
+	Mig14: waypoint
+		Location: 1,26
+		Owner: Neutral
+	Mig21: waypoint
+		Location: 96,3
+		Owner: Neutral
+	Mig22: waypoint
+		Location: 70,35
+		Owner: Neutral
+	Mig23: waypoint
+		Location: 41,40
+		Owner: Neutral
+	Mig24: waypoint
+		Location: 1,28
+		Owner: Neutral
 
-Smudges:
+Rules: ra|rules/campaign-palettes.yaml, rules.yaml
 
-Rules:
-	Player:
-		-ConquestVictoryConditions:
-	World:
-		-CrateSpawner:
-		-SpawnMPUnits:
-		-MPStartLocations:
-		ResourceType@ore:
-			ValuePerUnit: 0
-		LuaScript:
-			Scripts: desert-shellmap.lua
-		-StartGameNotification:
-	^Vehicle:
-		GivesBounty:
-			Percentage: 0
-		GainsExperience:
-			Upgrades:
-		InvulnerabilityUpgrade@UNKILLABLE:
-			UpgradeTypes: unkillable
-			UpgradeMinEnabledLevel: 1
-	^Tank:
-		GivesBounty:
-			Percentage: 0
-		GainsExperience:
-			Upgrades:
-		InvulnerabilityUpgrade@UNKILLABLE:
-			UpgradeTypes: unkillable
-			UpgradeMinEnabledLevel: 1
-	^Infantry:
-		GivesBounty:
-			Percentage: 0
-		GainsExperience:
-			Upgrades:
-		DeathSounds@NORMAL:
-			VolumeMultiplier: 0.1
-		DeathSounds@BURNED:
-			VolumeMultiplier: 0.1
-		DeathSounds@ZAPPED:
-			VolumeMultiplier: 0.1
-		InvulnerabilityUpgrade@UNKILLABLE:
-			UpgradeTypes: unkillable
-			UpgradeMinEnabledLevel: 1
-	^Ship:
-		GivesBounty:
-			Percentage: 0
-		GainsExperience:
-			Upgrades:
-		InvulnerabilityUpgrade@UNKILLABLE:
-			UpgradeTypes: unkillable
-			UpgradeMinEnabledLevel: 1
-	^Plane:
-		GivesBounty:
-			Percentage: 0
-		InvulnerabilityUpgrade@UNKILLABLE:
-			UpgradeTypes: unkillable
-			UpgradeMinEnabledLevel: 1
-	^Building:
-		GivesBounty:
-			Percentage: 0
-		InvulnerabilityUpgrade@UNKILLABLE:
-			UpgradeTypes: unkillable
-			UpgradeMinEnabledLevel: 1
-	OILB:
-		CashTrickler:
-			ShowTicks: false
-	TRAN.Husk2:
-		Burns:
-			Damage: 0
-	MISS:
-		Invulnerable:
-	APC:
-		Cargo:
-			InitialUnits: e1, e1, e2, e3, e4
-	Ant:
-		Buildable:
-			Prerequisites: barr
-		Health:
-			HP: 200
-	E7:
-		-AnnounceOnKill:
-	powerproxy.paratroopers:
-		ParatroopersPower:
-			DisplayBeacon: false
-			DropItems: E1,E1,E2,E3,E4
-	powerproxy.parazombies:
-		ParatroopersPower:
-			DropItems: ZOMBIE,ZOMBIE,ZOMBIE,ZOMBIE,ZOMBIE
-			QuantizedFacings: 8
-			DisplayBeacon: false
-
-Sequences:
-
-VoxelSequences:
-
-Weapons:
-	8Inch:
-		Report: tank6.aud
-	2Inch:
-		Range: 10c0
-	TTankZap:
-		Range: 4c768
-	FLAK-23:
-		Range: 4c0
-
-Voices:
-
-Notifications:
-
-Translations:
+Weapons: weapons.yaml

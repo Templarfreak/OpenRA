@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -16,22 +17,20 @@ namespace OpenRA
 	{
 		public string Name;
 		public string Palette;
-		public bool OwnsWorld = false;
-		public bool NonCombatant = false;
-		public bool Playable = false;
-		public bool Spectating = false;
 		public string Bot = null;
 		public string StartingUnitsClass = null;
 		public bool AllowBots = true;
+		public bool Playable = false;
 		public bool Required = false;
+		public bool OwnsWorld = false;
+		public bool Spectating = false;
+		public bool NonCombatant = false;
 
-		public bool LockRace = false;
-		public string Race;
+		public bool LockFaction = false;
+		public string Faction;
 
-		// ColorRamp naming retained for backward compatibility
 		public bool LockColor = false;
-		public HSLColor ColorRamp = new HSLColor(0, 0, 238);
-		public HSLColor Color { get { return ColorRamp; } set { ColorRamp = value; } }
+		public HSLColor Color = new HSLColor(0, 0, 238);
 
 		public bool LockSpawn = false;
 		public int Spawn = 0;

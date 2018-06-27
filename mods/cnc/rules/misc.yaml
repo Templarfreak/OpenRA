@@ -16,55 +16,127 @@ CRATE:
 	ExplodeCrateAction@fire:
 		Weapon: Napalm.Crate
 		SelectionShares: 5
-	GrantUpgradeCrateAction@cloak:
+	GrantExternalConditionCrateAction@cloak:
 		SelectionShares: 5
 		Effect: cloak
-		Upgrades: cloak
-	DuplicateUnitCrateAction:
-		SelectionShares: 10
-		MaxAmount: 5
-		MinAmount: 1
-		MaxDuplicateValue: 1250
+		Condition: cloak-crate-collected
 	GiveMcvCrateAction:
 		SelectionShares: 0
-		NoBaseSelectionShares: 120
+		NoBaseSelectionShares: 50
 		Units: mcv
+	ExplodeCrateAction:
+		Weapon: Atomic
+		SelectionShares: 1
+	GiveUnitCrateAction:
+		Units: vice
+		Owner: Creeps
+		SelectionShares: 10
+	LevelUpCrateAction:
+		Levels: 4
+		SelectionShares: 12
+
+WCRATE:
+	Inherits: ^Crate
+	Tooltip:
+		Name: Wooden Crate
+
+SCRATE:
+	Inherits: ^Crate
+	Tooltip:
+		Name: Steel Crate
 
 mpspawn:
+	Interactable:
+	EditorOnlyTooltip:
+		Name: (multiplayer player starting point)
+	AlwaysVisible:
 	Immobile:
 		OccupiesSpace: false
-	RenderEditorOnly:
-		Palette: chrome
+	WithSpriteBody:
+	RenderSpritesEditorOnly:
 	BodyOrientation:
+		QuantizedFacings: 1
+	EditorTilesetFilter:
+		Categories: System
 
 waypoint:
+	Interactable:
+	EditorOnlyTooltip:
+		Name: (waypoint for scripted behavior)
+	AlwaysVisible:
 	Immobile:
 		OccupiesSpace: false
-	RenderEditorOnly:
-		Palette: chrome
+	WithSpriteBody:
+	RenderSpritesEditorOnly:
 	BodyOrientation:
+		QuantizedFacings: 1
+	EditorTilesetFilter:
+		Categories: System
 
-^fact.colorpicker:
+fact.colorpicker:
 	Inherits: FACT
-	RenderBuilding:
+	-Buildable:
+	-EditorTilesetFilter:
+	RenderSprites:
 		Image: fact
 		Palette: colorpicker
 
 CAMERA:
+	Interactable:
+	EditorOnlyTooltip:
+		Name: (reveals area to owner)
+	AlwaysVisible:
+	WithSpriteBody:
+	RenderSpritesEditorOnly:
+	BodyOrientation:
+		QuantizedFacings: 1
 	Immobile:
 		OccupiesSpace: false
-	Health:
-		HP: 1000
 	RevealsShroud:
 		Range: 10c0
-	BodyOrientation:
+		Type: CenterPosition
+	EditorTilesetFilter:
+		Categories: System
 
 CAMERA.small:
+	Interactable:
+	EditorOnlyTooltip:
+		Name: (reveals small area to owner)
+	AlwaysVisible:
+	WithSpriteBody:
+	RenderSpritesEditorOnly:
+		Image: camera
+	BodyOrientation:
+		QuantizedFacings: 1
 	Immobile:
 		OccupiesSpace: false
 	Health:
-		HP: 1000
+		HP: 100000
+	HitShape:
 	RevealsShroud:
 		Range: 6c0
-	BodyOrientation:
+		Type: CenterPosition
+	EditorTilesetFilter:
+		Categories: System
 
+FLARE:
+	Immobile:
+		OccupiesSpace: false
+	RevealsShroud:
+		Range: 3c0
+		Type: CenterPosition
+	RenderSprites:
+		Image: smokland
+		Palette: terrain
+	WithSpriteBody:
+		StartSequence: open
+	HiddenUnderFog:
+		Type: CenterPosition
+	Tooltip:
+		Name: Flare
+		ShowOwnerRow: false
+	BodyOrientation:
+		QuantizedFacings: 1
+	EditorTilesetFilter:
+		Categories: System
+	Interactable:

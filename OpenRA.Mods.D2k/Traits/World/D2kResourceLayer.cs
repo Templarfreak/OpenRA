@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -17,11 +18,14 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.D2k.Traits
 {
 	[Desc("Used to render spice with round borders.")]
-	public class D2kResourceLayerInfo : TraitInfo<D2kResourceLayer> { }
+	public class D2kResourceLayerInfo : ResourceLayerInfo
+	{
+		public override object Create(ActorInitializer init) { return new D2kResourceLayer(init.Self); }
+	}
 
 	public class D2kResourceLayer : ResourceLayer
 	{
-		[Flags] enum ClearSides : byte
+		[Flags] public enum ClearSides : byte
 		{
 			None = 0x0,
 			Left = 0x1,
@@ -37,7 +41,7 @@ namespace OpenRA.Mods.D2k.Traits
 			All = 0xFF
 		}
 
-		static readonly Dictionary<string, int[]> Variants = new Dictionary<string, int[]>()
+		public static readonly Dictionary<string, int[]> Variants = new Dictionary<string, int[]>()
 		{
 			{ "cleara", new[] { 0, 50 } },
 			{ "clearb", new[] { 1, 51 } },
@@ -45,7 +49,7 @@ namespace OpenRA.Mods.D2k.Traits
 			{ "cleard", new[] { 0, 53 } },
 		};
 
-		static readonly Dictionary<ClearSides, int> SpriteMap = new Dictionary<ClearSides, int>()
+		public static readonly Dictionary<ClearSides, int> SpriteMap = new Dictionary<ClearSides, int>()
 		{
 			{ ClearSides.None, 0 },
 			{ ClearSides.Left | ClearSides.Top | ClearSides.TopLeft | ClearSides.TopRight | ClearSides.BottomLeft | ClearSides.BottomRight, 2 },
@@ -96,31 +100,39 @@ namespace OpenRA.Mods.D2k.Traits
 			{ ClearSides.Bottom | ClearSides.TopLeft | ClearSides.BottomLeft | ClearSides.BottomRight, 49 },
 		};
 
+		public D2kResourceLayer(Actor self)
+			: base(self) { }
+
+		bool CellContains(CPos c, ResourceType t)
+		{
+			return RenderContent.Contains(c) && RenderContent[c].Type == t;
+		}
+
 		ClearSides FindClearSides(ResourceType t, CPos p)
 		{
 			var ret = ClearSides.None;
-			if (render[p + new CVec(0, -1)].Type != t)
+			if (!CellContains(p + new CVec(0, -1), t))
 				ret |= ClearSides.Top | ClearSides.TopLeft | ClearSides.TopRight;
 
-			if (render[p + new CVec(-1, 0)].Type != t)
+			if (!CellContains(p + new CVec(-1, 0), t))
 				ret |= ClearSides.Left | ClearSides.TopLeft | ClearSides.BottomLeft;
 
-			if (render[p + new CVec(1, 0)].Type != t)
+			if (!CellContains(p + new CVec(1, 0), t))
 				ret |= ClearSides.Right | ClearSides.TopRight | ClearSides.BottomRight;
 
-			if (render[p + new CVec(0, 1)].Type != t)
+			if (!CellContains(p + new CVec(0, 1), t))
 				ret |= ClearSides.Bottom | ClearSides.BottomLeft | ClearSides.BottomRight;
 
-			if (render[p + new CVec(-1, -1)].Type != t)
+			if (!CellContains(p + new CVec(-1, -1), t))
 				ret |= ClearSides.TopLeft;
 
-			if (render[p + new CVec(1, -1)].Type != t)
+			if (!CellContains(p + new CVec(1, -1), t))
 				ret |= ClearSides.TopRight;
 
-			if (render[p + new CVec(-1, 1)].Type != t)
+			if (!CellContains(p + new CVec(-1, 1), t))
 				ret |= ClearSides.BottomLeft;
 
-			if (render[p + new CVec(1, 1)].Type != t)
+			if (!CellContains(p + new CVec(1, 1), t))
 				ret |= ClearSides.BottomRight;
 
 			return ret;
@@ -128,7 +140,10 @@ namespace OpenRA.Mods.D2k.Traits
 
 		void UpdateRenderedTileInner(CPos p)
 		{
-			var t = render[p];
+			if (!RenderContent.Contains(p))
+				return;
+
+			var t = RenderContent[p];
 			if (t.Density > 0)
 			{
 				var clear = FindClearSides(t.Type, p);
@@ -148,7 +163,7 @@ namespace OpenRA.Mods.D2k.Traits
 			else
 				t.Sprite = null;
 
-			render[p] = t;
+			RenderContent[p] = t;
 		}
 
 		protected override void UpdateRenderedSprite(CPos p)

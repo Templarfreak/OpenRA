@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -113,6 +114,7 @@ namespace OpenRA
 
 		public static bool HasModifier(this Modifiers k, Modifiers mod)
 		{
+			// PERF: Enum.HasFlag is slower and requires allocations.
 			return (k & mod) == mod;
 		}
 
@@ -326,6 +328,15 @@ namespace OpenRA
 			return root;
 		}
 
+		public static int IntegerDivisionRoundingAwayFromZero(int dividend, int divisor)
+		{
+			int remainder;
+			var quotient = Math.DivRem(dividend, divisor, out remainder);
+			if (remainder == 0)
+				return quotient;
+			return quotient + (Math.Sign(dividend) == Math.Sign(divisor) ? 1 : -1);
+		}
+
 		public static string JoinWith<T>(this IEnumerable<T> ts, string j)
 		{
 			return string.Join(j, ts);
@@ -350,7 +361,7 @@ namespace OpenRA
 
 		public static Dictionary<TKey, TElement> ToDictionaryWithConflictLog<TSource, TKey, TElement>(
 			this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector,
-			string debugName, Func<TKey, string> logKey, Func<TElement, string> logValue)
+			string debugName, Func<TKey, string> logKey = null, Func<TElement, string> logValue = null)
 		{
 			// Fall back on ToString() if null functions are provided:
 			logKey = logKey ?? (s => s.ToString());
@@ -363,6 +374,10 @@ namespace OpenRA
 			{
 				var key = keySelector(item);
 				var element = elementSelector(item);
+
+				// Discard elements with null keys
+				if (!typeof(TKey).IsValueType && key == null)
+					continue;
 
 				// Check for a key conflict:
 				if (d.ContainsKey(key))
@@ -478,14 +493,35 @@ namespace OpenRA
 			return int.TryParse(s, NumberStyles.Integer, NumberFormatInfo.InvariantInfo, out i);
 		}
 
-		public static bool IsTraitEnabled(this object trait)
+		public static bool TryParseInt64Invariant(string s, out long i)
 		{
-			return trait as IDisabledTrait == null || !(trait as IDisabledTrait).IsTraitDisabled;
+			return long.TryParse(s, NumberStyles.Integer, NumberFormatInfo.InvariantInfo, out i);
 		}
 
-		public static bool IsTraitEnabled<T>(T t)
+		public static bool IsTraitEnabled<T>(this T trait)
 		{
-			return IsTraitEnabled(t as object);
+			var disabledTrait = trait as IDisabledTrait;
+			return disabledTrait == null || !disabledTrait.IsTraitDisabled;
+		}
+
+		public static T FirstEnabledTraitOrDefault<T>(this IEnumerable<T> ts)
+		{
+			// PERF: Avoid LINQ.
+			foreach (var t in ts)
+				if (t.IsTraitEnabled())
+					return t;
+
+			return default(T);
+		}
+
+		public static T FirstEnabledTraitOrDefault<T>(this T[] ts)
+		{
+			// PERF: Avoid LINQ.
+			foreach (var t in ts)
+				if (t.IsTraitEnabled())
+					return t;
+
+			return default(T);
 		}
 	}
 

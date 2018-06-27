@@ -1,7 +1,16 @@
+--[[
+   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   This file is part of OpenRA, which is free software. It is made
+   available to you under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of
+   the License, or (at your option) any later version. For more
+   information, see COPYING.
+]]
 MCVReinforcements = { "mcv" }
 InfantryReinforcements = { "e1", "e1", "e1" }
 VehicleReinforcements = { "jeep" }
 NodPatrol = { "e1", "e1" }
+GDIBaseBuildings = { "pyle", "fact", "nuke" }
 
 SendNodPatrol = function()
 	Reinforcements.Reinforce(enemy, NodPatrol, { nod0.Location, nod1.Location }, 15, function(soldier)
@@ -9,11 +18,6 @@ SendNodPatrol = function()
 		soldier.Move(nod3.Location)
 		soldier.Hunt()
 	end)
-end
-
-SetGunboatPath = function(gunboat)
-	gunboat.AttackMove(gunboatLeft.Location)
-	gunboat.AttackMove(gunboatRight.Location)
 end
 
 ReinforceWithLandingCraft = function(units, transportStart, transportUnload, rallypoint)
@@ -48,18 +52,16 @@ Reinforce = function(units)
 	ReinforceWithLandingCraft(units, lstStart.Location, lstEnd.Location, reinforcementsTarget.Location)
 end
 
-CheckForBase = function()
-	baseBuildings = Map.ActorsInBox(Map.TopLeft, Map.BottomRight, function(actor)
-		return actor.Type == "fact" or actor.Type == "pyle" or actor.Type == "nuke"
+CheckForBase = function(player)
+	local buildings = 0
+
+	Utils.Do(GDIBaseBuildings, function(name)
+		if #player.GetActorsByType(name) > 0 then
+			buildings = buildings + 1
+		end
 	end)
 
-	return #baseBuildings >= 3
-end
-
-initialSong = "aoi"
-PlayMusic = function()
-	Media.PlayMusic(initialSong, PlayMusic)
-	initialSong = nil
+	return buildings == #GDIBaseBuildings
 end
 
 WorldLoaded = function()
@@ -78,24 +80,17 @@ WorldLoaded = function()
 
 	Trigger.OnPlayerWon(player, function()
 		Media.PlaySpeechNotification(player, "Win")
-		Trigger.AfterDelay(DateTime.Seconds(1), function()
-			Media.PlayMusic("win1")
-		end)
 	end)
 
 	Trigger.OnPlayerLost(player, function()
 		Media.PlaySpeechNotification(player, "Lose")
 	end)
 
-	secureAreaObjective = player.AddPrimaryObjective("Eliminate all Nod forces in the area")
-	beachheadObjective = player.AddSecondaryObjective("Establish a beachhead")
+	secureAreaObjective = player.AddPrimaryObjective("Eliminate all Nod forces in the area.")
+	beachheadObjective = player.AddSecondaryObjective("Establish a beachhead.")
 
 	ReinforceWithLandingCraft(MCVReinforcements, lstStart.Location + CVec.New(2, 0), lstEnd.Location + CVec.New(2, 0), mcvTarget.Location)
 	Reinforce(InfantryReinforcements)
-
-	PlayMusic()
-
-	Trigger.OnIdle(Gunboat, function() SetGunboatPath(Gunboat) end)
 
 	SendNodPatrol()
 
@@ -113,7 +108,7 @@ Tick = function()
 		player.MarkFailedObjective(secureAreaObjective)
 	end
 
-	if DateTime.GameTime % DateTime.Seconds(1) == 0 and not player.IsObjectiveCompleted(beachheadObjective) and CheckForBase() then
+	if DateTime.GameTime % DateTime.Seconds(1) == 0 and not player.IsObjectiveCompleted(beachheadObjective) and CheckForBase(player) then
 		player.MarkCompletedObjective(beachheadObjective)
 	end
 end

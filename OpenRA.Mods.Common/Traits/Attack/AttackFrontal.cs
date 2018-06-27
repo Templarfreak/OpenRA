@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -17,7 +18,15 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Unit got to face the target")]
 	public class AttackFrontalInfo : AttackBaseInfo, Requires<IFacingInfo>
 	{
-		public readonly int FacingTolerance = 1;
+		public readonly int FacingTolerance = 0;
+
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			base.RulesetLoaded(rules, ai);
+
+			if (FacingTolerance < 0 || FacingTolerance > 128)
+				throw new YamlException("Facing tolerance must be in range of [0, 128], 128 covers 360 degrees.");
+		}
 
 		public override object Create(ActorInitializer init) { return new AttackFrontal(init.Self, this); }
 	}
@@ -37,22 +46,19 @@ namespace OpenRA.Mods.Common.Traits
 			if (!base.CanAttack(self, target))
 				return false;
 
-			var f = facing.Value.Facing;
-			var facingToTarget = Util.GetFacing(target.CenterPosition - self.CenterPosition, f);
+			var pos = self.CenterPosition;
+			var targetedPosition = GetTargetPosition(pos, target);
+			var delta = targetedPosition - pos;
 
-			if (Math.Abs(facingToTarget - f) % 256 > info.FacingTolerance)
-				return false;
+			if (delta.HorizontalLengthSquared == 0)
+				return true;
 
-			return true;
+			return Util.FacingWithinTolerance(facing.Facing, delta.Yaw.Facing, info.FacingTolerance);
 		}
 
-		public override Activity GetAttackActivity(Actor self, Target newTarget, bool allowMove)
+		public override Activity GetAttackActivity(Actor self, Target newTarget, bool allowMove, bool forceAttack)
 		{
-			var a = ChooseArmamentForTarget(newTarget);
-			if (a == null)
-				return null;
-
-			return new Activities.Attack(self, newTarget, a.Weapon.MinRange, a.Weapon.Range, allowMove);
+			return new Activities.Attack(self, newTarget, allowMove, forceAttack, info.FacingTolerance);
 		}
 	}
 }

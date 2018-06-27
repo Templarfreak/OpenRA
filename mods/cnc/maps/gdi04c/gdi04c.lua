@@ -1,3 +1,11 @@
+--[[
+   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   This file is part of OpenRA, which is free software. It is made
+   available to you under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of
+   the License, or (at your option) any later version. For more
+   information, see COPYING.
+]]
 LoseTriggerHouses = { TrigLos2Farm1, TrigLos2Farm2, TrigLos2Farm3, TrigLos2Farm4 }
 TownAttackTrigger = { CPos.New(54, 38), CPos.New(55, 38), CPos.New(56, 38), CPos.New(57, 38) }
 GDIReinforcementsTrigger = { CPos.New(32, 51), CPos.New(32, 52), CPos.New(33, 52) }
@@ -36,12 +44,12 @@ TownAttackAction = function(actor)
 end
 
 AttackTown = function()
-	Reinforcements.Reinforce(nod, TownAttackWave1, { NodReinfEntry.Location, NodReinfRally.Location }, DateTime.Seconds(0.25), TownAttackAction)
+	Reinforcements.Reinforce(enemy, TownAttackWave1, { NodReinfEntry.Location, NodReinfRally.Location }, DateTime.Seconds(0.25), TownAttackAction)
 	Trigger.AfterDelay(DateTime.Seconds(2), function()
-		Reinforcements.Reinforce(nod, TownAttackWave2, { NodReinfEntry.Location, NodReinfRally.Location }, DateTime.Seconds(1), TownAttackAction)
+		Reinforcements.Reinforce(enemy, TownAttackWave2, { NodReinfEntry.Location, NodReinfRally.Location }, DateTime.Seconds(1), TownAttackAction)
 	end)
 	Trigger.AfterDelay(DateTime.Seconds(4), function()
-		Reinforcements.Reinforce(nod, TownAttackWave3, { NodReinfEntry.Location, NodReinfRally.Location }, DateTime.Seconds(1), TownAttackAction)
+		Reinforcements.Reinforce(enemy, TownAttackWave3, { NodReinfEntry.Location, NodReinfRally.Location }, DateTime.Seconds(1), TownAttackAction)
 	end)
 end
 
@@ -63,7 +71,7 @@ end
 
 WorldLoaded = function()
 	player = Player.GetPlayer("GDI")
-	nod = Player.GetPlayer("Nod")
+	enemy = Player.GetPlayer("Nod")
 
 	Trigger.OnObjectiveAdded(player, function(p, id)
 		Media.DisplayMessage(p.GetObjectiveDescription(id), "New " .. string.lower(p.GetObjectiveType(id)) .. " objective")
@@ -87,9 +95,9 @@ WorldLoaded = function()
 		Media.PlaySpeechNotification(player, "Lose")
 	end)
 
-	nodObjective = nod.AddPrimaryObjective("Destroy all GDI troops")
-	gdiObjective1 = player.AddPrimaryObjective("Defend the town of Bialystok")
-	gdiObjective2 = player.AddPrimaryObjective("Eliminate all Nod forces in the area")
+	nodObjective = enemy.AddPrimaryObjective("Destroy all GDI troops.")
+	gdiObjective1 = player.AddPrimaryObjective("Defend the town of Białystok.")
+	gdiObjective2 = player.AddPrimaryObjective("Eliminate all Nod forces in the area.")
 
 	townAttackTrigger = false
 	Trigger.OnExitedFootprint(TownAttackTrigger, function(a, id)
@@ -123,9 +131,9 @@ end
 
 Tick = function()
 	if player.HasNoRequiredUnits() then
-		nod.MarkCompletedObjective(nodObjective)
+		enemy.MarkCompletedObjective(nodObjective)
 	end
-	if nod.HasNoRequiredUnits() then
+	if enemy.HasNoRequiredUnits() then
 		player.MarkCompletedObjective(gdiObjective1)
 		player.MarkCompletedObjective(gdiObjective2)
 	end

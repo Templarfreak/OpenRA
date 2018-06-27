@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -17,7 +18,7 @@ using OpenRA.Mods.Common.Graphics;
 
 namespace OpenRA.Mods.Common.Effects
 {
-	public class FloatingText : IEffect
+	public class FloatingText : IEffect, IEffectAboveShroud
 	{
 		static readonly WVec Velocity = new WVec(0, 0, 86);
 
@@ -29,11 +30,11 @@ namespace OpenRA.Mods.Common.Effects
 
 		public FloatingText(WPos pos, Color color, string text, int duration)
 		{
-			this.font = Game.Renderer.Fonts["TinyBold"];
+			font = Game.Renderer.Fonts["TinyBold"];
 			this.pos = pos;
 			this.color = color;
 			this.text = text;
-			this.remaining = duration;
+			remaining = duration;
 		}
 
 		public void Tick(World world)
@@ -44,12 +45,15 @@ namespace OpenRA.Mods.Common.Effects
 			pos += Velocity;
 		}
 
-		public IEnumerable<IRenderable> Render(WorldRenderer wr)
+		public IEnumerable<IRenderable> Render(WorldRenderer wr) { return SpriteRenderable.None; }
+
+		public IEnumerable<IRenderable> RenderAboveShroud(WorldRenderer wr)
 		{
-			if (wr.World.FogObscures(wr.World.Map.CellContaining(pos)))
+			if (wr.World.FogObscures(pos) || wr.World.ShroudObscures(pos))
 				yield break;
 
-			yield return new TextRenderable(font, pos, 0, color, text);
+			// Arbitrary large value used for the z-offset to try and ensure the text displays above everything else.
+			yield return new TextRenderable(font, pos, 4096, color, text);
 		}
 
 		public static string FormatCashTick(int cashAmount)

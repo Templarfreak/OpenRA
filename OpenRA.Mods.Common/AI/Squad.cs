@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -16,7 +17,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.AI
 {
-	public enum SquadType { Assault, Air, Rush, Protection }
+	public enum SquadType { Assault, Air, Rush, Protection, Naval }
 
 	public class Squad
 	{
@@ -29,8 +30,6 @@ namespace OpenRA.Mods.Common.AI
 
 		internal Target Target;
 		internal StateMachine FuzzyStateMachine;
-
-		internal AttackOrFleeFuzzy AttackOrFleeFuzzy = new AttackOrFleeFuzzy();
 
 		public Squad(HackyAI bot, SquadType type) : this(bot, type, null) { }
 
@@ -55,6 +54,9 @@ namespace OpenRA.Mods.Common.AI
 				case SquadType.Protection:
 					FuzzyStateMachine.ChangeState(this, new UnitsForProtectionIdleState(), true);
 					break;
+				case SquadType.Naval:
+					FuzzyStateMachine.ChangeState(this, new NavyUnitsIdleState(), true);
+					break;
 			}
 		}
 
@@ -72,9 +74,14 @@ namespace OpenRA.Mods.Common.AI
 			set { Target = Target.FromActor(value); }
 		}
 
-		public bool TargetIsValid
+		public bool IsTargetValid
 		{
-			get { return Target.IsValidFor(Units.FirstOrDefault()) && !Target.Actor.HasTrait<Husk>(); }
+			get { return Target.IsValidFor(Units.FirstOrDefault()) && !Target.Actor.Info.HasTraitInfo<HuskInfo>(); }
+		}
+
+		public bool IsTargetVisible
+		{
+			get { return TargetActor.CanBeViewedByPlayer(Bot.Player); }
 		}
 
 		public WPos CenterPosition { get { return Units.Select(u => u.CenterPosition).Average(); } }

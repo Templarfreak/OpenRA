@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -38,13 +39,22 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			collector.World.AddFrameEndTask(w =>
 			{
-				collector.Owner.PlayerActor.Trait<PlayerResources>().GiveCash(info.Amount);
+				var amount = collector.Owner.PlayerActor.Trait<PlayerResources>().ChangeCash(info.Amount);
 
 				if (info.UseCashTick)
-					w.Add(new FloatingText(collector.CenterPosition, collector.Owner.Color.RGB, FloatingText.FormatCashTick(info.Amount), 30));
+					w.Add(new FloatingText(collector.CenterPosition, collector.Owner.Color.RGB, FloatingText.FormatCashTick(amount), 30));
 			});
 
 			base.Activate(collector);
+		}
+
+		public override int GetSelectionShares(Actor collector)
+		{
+			var pr = collector.Owner.PlayerActor.Trait<PlayerResources>();
+			if (info.Amount < 0 && (pr.Cash + pr.Resources) == 0)
+				return 0;
+
+			return base.GetSelectionShares(collector);
 		}
 	}
 }

@@ -4,7 +4,9 @@ T01:
 		Footprint: __ x_
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T01.Husk
 
 T02:
 	Inherits: ^Tree
@@ -12,7 +14,9 @@ T02:
 		Footprint: __ x_
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T02.Husk
 
 T03:
 	Inherits: ^Tree
@@ -20,13 +24,19 @@ T03:
 		Footprint: __ x_
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T03.Husk
 
 T04:
 	Inherits: ^Tree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
+	EditorTilesetFilter:
+		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T04.Husk
 
 T05:
 	Inherits: ^Tree
@@ -34,7 +44,9 @@ T05:
 		Footprint: __ x_
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T05.Husk
 
 T06:
 	Inherits: ^Tree
@@ -42,7 +54,9 @@ T06:
 		Footprint: __ x_
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T06.Husk
 
 T07:
 	Inherits: ^Tree
@@ -50,13 +64,24 @@ T07:
 		Footprint: __ x_
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T07.Husk
 
 T08:
 	Inherits: ^Tree
 	Building:
 		Footprint: x_
 		Dimensions: 2,1
+	SpawnActorOnDeath:
+		Actor: T08.Husk
+
+T09:
+	Inherits: ^Tree
+	EditorTilesetFilter:
+		ExcludeTilesets: TEMPERAT, SNOW, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T09.Husk
 
 T10:
 	Inherits: ^Tree
@@ -64,7 +89,9 @@ T10:
 		Footprint: __ xx
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T10.Husk
 
 T11:
 	Inherits: ^Tree
@@ -72,7 +99,9 @@ T11:
 		Footprint: __ xx
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T11.Husk
 
 T12:
 	Inherits: ^Tree
@@ -80,7 +109,9 @@ T12:
 		Footprint: __ x_
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T12.Husk
 
 T13:
 	Inherits: ^Tree
@@ -88,7 +119,9 @@ T13:
 		Footprint: __ x_
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T13.Husk
 
 T14:
 	Inherits: ^Tree
@@ -96,7 +129,9 @@ T14:
 		Footprint: ___ xx_
 		Dimensions: 3,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T14.Husk
 
 T15:
 	Inherits: ^Tree
@@ -104,7 +139,9 @@ T15:
 		Footprint: ___ xx_
 		Dimensions: 3,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T15.Husk
 
 T16:
 	Inherits: ^Tree
@@ -112,7 +149,9 @@ T16:
 		Footprint: __ x_
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T16.Husk
 
 T17:
 	Inherits: ^Tree
@@ -120,13 +159,19 @@ T17:
 		Footprint: __ x_
 		Dimensions: 2,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: T17.Husk
 
 TC01:
 	Inherits: ^Tree
 	Building:
 		Footprint: ___ xx_
 		Dimensions: 3,2
+	EditorTilesetFilter:
+		ExcludeTilesets: INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC01.Husk
 
 TC02:
 	Inherits: ^Tree
@@ -134,7 +179,9 @@ TC02:
 		Footprint: _x_ xx_
 		Dimensions: 3,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC02.Husk
 
 TC03:
 	Inherits: ^Tree
@@ -142,7 +189,9 @@ TC03:
 		Footprint: xx_ xx_
 		Dimensions: 3,2
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC03.Husk
 
 TC04:
 	Inherits: ^Tree
@@ -150,7 +199,9 @@ TC04:
 		Footprint: ____ xxx_ x___
 		Dimensions: 4,3
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC04.Husk
 
 TC05:
 	Inherits: ^Tree
@@ -158,96 +209,149 @@ TC05:
 		Footprint: __x_ xxx_ _xx_
 		Dimensions: 4,3
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		ExcludeTilesets: DESERT, INTERIOR
+	SpawnActorOnDeath:
+		Actor: TC05.Husk
 
 BOXES01:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Boxes
+	EditorTilesetFilter:
+		Categories: Decoration
 
 BOXES02:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Boxes
+	EditorTilesetFilter:
+		Categories: Decoration
 
 BOXES03:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Boxes
+	EditorTilesetFilter:
+		Categories: Decoration
 
 BOXES04:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Boxes
+	EditorTilesetFilter:
+		Categories: Decoration
 
 BOXES05:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Boxes
+	EditorTilesetFilter:
+		Categories: Decoration
 
 BOXES06:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Boxes
+	EditorTilesetFilter:
+		Categories: Decoration
 
 BOXES07:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Boxes
+	EditorTilesetFilter:
+		Categories: Decoration
 
 BOXES08:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Boxes
+	EditorTilesetFilter:
+		Categories: Decoration
 
 BOXES09:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Boxes
+	EditorTilesetFilter:
+		Categories: Decoration
 
 ICE01:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
 	Tooltip:
 		Name: Ice Floe
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		RequireTilesets: SNOW
+		Categories: Decoration
 
 ICE02:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Building:
 		Footprint: x x
 		Dimensions: 1,2
 	Tooltip:
 		Name: Ice Floe
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		RequireTilesets: SNOW
+		Categories: Decoration
 
 ICE03:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Building:
 		Footprint: xx
 		Dimensions: 2,1
 	Tooltip:
 		Name: Ice Floe
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		RequireTilesets: SNOW
+		Categories: Decoration
 
 ICE04:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Ice Floe
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		RequireTilesets: SNOW
+		Categories: Decoration
 
 ICE05:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Ice Floe
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		RequireTilesets: SNOW
+		Categories: Decoration
 
 ROCK1:
 	Inherits: ^Rock
@@ -293,35 +397,42 @@ ROCK7:
 
 UTILPOL1:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Utility Pole
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		Categories: Decoration
 
 UTILPOL2:
 	Inherits: ^Tree
+	RenderSprites:
+		Palette: player
 	Tooltip:
 		Name: Utility Pole
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		Categories: Decoration
 
 TANKTRAP1:
 	Inherits: ^Rock
+	RenderSprites:
+		Palette: player
 	Building:
 		Footprint: x
 		Dimensions: 1,1
 	Tooltip:
 		Name: Tank Trap
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
+		RequireTilesets: TEMPERAT, SNOW, DESERT, INTERIOR
 
 TANKTRAP2:
 	Inherits: ^Rock
+	RenderSprites:
+		Palette: player
 	Building:
 		Footprint: x
 		Dimensions: 1,1
 	Tooltip:
 		Name: Tank Trap
 	EditorTilesetFilter:
-		ExcludeTilesets: DESERT
-
+		RequireTilesets: TEMPERAT, SNOW, DESERT, INTERIOR

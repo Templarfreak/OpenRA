@@ -1,24 +1,27 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using OpenRA.Effects;
+using OpenRA.GameRules;
 using OpenRA.Graphics;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	class BridgeInfo : ITraitInfo, Requires<HealthInfo>, Requires<BuildingInfo>
+	class BridgeInfo : ITraitInfo, IRulesetLoaded, Requires<HealthInfo>, Requires<BuildingInfo>
 	{
 		public readonly bool Long = false;
 
@@ -39,9 +42,27 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int[] SouthOffset = null;
 
 		[Desc("The name of the weapon to use when demolishing the bridge")]
-		public readonly string DemolishWeapon = "Demolish";
+		[WeaponReference] public readonly string DemolishWeapon = "Demolish";
+
+		public WeaponInfo DemolishWeaponInfo { get; private set; }
+
+		[Desc("Types of damage that this bridge causes to units over/in path of it while being destroyed/repaired. Leave empty for no damage types.")]
+		public readonly HashSet<string> DamageTypes = new HashSet<string>();
 
 		public object Create(ActorInitializer init) { return new Bridge(init.Self, this); }
+
+		public void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			if (string.IsNullOrEmpty(DemolishWeapon))
+				throw new YamlException("A value for DemolishWeapon of a Bridge trait is missing.");
+
+			WeaponInfo weapon;
+			var weaponToLower = DemolishWeapon.ToLowerInvariant();
+			if (!rules.Weapons.TryGetValue(weaponToLower, out weapon))
+				throw new YamlException("Weapons Ruleset does not contain an entry '{0}'".F(weaponToLower));
+
+			DemolishWeaponInfo = weapon;
+		}
 
 		public IEnumerable<Pair<ushort, int>> Templates
 		{
@@ -51,7 +72,7 @@ namespace OpenRA.Mods.Common.Traits
 					yield return Pair.New(Template, 100);
 
 				if (DamagedTemplate != 0)
-					yield return Pair.New(DamagedTemplate, 50);
+					yield return Pair.New(DamagedTemplate, 49);
 
 				if (DestroyedTemplate != 0)
 					yield return Pair.New(DestroyedTemplate, 0);
@@ -70,9 +91,9 @@ namespace OpenRA.Mods.Common.Traits
 
 	class Bridge : IRender, INotifyDamageStateChanged
 	{
-		readonly Building building;
+		readonly BuildingInfo buildingInfo;
 		readonly Bridge[] neighbours = new Bridge[2];
-		readonly BridgeHut[] huts = new BridgeHut[2]; // Huts before this / first & after this / last
+		readonly LegacyBridgeHut[] huts = new LegacyBridgeHut[2]; // Huts before this / first & after this / last
 		readonly Health health;
 		readonly Actor self;
 		readonly BridgeInfo info;
@@ -82,7 +103,7 @@ namespace OpenRA.Mods.Common.Traits
 		ushort template;
 		Dictionary<CPos, byte> footprint;
 
-		public BridgeHut Hut { get; private set; }
+		public LegacyBridgeHut Hut { get; private set; }
 		public bool IsDangling { get { return isDangling.Value; } }
 
 		public Bridge(Actor self, BridgeInfo info)
@@ -93,7 +114,7 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 			type = self.Info.Name;
 			isDangling = new Lazy<bool>(() => huts[0] == huts[1] && (neighbours[0] == null || neighbours[1] == null));
-			building = self.Trait<Building>();
+			buildingInfo = self.Info.TraitInfo<BuildingInfo>();
 		}
 
 		public Bridge Neighbour(int direction) { return neighbours[direction]; }
@@ -124,11 +145,12 @@ namespace OpenRA.Mods.Common.Traits
 		byte GetTerrainType(CPos cell)
 		{
 			var dx = cell - self.Location;
-			var index = dx.X + self.World.TileSet.Templates[template].Size.X * dx.Y;
-			return self.World.TileSet.GetTerrainIndex(new TerrainTile(template, (byte)index));
+			var tileSet = self.World.Map.Rules.TileSet;
+			var index = dx.X + tileSet.Templates[template].Size.X * dx.Y;
+			return tileSet.GetTerrainIndex(new TerrainTile(template, (byte)index));
 		}
 
-		public void LinkNeighbouringBridges(World world, BridgeLayer bridges)
+		public void LinkNeighbouringBridges(World world, LegacyBridgeLayer bridges)
 		{
 			for (var d = 0; d <= 1; d++)
 			{
@@ -145,8 +167,9 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		internal void AddHut(BridgeHut hut)
+		internal void AddHut(LegacyBridgeHut hut)
 		{
+			// TODO: This method is incomprehensible and fragile, and should be rewritten.
 			if (huts[0] == huts[1])
 				huts[1] = hut;
 			if (Hut == null)
@@ -156,14 +179,14 @@ namespace OpenRA.Mods.Common.Traits
 					huts[0] = hut; // Set only first time
 				for (var d = 0; d <= 1; d++)
 					for (var b = neighbours[d]; b != null; b = b.Hut == null ? b.neighbours[d] : null)
-						b.huts[1 - d] = hut;
+						b.huts[d] = hut;
 			}
 			else
 				Hut = null;
 		}
 
-		public BridgeHut GetHut(int index) { return huts[index]; }
-		public Bridge GetNeighbor(int[] offset, BridgeLayer bridges)
+		public LegacyBridgeHut GetHut(int index) { return huts[index]; }
+		public Bridge GetNeighbor(int[] offset, LegacyBridgeLayer bridges)
 		{
 			if (offset == null)
 				return null;
@@ -173,7 +196,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		IRenderable[] TemplateRenderables(WorldRenderer wr, PaletteReference palette, ushort template)
 		{
-			var offset = FootprintUtils.CenterOffset(self.World, building.Info).Y + 1024;
+			var offset = buildingInfo.CenterOffset(self.World).Y + 1024;
 
 			return footprint.Select(c => (IRenderable)(new SpriteRenderable(
 				wr.Theater.TileSprite(new TerrainTile(template, c.Value)),
@@ -186,7 +209,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!initialized)
 			{
-				var palette = wr.Palette("terrain");
+				var palette = wr.Palette(TileSet.TerrainPaletteInternalName);
 				renderables = new Dictionary<ushort, IRenderable[]>();
 				foreach (var t in info.Templates)
 					renderables.Add(t.First, TemplateRenderables(wr, palette, t.First));
@@ -197,12 +220,31 @@ namespace OpenRA.Mods.Common.Traits
 			return renderables[template];
 		}
 
+		public IEnumerable<Rectangle> ScreenBounds(Actor self, WorldRenderer wr)
+		{
+			foreach (var kv in footprint)
+			{
+				var xy = wr.ScreenPxPosition(wr.World.Map.CenterOfCell(kv.Key));
+				var size = wr.Theater.TileSprite(new TerrainTile(template, kv.Value)).Bounds.Size;
+
+				// Add an extra pixel padding to avoid issues with odd-sized sprites
+				var halfWidth = size.Width / 2 + 1;
+				var halfHeight = size.Height / 2 + 1;
+
+				yield return Rectangle.FromLTRB(
+					xy.X - halfWidth,
+					xy.Y - halfHeight,
+					xy.X + halfWidth,
+					xy.Y + halfHeight);
+			}
+		}
+
 		void KillUnitsOnBridge()
 		{
 			foreach (var c in footprint.Keys)
-				foreach (var a in self.World.ActorMap.GetUnitsAt(c))
-					if (a.HasTrait<IPositionable>() && !a.Trait<IPositionable>().CanEnterCell(c))
-						a.Kill(self);
+				foreach (var a in self.World.ActorMap.GetActorsAt(c))
+					if (a.Info.HasTraitInfo<IPositionableInfo>() && !a.Trait<IPositionable>().CanExistInCell(c))
+						a.Kill(self, info.DamageTypes);
 		}
 
 		bool NeighbourIsDeadShore(Bridge neighbour)
@@ -242,7 +284,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var ds = health.DamageState;
 			return (ds == DamageState.Dead && info.DestroyedTemplate > 0) ? info.DestroyedTemplate :
-				   (ds >= DamageState.Heavy && info.DamagedTemplate > 0) ? info.DamagedTemplate : info.Template;
+				(ds >= DamageState.Heavy && info.DamagedTemplate > 0) ? info.DamagedTemplate : info.Template;
 		}
 
 		bool killedUnits = false;
@@ -284,7 +326,7 @@ namespace OpenRA.Mods.Common.Traits
 					KillUnitsOnBridge();
 				}
 				else
-					health.InflictDamage(self, repairer, -health.MaxHP, null, true);
+					health.InflictDamage(self, repairer, new Damage(-health.MaxHP), true);
 				if (direction < 0 ? neighbours[0] == null && neighbours[1] == null : Hut != null || neighbours[direction] == null)
 					onComplete(); // Done if single or reached other hut
 			});
@@ -300,7 +342,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		public void DamageStateChanged(Actor self, AttackInfo e)
+		void INotifyDamageStateChanged.DamageStateChanged(Actor self, AttackInfo e)
 		{
 			Do((b, d) => b.UpdateState());
 
@@ -333,12 +375,9 @@ namespace OpenRA.Mods.Common.Traits
 			var initialDamage = health.DamageState;
 			self.World.AddFrameEndTask(w =>
 			{
-				var weapon = saboteur.World.Map.Rules.Weapons[info.DemolishWeapon.ToLowerInvariant()];
-
 				// Use .FromPos since this actor is killed. Cannot use Target.FromActor
-				weapon.Impact(Target.FromPos(self.CenterPosition), saboteur, Enumerable.Empty<int>());
+				info.DemolishWeaponInfo.Impact(Target.FromPos(self.CenterPosition), saboteur, Enumerable.Empty<int>());
 
-				self.World.WorldActor.Trait<ScreenShaker>().AddEffect(15, self.CenterPosition, 6);
 				self.Kill(saboteur);
 			});
 

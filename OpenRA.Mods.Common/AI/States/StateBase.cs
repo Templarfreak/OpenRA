@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -19,22 +20,21 @@ namespace OpenRA.Mods.Common.AI
 {
 	abstract class StateBase
 	{
-		protected const int DangerRadius = 10;
-
 		protected static void GoToRandomOwnBuilding(Squad squad)
 		{
 			var loc = RandomBuildingLocation(squad);
 			foreach (var a in squad.Units)
-				squad.World.IssueOrder(new Order("Move", a, false) { TargetLocation = loc });
+				squad.Bot.QueueOrder(new Order("Move", a, Target.FromCell(squad.World, loc), false));
 		}
 
 		protected static CPos RandomBuildingLocation(Squad squad)
 		{
 			var location = squad.Bot.GetRandomBaseCenter();
-			var buildings = squad.World.ActorsWithTrait<Building>()
-				.Where(a => a.Actor.Owner == squad.Bot.Player).Select(a => a.Actor).ToList();
+			var buildings = squad.World.ActorsHavingTrait<Building>()
+				.Where(a => a.Owner == squad.Bot.Player).ToList();
 			if (buildings.Count > 0)
 				location = buildings.Random(squad.Random).Location;
+
 			return location;
 		}
 
@@ -43,15 +43,16 @@ namespace OpenRA.Mods.Common.AI
 			if (a.IsIdle)
 				return false;
 
-			var type = a.GetCurrentActivity().GetType();
+			var activity = a.CurrentActivity;
+			var type = activity.GetType();
 			if (type == typeof(Attack) || type == typeof(FlyAttack))
 				return true;
 
-			var next = a.GetCurrentActivity().NextActivity;
+			var next = activity.NextActivity;
 			if (next == null)
 				return false;
 
-			var nextType = a.GetCurrentActivity().NextActivity.GetType();
+			var nextType = next.GetType();
 			if (nextType == typeof(Attack) || nextType == typeof(FlyAttack))
 				return true;
 
@@ -60,17 +61,22 @@ namespace OpenRA.Mods.Common.AI
 
 		protected static bool CanAttackTarget(Actor a, Actor target)
 		{
-			if (!a.HasTrait<AttackBase>())
+			if (!a.Info.HasTraitInfo<AttackBaseInfo>())
 				return false;
 
-			var targetable = target.TraitOrDefault<ITargetable>();
-			if (targetable == null)
+			var targetTypes = target.GetEnabledTargetTypes();
+			if (targetTypes.IsEmpty)
 				return false;
 
 			var arms = a.TraitsImplementing<Armament>();
 			foreach (var arm in arms)
-				if (arm.Weapon.IsValidTarget(targetable.TargetTypes))
+			{
+				if (arm.IsTraitDisabled)
+					continue;
+
+				if (arm.Weapon.IsValidTarget(targetTypes))
 					return true;
+			}
 
 			return false;
 		}
@@ -80,13 +86,17 @@ namespace OpenRA.Mods.Common.AI
 			if (!squad.IsValid)
 				return false;
 
-			var u = squad.Units.Random(squad.Random);
-			var units = squad.World.FindActorsInCircle(u.CenterPosition, WRange.FromCells(DangerRadius)).ToList();
-			var ownBaseBuildingAround = units.Where(unit => unit.Owner == squad.Bot.Player && unit.HasTrait<Building>());
-			if (ownBaseBuildingAround.Any())
-				return false;
+			var randomSquadUnit = squad.Units.Random(squad.Random);
+			var dangerRadius = squad.Bot.Info.DangerScanRadius;
+			var units = squad.World.FindActorsInCircle(randomSquadUnit.CenterPosition, WDist.FromCells(dangerRadius)).ToList();
 
-			var enemyAroundUnit = units.Where(unit => squad.Bot.Player.Stances[unit.Owner] == Stance.Enemy && unit.HasTrait<AttackBase>());
+			// If there are any own buildings within the DangerRadius, don't flee
+			// PERF: Avoid LINQ
+			foreach (var u in units)
+				if (u.Owner == squad.Bot.Player && u.Info.HasTraitInfo<BuildingInfo>())
+					return false;
+
+			var enemyAroundUnit = units.Where(unit => squad.Bot.Player.Stances[unit.Owner] == Stance.Enemy && unit.Info.HasTraitInfo<AttackBaseInfo>());
 			if (!enemyAroundUnit.Any())
 				return false;
 

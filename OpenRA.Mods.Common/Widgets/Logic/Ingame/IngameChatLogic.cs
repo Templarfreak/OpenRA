@@ -1,14 +1,15 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System.Collections.Generic;
+using System;
 using System.Drawing;
 using System.Linq;
 using OpenRA.Mods.Common.Commands;
@@ -18,7 +19,7 @@ using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	public class IngameChatLogic
+	public class IngameChatLogic : ChromeLogic
 	{
 		readonly OrderManager orderManager;
 		readonly Ruleset modRules;
@@ -37,18 +38,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		bool disableTeamChat;
 		bool teamChat;
-		bool inDialog;
 
 		[ObjectCreator.UseCtor]
-		public IngameChatLogic(Widget widget, OrderManager orderManager, World world, Ruleset modRules)
+		public IngameChatLogic(Widget widget, OrderManager orderManager, World world, ModData modData, bool isMenuChat)
 		{
 			this.orderManager = orderManager;
-			this.modRules = modRules;
+			this.modRules = modData.DefaultRules;
 
 			chatTraits = world.WorldActor.TraitsImplementing<INotifyChat>().ToArray();
 
 			var players = world.Players.Where(p => p != world.LocalPlayer && !p.NonCombatant && !p.IsBot);
-			disableTeamChat = world.LocalPlayer == null || world.LobbyInfo.IsSinglePlayer || !players.Any(p => p.IsAlliedWith(world.LocalPlayer));
+			disableTeamChat = world.IsReplay || world.LobbyInfo.NonBotClients.Count() == 1 || (world.LocalPlayer != null && !players.Any(p => p.IsAlliedWith(world.LocalPlayer)));
 			teamChat = !disableTeamChat;
 
 			tabCompletion.Commands = chatTraits.OfType<ChatCommands>().SelectMany(x => x.Commands.Keys).ToList();
@@ -61,8 +61,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				chatOverlayDisplay = chatOverlay.Get<ChatDisplayWidget>("CHAT_DISPLAY");
 				chatOverlay.Visible = false;
 			}
-			else
-				inDialog = true;
 
 			chatChrome = chatPanel.Get<ContainerWidget>("CHAT_CHROME");
 			chatChrome.Visible = true;
@@ -73,24 +71,29 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			chatMode.IsDisabled = () => disableTeamChat;
 
 			chatText = chatChrome.Get<TextFieldWidget>("CHAT_TEXTFIELD");
+			chatText.MaxLength = UnitOrders.ChatMessageMaxLength;
 			chatText.OnEnterKey = () =>
 			{
 				var team = teamChat && !disableTeamChat;
 				if (chatText.Text != "")
-					if (!chatText.Text.StartsWith("/"))
+				{
+					if (!chatText.Text.StartsWith("/", StringComparison.Ordinal))
 						orderManager.IssueOrder(Order.Chat(team, chatText.Text.Trim()));
-					else
-						if (chatTraits != null)
-						{
-							var text = chatText.Text.Trim();
-							foreach (var trait in chatTraits)
-								trait.OnChat(orderManager.LocalClient.Name, text);
-						}
+					else if (chatTraits != null)
+					{
+						var text = chatText.Text.Trim();
+						foreach (var trait in chatTraits)
+							trait.OnChat(orderManager.LocalClient.Name, text);
+					}
+				}
 
 				chatText.Text = "";
-				CloseChat();
+				if (!isMenuChat)
+					CloseChat();
+
 				return true;
 			};
+
 			chatText.OnTabKey = () =>
 			{
 				var previousText = chatText.Text;
@@ -102,9 +105,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				else
 					return true;
 			};
-			chatText.OnEscKey = () => { CloseChat(); return true; };
 
-			if (!inDialog)
+			chatText.OnEscKey = () =>
+			{
+				if (!isMenuChat)
+					CloseChat();
+				else
+					chatText.YieldKeyboardFocus();
+
+				return true;
+			};
+
+			if (!isMenuChat)
 			{
 				var chatClose = chatChrome.Get<ButtonWidget>("CHAT_CLOSE");
 				chatClose.OnClick += CloseChat;
@@ -133,9 +145,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				AddChatLine(chatLine.Color, chatLine.Name, chatLine.Text, true);
 
 			orderManager.AddChatLine += AddChatLineWrapper;
-			Game.BeforeGameStart += UnregisterEvents;
 
-			CloseChat();
+			chatText.IsDisabled = () => world.IsReplay && !Game.Settings.Debug.EnableDebugCommandsInReplays;
+
+			if (!isMenuChat)
+			{
+				CloseChat();
+
+				var keyListener = chatChrome.Get<LogicKeyListenerWidget>("KEY_LISTENER");
+				keyListener.AddHandler(e =>
+				{
+					if (e.Event == KeyInputEvent.Up || !chatText.IsDisabled())
+						return false;
+
+					if ((e.Key == Keycode.RETURN || e.Key == Keycode.KP_ENTER || e.Key == Keycode.ESCAPE) && e.Modifiers == Modifiers.None)
+					{
+						CloseChat();
+						return true;
+					}
+
+					return false;
+				});
+			}
 		}
 
 		bool SwitchTeamChat()
@@ -145,26 +176,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return true;
 		}
 
-		void UnregisterEvents()
-		{
-			orderManager.AddChatLine -= AddChatLineWrapper;
-			Game.BeforeGameStart -= UnregisterEvents;
-		}
-
 		public void OpenChat()
 		{
 			chatText.Text = "";
 			chatChrome.Visible = true;
 			chatScrollPanel.ScrollToBottom();
-			chatText.TakeKeyboardFocus();
-			if (!inDialog)
-				chatOverlay.Visible = false;
+			if (!chatText.IsDisabled())
+				chatText.TakeKeyboardFocus();
+
+			chatOverlay.Visible = false;
 		}
 
 		public void CloseChat()
 		{
-			if (inDialog)
-				return;
 			chatChrome.Visible = false;
 			chatText.YieldKeyboardFocus();
 			chatOverlay.Visible = true;
@@ -172,14 +196,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		public void AddChatLineWrapper(Color c, string from, string text)
 		{
-			AddChatLine(c, from, text, false);
-		}
-
-		void AddChatLine(Color c, string from, string text, bool replayCache)
-		{
-			if (!(inDialog || replayCache))
+			if (chatOverlayDisplay != null)
 				chatOverlayDisplay.AddLine(c, from, text);
 
+			// HACK: Force disable the chat notification sound for the in-menu chat dialog
+			// This works around our inability to disable the sounds for the in-game dialog when it is hidden
+			AddChatLine(c, from, text, chatOverlay == null);
+		}
+
+		void AddChatLine(Color c, string from, string text, bool suppressSound)
+		{
 			var template = chatTemplate.Clone();
 			var nameLabel = template.Get<LabelWidget>("NAME");
 			var textLabel = template.Get<LabelWidget>("TEXT");
@@ -212,8 +238,20 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (scrolledToBottom)
 				chatScrollPanel.ScrollToBottom(smooth: true);
 
-			if (!replayCache)
-				Sound.PlayNotification(modRules, null, "Sounds", "ChatLine", null);
+			if (!suppressSound)
+				Game.Sound.PlayNotification(modRules, null, "Sounds", "ChatLine", null);
+		}
+
+		bool disposed = false;
+		protected override void Dispose(bool disposing)
+		{
+			if (!disposed)
+			{
+				orderManager.AddChatLine -= AddChatLineWrapper;
+				disposed = true;
+			}
+
+			base.Dispose(disposing);
 		}
 	}
 }

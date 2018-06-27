@@ -1,10 +1,8 @@
-MapFormat: 7
+MapFormat: 11
 
 RequiresMod: ra
 
-Title: Allies 03a: Dead End
-
-Description: LANDCOM 16 HQS.\nTOP SECRET.\nTO: FIELD COMMANDER A9\n\nINTELLIGENCE RECON SHOWS HEAVY\nSOVIET MOVEMENT IN YOUR AREA.\nNEARBY BRIDGES ARE KEY TO SOVIET\nADVANCEMENT. DESTROY ALL BRIDGES\nASAP. TANYA WILL ASSIST. KEEP HER\nALIVE AT ALL COSTS.\n\nCONFIRMATION CODE 1612.\n\nTRANSMISSION ENDS.\n
+Title: 03a: Dead End
 
 Author: Westwood Studios
 
@@ -16,43 +14,29 @@ Bounds: 35,48,72,36
 
 Visibility: MissionSelector
 
-Type: Campaign
+Categories: Campaign
 
-Videos:
-	GameStart: brdgtilt.vqa
-	GameWon: toofar.vqa
-	GameLost: sovtstar.vqa
-
-Options:
-	Crates: False
-	Fog: True
-	Shroud: True
-	AllyBuildRadius: False
-	FragileAlliances: False
-	StartingCash: 0
-	ConfigurableStartingUnits: False
-	Difficulties: Easy, Normal
-	ShortGame: False
+LockPreview: True
 
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Race: allies
+		Faction: allies
 	PlayerReference@USSR:
 		Name: USSR
-		Race: soviet
-		ColorRamp: 3,255,127
+		Faction: soviet
+		Color: FE1100
 		Enemies: Greece
 	PlayerReference@Greece:
 		Name: Greece
 		Playable: True
 		Required: True
-		LockRace: True
-		Race: allies
+		LockFaction: True
+		Faction: allies
 		LockColor: True
-		ColorRamp: 161,134,236
+		Color: E2E6F5
 		Enemies: USSR
 
 Actors:
@@ -439,16 +423,16 @@ Actors:
 		Owner: USSR
 	Actor127: v19
 		Location: 70,56
-		Owner: Neutral
+		Owner: USSR
 	Actor128: v19
 		Location: 70,54
-		Owner: Neutral
+		Owner: USSR
 	Actor129: v19
 		Location: 72,54
-		Owner: Neutral
+		Owner: USSR
 	Actor130: v19
 		Location: 74,54
-		Owner: Neutral
+		Owner: USSR
 	Actor131: brl3
 		Location: 84,65
 		Owner: USSR
@@ -457,7 +441,7 @@ Actors:
 		Owner: USSR
 	Actor133: v19
 		Location: 83,65
-		Owner: Neutral
+		Owner: USSR
 	Actor134: barl
 		Location: 78,70
 		Owner: USSR
@@ -487,16 +471,16 @@ Actors:
 		Owner: USSR
 	Actor142: v19
 		Location: 87,66
-		Owner: Neutral
+		Owner: USSR
 	Actor143: v19
 		Location: 85,68
-		Owner: Neutral
+		Owner: USSR
 	Actor144: v19
 		Location: 82,66
-		Owner: Neutral
+		Owner: USSR
 	Actor145: v19
 		Location: 85,63
-		Owner: Neutral
+		Owner: USSR
 	Actor146: v04
 		Location: 54,52
 		Owner: Neutral
@@ -523,10 +507,10 @@ Actors:
 		Owner: USSR
 	Actor154: v19
 		Location: 59,61
-		Owner: Neutral
+		Owner: USSR
 	Actor155: v19
 		Location: 57,61
-		Owner: Neutral
+		Owner: USSR
 	Actor156: brl3
 		Location: 58,61
 		Owner: USSR
@@ -559,7 +543,7 @@ Actors:
 		Owner: USSR
 	Actor170: v19
 		Location: 54,68
-		Owner: Neutral
+		Owner: USSR
 	Actor179: brl3
 		Location: 77,66
 		Owner: USSR
@@ -631,7 +615,7 @@ Actors:
 		Owner: USSR
 	Actor202: v19
 		Location: 101,48
-		Owner: Neutral
+		Owner: USSR
 	Actor203: brl3
 		Location: 96,50
 		Owner: USSR
@@ -652,13 +636,13 @@ Actors:
 		Owner: USSR
 	Actor209: v19
 		Location: 102,67
-		Owner: Neutral
+		Owner: USSR
 	Actor210: v19
 		Location: 101,69
-		Owner: Neutral
+		Owner: USSR
 	Actor211: v19
 		Location: 100,71
-		Owner: Neutral
+		Owner: USSR
 	Actor212: brl3
 		Location: 102,66
 		Owner: USSR
@@ -718,7 +702,7 @@ Actors:
 		Owner: USSR
 	Actor232: v19
 		Location: 91,68
-		Owner: Neutral
+		Owner: USSR
 	Actor233: brl3
 		Location: 91,69
 		Owner: USSR
@@ -727,13 +711,13 @@ Actors:
 		Owner: USSR
 	Actor234: v19
 		Location: 84,51
-		Owner: Neutral
+		Owner: USSR
 	Actor235: v19
 		Location: 87,51
-		Owner: Neutral
+		Owner: USSR
 	Actor236: v19
 		Location: 86,52
-		Owner: Neutral
+		Owner: USSR
 	Actor237: brl3
 		Location: 84,52
 		Owner: USSR
@@ -1149,7 +1133,7 @@ Actors:
 		Location: 81,77
 		Owner: USSR
 	USSRAdvancedPowerPlant: apwr
-		Location: 81,80
+		Location: 81,81
 		Owner: USSR
 	USSRRadarDome: dome
 		Location: 78,80
@@ -1323,226 +1307,6 @@ Actors:
 		Location: 59,72
 		Owner: Neutral
 
-Smudges:
+Rules: ra|rules/campaign-rules.yaml, ra|rules/campaign-tooltips.yaml, ra|rules/campaign-palettes.yaml, rules.yaml
 
-Rules:
-	Player:
-		-ConquestVictoryConditions:
-		MissionObjectives:
-			EarlyGameOver: true
-	World:
-		-CrateSpawner:
-		-SpawnMPUnits:
-		-MPStartLocations:
-		LuaScript:
-			Scripts: allies03a.lua
-		ObjectivesPanel:
-			PanelName: MISSION_OBJECTIVES
-	^Infantry:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Tank:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-		Demolishable:
-	^Vehicle:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-		Demolishable:
-	^Building:
-		Capturable:
-			CaptureThreshold: 0.25
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^TechBuilding:
-		Capturable:
-			Type: ~disabled
-	^Wall:
-		Tooltip:
-			ShowOwnerRow: false
-	^Husk:
-		Tooltip:
-			GenericVisibility: Enemy, Ally, Neutral
-			GenericStancePrefix: false
-			ShowOwnerRow: false
-	^Crate:
-		Tooltip:
-			ShowOwnerRow: false
-	powerproxy.paratroopers:
-		ParatroopersPower:
-			DropItems: E1,E1,E1,E2,E2
-	HACKE6:
-		Inherits: E6
-		-RepairsBridges:
-		-ExternalCaptures:
-		Captures:
-			CaptureTypes: building
-		Cloak@JAIL:
-			UpgradeTypes: jail
-			UpgradeMinEnabledLevel: 1
-			InitialDelay: 0
-			CloakDelay: 0
-			Palette:
-		RenderSprites:
-			Image: E6
-	MEDI:
-		Cloak@JAIL:
-			UpgradeTypes: jail
-			UpgradeMinEnabledLevel: 1
-			InitialDelay: 0
-			CloakDelay: 0
-			Palette:
-	E7.noautotarget:
-		Inherits: E7
-		AutoTarget:
-			EnableStances: false
-		-AttackMove:
-		RenderSprites:
-			Image: E7
-	PRISON:
-		Immobile:
-			OccupiesSpace: false
-		BodyOrientation:
-		UpgradeActorsNear:
-			Upgrades: jail
-			Range: 1c0
-	CAMERA:
-		RevealsShroud:
-			Range: 8c7
-	CAMERA.VeryLarge:
-		Inherits: CAMERA
-		RevealsShroud:
-			Range: 40c0
-	MONEYCRATE:
-		Tooltip:
-			Name: Crate
-		WithCrateBody:
-			Images: scrate
-	E1.Autotarget:
-		Inherits: E1
-		Buildable:
-			Prerequisites: ~disabled
-		RevealsShroud:
-			Range: 8c0
-		AutoTarget:
-			ScanRadius: 7
-		RenderSprites:
-			Image: E1
-	E2.Autotarget:
-		Inherits: E2
-		Buildable:
-			Prerequisites: ~disabled
-		RevealsShroud:
-			Range: 8c0
-		AutoTarget:
-			ScanRadius: 7
-		RenderSprites:
-			Image: E2
-	DOG:
-		RevealsShroud:
-			Range: 9c0
-		AutoTarget:
-			ScanRadius: 8
-	DOME:
-		Buildable:
-			Prerequisites: ~disabled
-	WEAP:
-		Buildable:
-			Prerequisites: ~disabled
-	FIX:
-		Buildable:
-			Prerequisites: ~disabled
-	APC:
-		Buildable:
-			Prerequisites: ~disabled
-	V2RL:
-		Buildable:
-			Prerequisites: ~disabled
-	2TNK:
-		Buildable:
-			Prerequisites: ~disabled
-	3TNK:
-		Buildable:
-			Prerequisites: ~disabled
-	4TNK:
-		Buildable:
-			Prerequisites: ~disabled
-	MCV:
-		Buildable:
-			Prerequisites: ~disabled
-	MNLY.AP:
-		Buildable:
-			Prerequisites: ~disabled
-	TTNK:
-		Buildable:
-			Prerequisites: ~disabled
-	FTRK:
-		Buildable:
-			Prerequisites: ~disabled
-	DTRK:
-		Buildable:
-			Prerequisites: ~disabled
-	QTNK:
-		Buildable:
-			Prerequisites: ~disabled
-	MSLO:
-		Buildable:
-			Prerequisites: ~disabled
-	SPEN:
-		Buildable:
-			Prerequisites: ~disabled
-	IRON:
-		Buildable:
-			Prerequisites: ~disabled
-	TSLA:
-		Buildable:
-			Prerequisites: ~disabled
-	SAM:
-		Buildable:
-			Prerequisites: ~disabled
-	AFLD:
-		Buildable:
-			Prerequisites: ~disabled
-	APWR:
-		Buildable:
-			Prerequisites: ~disabled
-	STEK:
-		Buildable:
-			Prerequisites: ~disabled
-	KENN:
-		Buildable:
-			Prerequisites: ~disabled
-	E3:
-		Buildable:
-			Prerequisites: ~disabled
-	E4:
-		Buildable:
-			Prerequisites: ~disabled
-	E6:
-		Buildable:
-			Prerequisites: ~disabled
-	SNIPER:
-		Buildable:
-			Prerequisites: ~disabled
-	HIJACKER:
-		Buildable:
-			Prerequisites: ~disabled
-	SHOK:
-		Buildable:
-			Prerequisites: ~disabled
-
-Sequences:
-
-VoxelSequences:
-
-Weapons:
-
-Voices:
-
-Notifications:
-
-Translations:
+Weapons: weapons.yaml

@@ -1,33 +1,33 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Support;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	public class DebugMenuLogic
+	public class DebugMenuLogic : ChromeLogic
 	{
 		[ObjectCreator.UseCtor]
 		public DebugMenuLogic(Widget widget, World world)
 		{
 			var devTrait = world.LocalPlayer.PlayerActor.Trait<DeveloperMode>();
+			var debugVis = world.WorldActor.TraitOrDefault<DebugVisualizations>();
 
-			var shroudCheckbox = widget.GetOrNull<CheckboxWidget>("DISABLE_SHROUD");
-			if (shroudCheckbox != null)
+			var visibilityCheckbox = widget.GetOrNull<CheckboxWidget>("DISABLE_VISIBILITY_CHECKS");
+			if (visibilityCheckbox != null)
 			{
-				shroudCheckbox.IsChecked = () => devTrait.DisableShroud;
-				shroudCheckbox.OnClick = () => Order(world, "DevShroudDisable");
+				visibilityCheckbox.IsChecked = () => devTrait.DisableShroud;
+				visibilityCheckbox.OnClick = () => Order(world, "DevVisibility");
 			}
 
 			var pathCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_UNIT_PATHS");
@@ -64,15 +64,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var showCombatCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_COMBATOVERLAY");
 			if (showCombatCheckbox != null)
 			{
-				showCombatCheckbox.IsChecked = () => devTrait.ShowCombatGeometry;
-				showCombatCheckbox.OnClick = () => devTrait.ShowCombatGeometry ^= true;
+				showCombatCheckbox.Disabled = debugVis == null;
+				showCombatCheckbox.IsChecked = () => debugVis != null && debugVis.CombatGeometry;
+				showCombatCheckbox.OnClick = () => debugVis.CombatGeometry ^= true;
 			}
 
 			var showGeometryCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_GEOMETRY");
 			if (showGeometryCheckbox != null)
 			{
-				showGeometryCheckbox.IsChecked = () => devTrait.ShowDebugGeometry;
-				showGeometryCheckbox.OnClick = () => devTrait.ShowDebugGeometry ^= true;
+				showGeometryCheckbox.Disabled = debugVis == null;
+				showGeometryCheckbox.IsChecked = () => debugVis != null && debugVis.RenderGeometry;
+				showGeometryCheckbox.OnClick = () => debugVis.RenderGeometry ^= true;
+			}
+
+			var showScreenMapCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_SCREENMAP");
+			if (showScreenMapCheckbox != null)
+			{
+				showScreenMapCheckbox.Disabled = debugVis == null;
+				showScreenMapCheckbox.IsChecked = () => debugVis != null && debugVis.ScreenMap;
+				showScreenMapCheckbox.OnClick = () => debugVis.ScreenMap ^= true;
 			}
 
 			var terrainGeometryTrait = world.WorldActor.Trait<TerrainGeometryOverlay>();
@@ -81,6 +91,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				showTerrainGeometryCheckbox.IsChecked = () => terrainGeometryTrait.Enabled;
 				showTerrainGeometryCheckbox.OnClick = () => terrainGeometryTrait.Enabled ^= true;
+			}
+
+			var showDepthPreviewCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_DEPTH_PREVIEW");
+			if (showDepthPreviewCheckbox != null)
+			{
+				showDepthPreviewCheckbox.Disabled = debugVis == null;
+				showDepthPreviewCheckbox.IsChecked = () => debugVis != null && debugVis.DepthBuffer;
+				showDepthPreviewCheckbox.OnClick = () => debugVis.DepthBuffer ^= true;
 			}
 
 			var allTechCheckbox = widget.GetOrNull<CheckboxWidget>("ENABLE_TECH");
@@ -114,12 +132,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				noexplorationButton.OnClick = () =>
 				world.IssueOrder(new Order("DevResetExploration", world.LocalPlayer.PlayerActor, false));
 
-			var dbgOverlay = world.WorldActor.TraitOrDefault<PathfinderDebugOverlay>();
-			var showAstarCostCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_ASTAR");
-			if (showAstarCostCheckbox != null)
+			var showActorTagsCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_ACTOR_TAGS");
+			if (showActorTagsCheckbox != null)
 			{
-				showAstarCostCheckbox.IsChecked = () => dbgOverlay != null ? dbgOverlay.Visible : false;
-				showAstarCostCheckbox.OnClick = () => { if (dbgOverlay != null) dbgOverlay.Visible ^= true; };
+				showActorTagsCheckbox.Disabled = debugVis == null;
+				showActorTagsCheckbox.IsChecked = () => debugVis != null && debugVis.ActorTags;
+				showActorTagsCheckbox.OnClick = () => debugVis.ActorTags ^= true;
+			}
+
+			var showCustomTerrainCheckbox = widget.GetOrNull<CheckboxWidget>("SHOW_CUSTOMTERRAIN_OVERLAY");
+			if (showCustomTerrainCheckbox != null)
+			{
+				var customTerrainDebugTrait = world.WorldActor.TraitOrDefault<CustomTerrainDebugOverlay>();
+				showCustomTerrainCheckbox.Disabled = customTerrainDebugTrait == null;
+				if (customTerrainDebugTrait != null)
+				{
+					showCustomTerrainCheckbox.IsChecked = () => customTerrainDebugTrait.Enabled;
+					showCustomTerrainCheckbox.OnClick = () => customTerrainDebugTrait.Enabled ^= true;
+				}
 			}
 		}
 

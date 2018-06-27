@@ -1,41 +1,31 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Collections.Generic;
-using System.Text;
-using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Common.Pathfinder
 {
-	public interface IPathSearch
+	public interface IPathSearch : IDisposable
 	{
-		string Id { get; }
-
 		/// <summary>
 		/// The Graph used by the A*
 		/// </summary>
 		IGraph<CellInfo> Graph { get; }
 
 		/// <summary>
-		/// The open queue where nodes that are worth to consider are stored by their estimator
-		/// </summary>
-		IPriorityQueue<CPos> OpenQueue { get; }
-
-		/// <summary>
 		/// Stores the analyzed nodes by the expand function
 		/// </summary>
 		IEnumerable<Pair<CPos, int>> Considered { get; }
-
-		bool Debug { get; set; }
 
 		Player Owner { get; }
 
@@ -64,6 +54,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 		/// <returns>Whether the location is a target</returns>
 		bool IsTarget(CPos location);
 
+		bool CanExpand { get; }
 		CPos Expand();
 	}
 
@@ -71,59 +62,28 @@ namespace OpenRA.Mods.Common.Pathfinder
 	{
 		public IGraph<CellInfo> Graph { get; set; }
 
-		// The Id of a Pathsearch is computed by its properties.
-		// So two PathSearch instances with the same parameters will
-		// Compute the same Id. This is used for caching purposes.
-		public string Id
-		{
-			get
-			{
-				if (string.IsNullOrEmpty(id))
-				{
-					var builder = new StringBuilder();
-					builder.Append(this.Graph.Actor.ActorID);
-					while (!startPoints.Empty)
-					{
-						var startpoint = startPoints.Pop();
-						builder.Append(startpoint.X);
-						builder.Append(startpoint.Y);
-						builder.Append(Graph[startpoint].EstimatedTotal);
-					}
-
-					builder.Append(Graph.InReverse);
-					if (Graph.IgnoredActor != null) builder.Append(Graph.IgnoredActor.ActorID);
-					builder.Append(Graph.LaneBias);
-
-					id = builder.ToString();
-				}
-
-				return id;
-			}
-		}
-
-		public IPriorityQueue<CPos> OpenQueue { get; protected set; }
+		protected IPriorityQueue<GraphConnection> OpenQueue { get; private set; }
 
 		public abstract IEnumerable<Pair<CPos, int>> Considered { get; }
 
-		public Player Owner { get { return this.Graph.Actor.Owner; } }
+		public Player Owner { get { return Graph.Actor.Owner; } }
 		public int MaxCost { get; protected set; }
 		public bool Debug { get; set; }
-		string id;
 		protected Func<CPos, int> heuristic;
+		protected Func<CPos, bool> isGoal;
 
 		// This member is used to compute the ID of PathSearch.
 		// Essentially, it represents a collection of the initial
 		// points considered and their Heuristics to reach
 		// the target. It pretty match identifies, in conjunction of the Actor,
 		// a deterministic set of calculations
-		protected IPriorityQueue<CPos> startPoints;
+		protected readonly IPriorityQueue<GraphConnection> StartPoints;
 
 		protected BasePathSearch(IGraph<CellInfo> graph)
 		{
 			Graph = graph;
-			OpenQueue = new PriorityQueue<CPos>(new PositionComparer(Graph));
-			startPoints = new PriorityQueue<CPos>(new PositionComparer(Graph));
-			Debug = false;
+			OpenQueue = new PriorityQueue<GraphConnection>(GraphConnection.ConnectionCostComparer);
+			StartPoints = new PriorityQueue<GraphConnection>(GraphConnection.ConnectionCostComparer);
 			MaxCost = 0;
 		}
 
@@ -160,7 +120,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 		public IPathSearch WithIgnoredActor(Actor b)
 		{
-			Graph.IgnoredActor = b;
+			Graph.IgnoreActor = b;
 			return this;
 		}
 
@@ -184,7 +144,7 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 		public IPathSearch FromPoint(CPos from)
 		{
-			if (this.Graph.World.Map.Contains(from))
+			if (Graph.World.Map.Contains(from))
 				AddInitialCell(from);
 
 			return this;
@@ -194,10 +154,22 @@ namespace OpenRA.Mods.Common.Pathfinder
 
 		public bool IsTarget(CPos location)
 		{
-			var locInfo = Graph[location];
-			return locInfo.EstimatedTotal - locInfo.CostSoFar == 0;
+			return isGoal(location);
 		}
 
+		public bool CanExpand { get { return !OpenQueue.Empty; } }
 		public abstract CPos Expand();
+
+		protected virtual void Dispose(bool disposing)
+		{
+			if (disposing)
+				Graph.Dispose();
+		}
+
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
 	}
 }

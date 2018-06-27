@@ -1,9 +1,7 @@
-Container@LOBBY_MAP_PREVIEW:
-	Logic: LobbyMapPreviewLogic
-	X: PARENT_RIGHT-15-WIDTH
-	Y: 30
-	Width: 194
-	Height: 250
+Container@MAP_PREVIEW:
+	Logic: MapPreviewLogic
+	Width: PARENT_RIGHT
+	Height: PARENT_BOTTOM
 	Children:
 		Container@MAP_AVAILABLE:
 			Width: PARENT_RIGHT
@@ -11,29 +9,32 @@ Container@LOBBY_MAP_PREVIEW:
 			Children:
 				Background@MAP_BG:
 					Width: PARENT_RIGHT
-					Height: 194
+					Height: 174
 					Background: panel-gray
 					Children:
 						MapPreview@MAP_PREVIEW:
 							X: 1
 							Y: 1
-							Width: PARENT_RIGHT-2
-							Height: PARENT_BOTTOM-2
+							Width: PARENT_RIGHT - 2
+							Height: PARENT_BOTTOM - 2
 							TooltipContainer: TOOLTIP_CONTAINER
-				Label@MAP_TITLE:
-					Y: 197
+				LabelWithTooltip@MAP_TITLE:
+					Y: 172
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Bold
 					Align: Center
+					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: SIMPLE_TOOLTIP
 				Label@MAP_TYPE:
-					Y: 212
+					Y: 187
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: TinyBold
 					Align: Center
+					IgnoreMouseOver: true
 				Label@MAP_AUTHOR:
-					Y: 225
+					Y: 200
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Tiny
@@ -44,30 +45,33 @@ Container@LOBBY_MAP_PREVIEW:
 			Children:
 				Background@MAP_BG:
 					Width: PARENT_RIGHT
-					Height: 194
+					Height: 174
 					Background: panel-gray
 					Children:
 						MapPreview@MAP_PREVIEW:
 							X: 1
 							Y: 1
-							Width: PARENT_RIGHT-2
-							Height: PARENT_BOTTOM-2
+							Width: PARENT_RIGHT - 2
+							Height: PARENT_BOTTOM - 2
 							TooltipContainer: TOOLTIP_CONTAINER
-				Label@MAP_TITLE:
-					Y: 197
+				LabelWithTooltip@MAP_TITLE:
+					Y: 172
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Bold
 					Align: Center
+					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: SIMPLE_TOOLTIP
 				Label@MAP_STATUS_A:
-					Y: 212
+					Y: 187
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Tiny
 					Align: Center
 					Text: This map is not compatible
+					IgnoreMouseOver: true
 				Label@MAP_STATUS_B:
-					Y: 225
+					Y: 200
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Tiny
@@ -79,35 +83,38 @@ Container@LOBBY_MAP_PREVIEW:
 			Children:
 				Background@MAP_BG:
 					Width: PARENT_RIGHT
-					Height: 164
+					Height: 142
 					Background: panel-gray
 					Children:
 						MapPreview@MAP_PREVIEW:
 							X: 1
 							Y: 1
-							Width: PARENT_RIGHT-2
-							Height: PARENT_BOTTOM-2
+							Width: PARENT_RIGHT - 2
+							Height: PARENT_BOTTOM - 2
 							TooltipContainer: TOOLTIP_CONTAINER
-				Label@MAP_TITLE:
-					Y: 167
+				LabelWithTooltip@MAP_TITLE:
+					Y: 142
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Bold
 					Align: Center
+					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: SIMPLE_TOOLTIP
 				Label@MAP_TYPE:
-					Y: 184
+					Y: 157
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: TinyBold
 					Align: Center
+					IgnoreMouseOver: true
 				Label@MAP_AUTHOR:
-					Y: 197
+					Y: 170
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Tiny
 					Align: Center
 				Button@MAP_INSTALL:
-					Y: 224
+					Y: 194
 					Width: PARENT_RIGHT
 					Height: 25
 					Text: Install Map
@@ -117,65 +124,67 @@ Container@LOBBY_MAP_PREVIEW:
 			Children:
 				Background@MAP_BG:
 					Width: PARENT_RIGHT
-					Height: 164
+					Height: 142
 					Background: panel-gray
 					Children:
 						MapPreview@MAP_PREVIEW:
 							X: 1
 							Y: 1
-							Width: PARENT_RIGHT-2
-							Height: PARENT_BOTTOM-2
+							Width: PARENT_RIGHT - 2
+							Height: PARENT_BOTTOM - 2
 							TooltipContainer: TOOLTIP_CONTAINER
-				Label@MAP_TITLE:
-					Y: 167
+				LabelWithTooltip@MAP_TITLE:
+					Y: 142
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Bold
 					Align: Center
+					TooltipContainer: TOOLTIP_CONTAINER
+					TooltipTemplate: SIMPLE_TOOLTIP
 				Label@MAP_STATUS_SEARCHING:
-					Y: 197
+					Y: 157
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Tiny
 					Align: Center
 					Text: Searching OpenRA Resource Center...
+					IgnoreMouseOver: true
 				Container@MAP_STATUS_UNAVAILABLE:
 					Width: PARENT_RIGHT
 					Children:
 						Label@a:
-							Y: 184
+							Y: 157
 							Width: PARENT_RIGHT
 							Height: 25
 							Font: Tiny
 							Align: Center
 							Text: This map was not found on the
 						Label@b:
-							Y: 197
+							Y: 170
 							Width: PARENT_RIGHT
 							Height: 25
 							Font: Tiny
 							Align: Center
 							Text: OpenRA Resource Center
 				Label@MAP_STATUS_ERROR:
-					Y: 197
+					Y: 157
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Tiny
 					Align: Center
 					Text: An error occurred during installation
 				Label@MAP_STATUS_DOWNLOADING:
-					Y: 197
+					Y: 157
 					Width: PARENT_RIGHT
 					Height: 25
 					Font: Tiny
 					Align: Center
 				ProgressBar@MAP_PROGRESSBAR:
-					Y: 224
+					Y: 194
 					Width: PARENT_RIGHT
 					Height: 25
 					Indeterminate: True
 				Button@MAP_RETRY:
-					Y: 224
+					Y: 194
 					Width: PARENT_RIGHT
 					Height: 25
-

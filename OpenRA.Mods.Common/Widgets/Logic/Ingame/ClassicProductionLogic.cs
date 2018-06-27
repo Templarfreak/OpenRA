@@ -1,23 +1,23 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.Common.Widgets;
 using OpenRA.Network;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	public class ClassicProductionLogic
+	public class ClassicProductionLogic : ChromeLogic
 	{
 		readonly ProductionPaletteWidget palette;
 		readonly World world;
@@ -43,21 +43,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				palette.PickUpCompletedBuilding();
 			};
 
-			Func<ButtonWidget, Hotkey> getKey = _ => Hotkey.Invalid;
-			if (!string.IsNullOrEmpty(button.HotkeyName))
-			{
-				var ks = Game.Settings.Keys;
-				var field = ks.GetType().GetField(button.HotkeyName);
-				if (field != null)
-					getKey = _ => (Hotkey)field.GetValue(ks);
-			}
-
 			button.IsDisabled = () => !queues.Any(q => q.BuildableItems().Any());
 			button.OnMouseUp = mi => selectTab(mi.Modifiers.HasModifier(Modifiers.Shift));
 			button.OnKeyPress = e => selectTab(e.Modifiers.HasModifier(Modifiers.Shift));
 			button.OnClick = () => selectTab(false);
 			button.IsHighlighted = () => queues.Contains(palette.CurrentQueue);
-			button.GetKey = getKey;
 
 			var chromeName = button.ProductionGroup.ToLowerInvariant();
 			var icon = button.Get<ImageWidget>("ICON");

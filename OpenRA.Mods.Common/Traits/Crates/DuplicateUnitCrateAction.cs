@@ -1,14 +1,16 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -31,10 +33,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int MaxRadius = 4;
 
 		[Desc("The list of unit target types we are allowed to duplicate.")]
-		public readonly string[] ValidTargets = { "Ground", "Water" };
+		public readonly BitSet<TargetableType> ValidTargets = new BitSet<TargetableType>("Ground", "Water");
 
-		[Desc("Which races this crate action can occur for.")]
-		public readonly string[] ValidRaces = { };
+		[Desc("Which factions this crate action can occur for.")]
+		public readonly HashSet<string> ValidFactions = new HashSet<string>();
 
 		[Desc("Is the new duplicates given to a specific owner, regardless of whom collected it?")]
 		public readonly string Owner = null;
@@ -54,11 +56,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool CanGiveTo(Actor collector)
 		{
-			if (info.ValidRaces.Any() && !info.ValidRaces.Contains(collector.Owner.Country.Race))
+			if (collector.Owner.NonCombatant)
 				return false;
 
-			var targetable = collector.Info.Traits.GetOrDefault<ITargetableInfo>();
-			if (targetable == null || !info.ValidTargets.Intersect(targetable.GetTargetTypes()).Any())
+			if (info.ValidFactions.Any() && !info.ValidFactions.Contains(collector.Owner.Faction.InternalName))
+				return false;
+
+			if (!info.ValidTargets.Overlaps(collector.GetEnabledTargetTypes()))
 				return false;
 
 			var positionable = collector.TraitOrDefault<IPositionable>();
@@ -89,7 +93,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Restrict duplicate count to a maximum value
 			if (info.MaxDuplicateValue > 0)
 			{
-				var vi = collector.Info.Traits.GetOrDefault<ValuedInfo>();
+				var vi = collector.Info.TraitInfoOrDefault<ValuedInfo>();
 				if (vi != null && vi.Cost > 0)
 					duplicates = Math.Min(duplicates, info.MaxDuplicateValue / vi.Cost);
 			}

@@ -38,6 +38,8 @@ bio:
 		Length: *
 
 oilb:
+	Defaults:
+		Offset: 0,-6
 	idle:
 	damaged-idle:
 		Start: 1
@@ -45,6 +47,7 @@ oilb:
 	make:
 	bib: bib3
 		Length: *
+		Offset: 0,0
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
@@ -94,9 +97,14 @@ proc:
 
 silo:
 	idle: silo2
-		Length: 9
 		Offset: 0,-1
 	damaged-idle: silo2
+		Start: 9
+		Offset: 0,-1
+	stages: silo2
+		Length: 9
+		Offset: 0,-1
+	damaged-stages: silo2
 		Start: 9
 		Length: 9
 		Offset: 0,-1
@@ -122,30 +130,39 @@ powr:
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	icon: powricon
+	fake-icon: fpwricon
 
 apwr:
 	idle:
+		Offset: 0,-10
 	damaged-idle:
 		Start: 1
+		Offset: 0,-10
 	make: apwrmake
 		Length: *
+		Offset: 0,-10
 	dead: apwrdead
 		Tick: 800
+		Offset: 0,-10
 	bib: bib2
 		Length: *
 		UseTilesetExtension: true
 		TilesetOverrides:
 			INTERIOR: TEMPERAT
 	icon: apwricon
+	fake-icon: fapwicon
 
 barr:
 	idle:
 		Length: 10
+		Offset: 0,-6
 	damaged-idle:
 		Start: 10
 		Length: 10
+		Offset: 0,-6
 	make: barrmake
 		Length: *
+		Offset: 0,-6
 	bib: bib3
 		Length: *
 		UseTilesetExtension: true
@@ -183,10 +200,13 @@ kenn:
 
 dome:
 	idle:
+		Offset: 0,-4
 	damaged-idle:
 		Start: 1
+		Offset: 0,-4
 	make: domemake
 		Length: *
+		Offset: 0,-4
 	bib: bib3
 		Length: *
 		UseTilesetExtension: true
@@ -272,30 +292,38 @@ afld:
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
+		Offset: 0,-4
 	damaged-idle: afldidle
 		Start: 8
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
+		Offset: 0,-4
 	active:
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
+		Offset: 0,-4
 	damaged-active:
 		Start: 8
 		Length: 8
 		Tick: 160
 		ZOffset: -1023
+		Offset: 0,-4
 	make: afldmake
 		Length: *
+		Offset: 0,-4
 	icon: afldicon
 
 spen:
 	idle:
+		Offset: 0,2
 	damaged-idle:
 		Start: 1
+		Offset: 0,2
 	make: spenmake
 		Length: *
+		Offset: 0,2
 	icon: spenicon
 	fake-icon: speficon
 
@@ -335,21 +363,26 @@ fix:
 		Offset: 0,-4
 		UseTilesetExtension: true
 	icon: fixicon
+	fake-icon: fixficon
 
 gun:
 	idle:
 		Facings: 32
+		UseClassicFacingFudge: True
 	recoil:
 		Start: 32
 		Facings: 32
+		UseClassicFacingFudge: True
 	make: gunmake
 		Length: *
 	damaged-idle:
 		Start: 64
 		Facings: 32
+		UseClassicFacingFudge: True
 	damaged-recoil:
 		Start: 96
 		Facings: 32
+		UseClassicFacingFudge: True
 	muzzle: gunfire2
 		Length: 5
 	bib: mbGUN
@@ -361,26 +394,29 @@ gun:
 agun:
 	idle:
 		Facings: 32
-		Offset: 0,-1
+		UseClassicFacingFudge: True
+		Offset: 0,-13
 	recoil:
 		Start: 32
 		Facings: 32
-		Offset: 0,-1
+		UseClassicFacingFudge: True
+		Offset: 0,-13
 	make: agunmake
 		Length: *
-		Offset: 0,-1
+		Offset: 0,-13
 	damaged-idle:
 		Start: 64
 		Facings: 32
-		Offset: 0,-1
+		UseClassicFacingFudge: True
+		Offset: 0,-13
 	damaged-recoil:
 		Start: 96
 		Facings: 32
-		Offset: 0,-1
+		UseClassicFacingFudge: True
+		Offset: 0,-13
 	muzzle: gunfire2
 		Start: 1
 		Length: 4
-		Offset: 0,-1
 	bib: mbAGUN
 		Length: *
 		UseTilesetExtension: true
@@ -389,18 +425,20 @@ agun:
 sam:
 	idle: sam2
 		Facings: 32
-		Offset: -2,-2
+		UseClassicFacingFudge: True
+		Offset: -1,-2
 	damaged-idle: sam2
 		Start: 34
 		Facings: 32
-		Offset: -2,-2
+		UseClassicFacingFudge: True
+		Offset: -1,-2
 	make: sammake
 		Length: *
-		Offset: -2,-2
+		Offset: -1,-2
 	muzzle: samfire
 		Length: 18
 		Facings: 8
-		Offset: -2,-2
+		Offset: -1,6
 	bib: mbSAM
 		Length: *
 		Offset: 0,1
@@ -423,23 +461,23 @@ ftur:
 
 tsla:
 	idle:
-		Offset: 0,-1
+		Offset: 0,-13
 	damaged-idle:
 		Start: 10
-		Offset: 0,-1
+		Offset: 0,-13
 	make: tslamake
 		Length: *
-		Offset: 0,-1
+		Offset: 0,-13
 	active:
 		Start: 1
 		Length: 9
 		Tick: 100
-		Offset: 0,-1
+		Offset: 0,-13
 	damaged-active:
 		Start: 11
 		Length: 9
 		Tick: 100
-		Offset: 0,-1
+		Offset: 0,-13
 	bib: mbTSLA
 		Length: *
 		UseTilesetExtension: true
@@ -480,14 +518,14 @@ hbox:
 gap:
 	idle:
 		Length: 32
-		Offset: 0,-2
+		Offset: 0,-14
 	damaged-idle:
 		Start: 32
 		Length: 32
-		Offset: 0,-2
+		Offset: 0,-14
 	make: gapmake
 		Length: *
-		Offset: 0,-2
+		Offset: 0,-14
 	bib: mbGAP
 		Length: *
 		UseTilesetExtension: true

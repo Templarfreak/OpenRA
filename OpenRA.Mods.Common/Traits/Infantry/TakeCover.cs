@@ -1,16 +1,17 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA.GameRules;
+using OpenRA.Mods.Common.Warheads;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -24,27 +25,18 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Prone movement speed as a percentage of the normal speed.")]
 		public readonly int SpeedModifier = 50;
 
+		[FieldLoader.Require]
 		[Desc("Damage types that trigger prone state. Defined on the warheads.")]
-		public readonly string[] DamageTriggers = new string[0];
+		public readonly HashSet<string> DamageTriggers = new HashSet<string>();
 
-		[FieldLoader.LoadUsing("LoadModifiers")]
 		[Desc("Damage modifiers for each damage type (defined on the warheads) while the unit is prone.")]
 		public readonly Dictionary<string, int> DamageModifiers = new Dictionary<string, int>();
 
-		public readonly WVec ProneOffset = new WVec(85, 0, -171);
+		public readonly WVec ProneOffset = new WVec(500, 0, 0);
 
-		public readonly string ProneSequencePrefix = "prone-";
+		[SequenceReference(null, true)] public readonly string ProneSequencePrefix = "prone-";
 
 		public override object Create(ActorInitializer init) { return new TakeCover(init, this); }
-
-		public static object LoadModifiers(MiniYaml yaml)
-		{
-			var md = yaml.ToDictionary();
-
-			return md.ContainsKey("DamageModifiers")
-				? md["DamageModifiers"].ToDictionary(my => FieldLoader.GetValue<int>("(value)", my.Value))
-				: new Dictionary<string, int>();
-		}
 	}
 
 	public class TakeCover : Turreted, INotifyDamage, IDamageModifier, ISpeedModifier, ISync, IRenderInfantrySequenceModifier
@@ -53,8 +45,8 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync] int remainingProneTime = 0;
 		bool IsProne { get { return remainingProneTime > 0; } }
 
-		public bool IsModifyingSequence { get { return IsProne; } }
-		public string SequencePrefix { get { return info.ProneSequencePrefix; } }
+		bool IRenderInfantrySequenceModifier.IsModifyingSequence { get { return IsProne; } }
+		string IRenderInfantrySequenceModifier.SequencePrefix { get { return info.ProneSequencePrefix; } }
 
 		public TakeCover(ActorInitializer init, TakeCoverInfo info)
 			: base(init, info)
@@ -62,9 +54,9 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 		}
 
-		public void Damaged(Actor self, AttackInfo e)
+		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
-			if (e.Damage <= 0 || e.Warhead == null || !e.Warhead.DamageTypes.Any(x => info.DamageTriggers.Contains(x)))
+			if (e.Damage.Value <= 0 || !e.Damage.DamageTypes.Overlaps(info.DamageTriggers))
 				return;
 
 			if (!IsProne)
@@ -73,7 +65,7 @@ namespace OpenRA.Mods.Common.Traits
 			remainingProneTime = info.ProneTime;
 		}
 
-		public override void Tick(Actor self)
+		protected override void Tick(Actor self)
 		{
 			base.Tick(self);
 
@@ -81,16 +73,24 @@ namespace OpenRA.Mods.Common.Traits
 				localOffset = WVec.Zero;
 		}
 
-		public int GetDamageModifier(Actor attacker, DamageWarhead warhead)
+		public override bool HasAchievedDesiredFacing
+		{
+			get { return true; }
+		}
+
+		int IDamageModifier.GetDamageModifier(Actor attacker, Damage damage)
 		{
 			if (!IsProne)
 				return 100;
 
-			var modifierPercentages = info.DamageModifiers.Where(x => warhead.DamageTypes.Contains(x.Key)).Select(x => x.Value);
+			if (damage.DamageTypes.Count == 0)
+				return 100;
+
+			var modifierPercentages = info.DamageModifiers.Where(x => damage.DamageTypes.Contains(x.Key)).Select(x => x.Value);
 			return Util.ApplyPercentageModifiers(100, modifierPercentages);
 		}
 
-		public int GetSpeedModifier()
+		int ISpeedModifier.GetSpeedModifier()
 		{
 			return IsProne ? info.SpeedModifier : 100;
 		}

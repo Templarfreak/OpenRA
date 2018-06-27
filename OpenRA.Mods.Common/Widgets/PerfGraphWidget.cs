@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -19,38 +20,37 @@ namespace OpenRA.Mods.Common.Widgets
 	{
 		public override void Draw()
 		{
+			var cr = Game.Renderer.RgbaColorRenderer;
 			var rect = RenderBounds;
 			var origin = new float2(rect.Right, rect.Bottom);
 			var basis = new float2(-rect.Width / 100, -rect.Height / 100);
 
-			Game.Renderer.LineRenderer.DrawLine(origin, origin + new float2(100, 0) * basis, Color.White, Color.White);
-			Game.Renderer.LineRenderer.DrawLine(origin + new float2(100, 0) * basis, origin + new float2(100, 100) * basis, Color.White, Color.White);
+			cr.DrawLine(new[]
+			{
+				new float3(rect.Left, rect.Top, 0),
+				new float3(rect.Left, rect.Bottom, 0),
+				new float3(rect.Right, rect.Bottom, 0)
+			}, 1, Color.White);
+
+			cr.DrawLine(origin + new float2(100, 0) * basis, origin + new float2(100, 100) * basis, 1, Color.White);
 
 			var k = 0;
 			foreach (var item in PerfHistory.Items.Values)
 			{
-				var n = 0;
-				item.Samples().Aggregate((a, b) =>
-				{
-					Game.Renderer.LineRenderer.DrawLine(
-						origin + new float2(n, (float)a) * basis,
-						origin + new float2(n + 1, (float)b) * basis,
-						item.C, item.C);
-					++n;
-					return b;
-				});
+				cr.DrawLine(item.Samples()
+					.Select((sample, i) => origin + new float3(i, (float)sample, 0) * basis),
+					1, item.C);
 
 				var u = new float2(rect.Left, rect.Top);
 
-				Game.Renderer.LineRenderer.DrawLine(
+				cr.DrawLine(
 					u + new float2(10, 10 * k + 5),
 					u + new float2(12, 10 * k + 5),
-					item.C, item.C);
-
-				Game.Renderer.LineRenderer.DrawLine(
+					1, item.C);
+				cr.DrawLine(
 					u + new float2(10, 10 * k + 4),
 					u + new float2(12, 10 * k + 4),
-					item.C, item.C);
+					1, item.C);
 
 				++k;
 			}

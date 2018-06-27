@@ -11,13 +11,16 @@ BIGBLUE:
 	Inherits: ^BlossomTree
 	Tooltip:
 		Name: Large Blue Tiberium Crystal
-	RenderBuilding:
+	RenderSprites:
 		Palette: bluetiberium
 	RadarColorFromTerrain:
 		Terrain: BlueTiberium
 	SeedsResource:
 		ResourceType: BlueTiberium
-		Interval: 100
+		Interval: 1000
+
+BIGBLUE3:
+	Inherits: BIGBLUE
 
 TREE01:
 	Inherits: ^Tree
@@ -94,5 +97,74 @@ TREE24:
 TREE25:
 	Inherits: ^Tree
 
+VEINHOLEDUMMY:
+	HiddenUnderShroud:
+	RadarColorFromTerrain:
+		Terrain: Veins
+	Building:
+		Footprint: xx xx
+		Dimensions: 2, 2
+	BodyOrientation:
+		QuantizedFacings: 1
+
 VEINHOLE:
-	Inherits: ^Veinhole
+	Inherits: VEINHOLEDUMMY
+	AppearsOnRadar:
+	Tooltip:
+		Name: Veinhole
+	RenderSprites:
+		Palette: player
+	WithSpriteBody:
+	EditorTilesetFilter:
+		Categories: Resource spawn
+	Interactable:
+
+^TibFlora:
+	Inherits: ^Tree
+	Tooltip:
+		Name: Tiberian Flora
+
+FONA01:
+	Inherits: ^TibFlora
+
+FONA02:
+	Inherits: ^TibFlora
+
+FONA03:
+	Inherits: ^TibFlora
+
+FONA04:
+	Inherits: ^TibFlora
+
+FONA05:
+	Inherits: ^TibFlora
+
+FONA06:
+	Inherits: ^TibFlora
+
+FONA07:
+	Inherits: ^TibFlora
+
+FONA08:
+	Inherits: ^TibFlora
+
+FONA09:
+	Inherits: ^TibFlora
+
+FONA10:
+	Inherits: ^TibFlora
+
+FONA11:
+	Inherits: ^TibFlora
+
+FONA12:
+	Inherits: ^TibFlora
+
+FONA13:
+	Inherits: ^TibFlora
+
+FONA14:
+	Inherits: ^TibFlora
+
+FONA15:
+	Inherits: ^TibFlora

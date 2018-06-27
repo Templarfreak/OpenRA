@@ -1,3 +1,11 @@
+--[[
+   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   This file is part of OpenRA, which is free software. It is made
+   available to you under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of
+   the License, or (at your option) any later version. For more
+   information, see COPYING.
+]]
 NodUnits = { "bggy", "e1", "e1", "e1", "e1", "e1", "bggy", "e1", "e1", "e1", "bggy" }
 NodBaseBuildings = { "hand", "fact", "nuke" }
 
@@ -26,7 +34,7 @@ getActors = function(owner, units)
 	local maxUnits = 0
 	local actors = { }
 	for type, count in pairs(units) do
-		local globalActors = Map.ActorsInBox(Map.TopLeft, Map.BottomRight, function(actor)
+		local globalActors = Utils.Where(Map.ActorsInWorld, function(actor)
 			return actor.Owner == owner and actor.Type == type and not actor.IsDead
 		end)
 		if #globalActors < count then
@@ -42,8 +50,9 @@ getActors = function(owner, units)
 end
 
 InsertNodUnits = function()
-	Reinforcements.Reinforce(Nod, NodUnits, { UnitsEntry.Location, UnitsRally.Location }, 15)
-	Reinforcements.Reinforce(Nod, { "mcv" }, { McvEntry.Location, McvRally.Location })
+	Media.PlaySpeechNotification(player, "Reinforce")
+	Reinforcements.Reinforce(player, NodUnits, { UnitsEntry.Location, UnitsRally.Location }, 15)
+	Reinforcements.Reinforce(player, { "mcv" }, { McvEntry.Location, McvRally.Location })
 end
 
 OnAnyDamaged = function(actors, func)
@@ -52,34 +61,27 @@ OnAnyDamaged = function(actors, func)
 	end)
 end
 
-CheckForBase = function(player, buildings)
-	local checked = { }
-	local baseBuildings = Map.ActorsInBox(Map.TopLeft, Map.BottomRight, function(actor)
-		if actor.Owner ~= Nod or Utils.Any(checked, function(bldng) return bldng.Type == actor.Type end) then
-			return false
-		end
+CheckForBase = function(player)
+	local buildings = 0
 
-		local found = false
-		for i = 1, #buildings, 1 do
-			if actor.Type == buildings[i] then
-				found = true
-				checked[#checked + 1] = actor
-			end
+	Utils.Do(NodBaseBuildings, function(name)
+		if #player.GetActorsByType(name) > 0 then
+			buildings = buildings + 1
 		end
-		return found
 	end)
-	return #baseBuildings >= 3
+
+	return buildings == #NodBaseBuildings
 end
 
 DfndTriggerFunction = function()
-	local list = GDI.GetGroundAttackers()
+	local list = enemy.GetGroundAttackers()
 	Utils.Do(list, function(unit)
 		IdleHunt(unit)
 	end)
 end
 
 Atk2TriggerFunction = function()
-	local MyActors = getActors(GDI, { ['e1'] = 3 })
+	local MyActors = getActors(enemy, { ['e1'] = 3 })
 	Utils.Do(MyActors, function(actor)
 		Atk2Movement(actor)
 	end)
@@ -88,7 +90,7 @@ end
 Atk3TriggerFunction = function()
 	if not Atk3TriggerSwitch then
 		Atk3TriggerSwitch = true
-		MyActors = getActors(GDI, { ['e1'] = 4 })
+		MyActors = getActors(enemy, { ['e1'] = 4 })
 		Utils.Do(MyActors, function(actor)
 			Atk3Movement(actor)
 		end)
@@ -96,28 +98,28 @@ Atk3TriggerFunction = function()
 end
 
 Atk5TriggerFunction = function()
-	local MyActors = getActors(GDI, { ['e1'] = 3 })
+	local MyActors = getActors(enemy, { ['e1'] = 3 })
 	Utils.Do(MyActors, function(actor)
 		Atk2Movement(actor)
 	end)
 end
 
 Atk6TriggerFunction = function()
-	local MyActors = getActors(GDI, { ['e1'] = 4 })
+	local MyActors = getActors(enemy, { ['e1'] = 4 })
 	Utils.Do(MyActors, function(actor)
 		Atk3Movement(actor)
 	end)
 end
 
 Atk7TriggerFunction = function()
-	local MyActors = getActors(GDI, { ['e1'] = 3 })
+	local MyActors = getActors(enemy, { ['e1'] = 3 })
 	Utils.Do(MyActors, function(actor)
 		Atk4Movement(actor)
 	end)
 end
 
 Pat1TriggerFunction = function()
-	local MyActors = getActors(GDI, { ['e1'] = 3 })
+	local MyActors = getActors(enemy, { ['e1'] = 3 })
 	Utils.Do(MyActors, function(actor)
 		Pat1Movement(actor)
 	end)
@@ -159,32 +161,32 @@ Pat1Movement = function(unit)
 end
 
 WorldLoaded = function()
-	GDI = Player.GetPlayer("GDI")
-	Nod = Player.GetPlayer("Nod")
+	player = Player.GetPlayer("Nod")
+	enemy = Player.GetPlayer("GDI")
 
-	Trigger.OnObjectiveAdded(Nod, function(p, id)
+	Trigger.OnObjectiveAdded(player, function(p, id)
 		Media.DisplayMessage(p.GetObjectiveDescription(id), "New " .. string.lower(p.GetObjectiveType(id)) .. " objective")
 	end)
 
-	Trigger.OnObjectiveCompleted(Nod, function(p, id)
+	Trigger.OnObjectiveCompleted(player, function(p, id)
 		Media.DisplayMessage(p.GetObjectiveDescription(id), "Objective completed")
 	end)
 
-	Trigger.OnObjectiveFailed(Nod, function(p, id)
+	Trigger.OnObjectiveFailed(player, function(p, id)
 		Media.DisplayMessage(p.GetObjectiveDescription(id), "Objective failed")
 	end)
 
-	Trigger.OnPlayerWon(Nod, function()
-		Media.PlaySpeechNotification(Nod, "Win")
+	Trigger.OnPlayerWon(player, function()
+		Media.PlaySpeechNotification(player, "Win")
 	end)
 
-	Trigger.OnPlayerLost(Nod, function()
-		Media.PlaySpeechNotification(Nod, "Lose")
+	Trigger.OnPlayerLost(player, function()
+		Media.PlaySpeechNotification(player, "Lose")
 	end)
 
-	NodObjective1 = Nod.AddPrimaryObjective("Build a base")
-	NodObjective2 = Nod.AddPrimaryObjective("Destroy the GDI base")
-	GDIObjective = GDI.AddPrimaryObjective("Kill all enemies!")
+	NodObjective1 = player.AddPrimaryObjective("Build a base.")
+	NodObjective2 = player.AddPrimaryObjective("Destroy the GDI base.")
+	GDIObjective = enemy.AddPrimaryObjective("Kill all enemies.")
 
 	OnAnyDamaged(Atk3ActorTriggerActivator, Atk3TriggerFunction)
 	Trigger.OnAllRemovedFromWorld(DfndActorTriggerActivator, DfndTriggerFunction)
@@ -196,8 +198,8 @@ WorldLoaded = function()
 	Trigger.AfterDelay(Pat1TriggerFunctionTime, Pat1TriggerFunction)
 
 	Trigger.OnEnteredFootprint(Atk1CellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
-			MyActors = getActors(GDI, { ['e1'] = 5 })
+		if a.Owner == player then
+			MyActors = getActors(enemy, { ['e1'] = 5 })
 			Utils.Do(MyActors, function(actor)
 				Atk1Movement(actor)
 			end)
@@ -206,8 +208,8 @@ WorldLoaded = function()
 	end)
 
 	Trigger.OnEnteredFootprint(Atk4CellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
-			MyActors = getActors(GDI, { ['e1'] = 3 } )
+		if a.Owner == player then
+			MyActors = getActors(enemy, { ['e1'] = 3 } )
 			Utils.Do(MyActors, function(actor)
 				Atk2Movement(actor)
 			end)
@@ -220,27 +222,27 @@ WorldLoaded = function()
 end
 
 Tick = function()
-	if GDI.HasNoRequiredUnits() then
-		Nod.MarkCompletedObjective(NodObjective2)
+	if enemy.HasNoRequiredUnits() then
+		player.MarkCompletedObjective(NodObjective2)
 	end
 
-	if Nod.HasNoRequiredUnits() then
+	if player.HasNoRequiredUnits() then
 		if DateTime.GameTime > 2 then
-			GDI.MarkCompletedObjective(GDIObjective)
+			enemy.MarkCompletedObjective(GDIObjective)
 		end
 	end
 
-	if DateTime.GameTime % DateTime.Seconds(1) == 0 and not Nod.IsObjectiveCompleted(NodObjective1) and CheckForBase(Nod, NodBaseBuildings) then
-		Nod.MarkCompletedObjective(NodObjective1)
+	if DateTime.GameTime % DateTime.Seconds(1) == 0 and not player.IsObjectiveCompleted(NodObjective1) and CheckForBase(player) then
+		player.MarkCompletedObjective(NodObjective1)
 	end
 
-	if DateTime.GameTime % DateTime.Seconds(3) == 0 and Barracks.IsInWorld then
-		checkProduction(GDI)
+	if DateTime.GameTime % DateTime.Seconds(3) == 0 and Barracks.IsInWorld and Barracks.Owner == enemy then
+		checkProduction(enemy)
 	end
 end
 
 checkProduction = function(player)
-	local Units = Map.ActorsInBox(Map.TopLeft, Map.BottomRight, function(actor)
+	local Units = Utils.Where(Map.ActorsInWorld, function(actor)
 		return actor.Owner == player and actor.Type == UnitToRebuild
 	end)
 
@@ -257,8 +259,8 @@ checkProduction = function(player)
 end
 
 getStartUnits = function()
-	local Units = Map.ActorsInBox(Map.TopLeft, Map.BottomRight, function(actor)
-		return actor.Owner == GDI
+	local Units = Utils.Where(Map.ActorsInWorld, function(actor)
+		return actor.Owner == enemy
 	end)
 	Utils.Do(Units, function(unit)
 		if unit.Type == UnitToRebuild then
@@ -267,8 +269,8 @@ getStartUnits = function()
 	end)
 end
 
-IdleHunt = function(unit) 
-	if not unit.IsDead then 
-		Trigger.OnIdle(unit, unit.Hunt) 
-	end 
+IdleHunt = function(unit)
+	if not unit.IsDead then
+		Trigger.OnIdle(unit, unit.Hunt)
+	end
 end

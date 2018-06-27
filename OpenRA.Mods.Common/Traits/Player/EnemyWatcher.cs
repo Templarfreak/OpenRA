@@ -1,14 +1,16 @@
-﻿#region Copyright & License Information
+#region Copyright & License Information
 /*
- * Copyright 2007-2014 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System.Collections.Generic;
+using OpenRA.Mods.Common.Traits.Sound;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -48,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		// Here self is the player actor
-		public void Tick(Actor self)
+		void ITick.Tick(Actor self)
 		{
 			// TODO: Make the AI handle such notifications and remove Owner.IsBot from this check
 			// Disable notifications for AI and neutral players (creeps) and for spectators
@@ -77,7 +79,7 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				// The actor is not currently visible
-				if (!self.Owner.Shroud.IsVisible(actor.Actor))
+				if (!actor.Actor.CanBeViewedByPlayer(self.Owner))
 					continue;
 
 				visibleActorIds.Add(actor.Actor.ActorID);

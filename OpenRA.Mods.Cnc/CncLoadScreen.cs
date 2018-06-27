@@ -1,16 +1,18 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.LoadScreens;
 using OpenRA.Widgets;
@@ -32,8 +34,10 @@ namespace OpenRA.Mods.Cnc
 		Rectangle bounds;
 		Renderer r;
 
-		public override void Init(Manifest m, Dictionary<string, string> info)
+		public override void Init(ModData modData, Dictionary<string, string> info)
 		{
+			base.Init(modData, info);
+
 			loadInfo = info;
 
 			// Avoid standard loading mechanisms so we
@@ -41,30 +45,32 @@ namespace OpenRA.Mods.Cnc
 			r = Game.Renderer;
 			if (r == null) return;
 
-			sheet = new Sheet(Platform.ResolvePath(loadInfo["Image"]));
+			using (var stream = modData.DefaultFileSystem.Open(info["Image"]))
+				sheet = new Sheet(SheetType.BGRA, stream);
+
 			var res = r.Resolution;
 			bounds = new Rectangle(0, 0, res.Width, res.Height);
 
-			borderTop = new Sprite(sheet, new Rectangle(161, 128, 62, 33), TextureChannel.Alpha);
-			borderBottom = new Sprite(sheet, new Rectangle(161, 223, 62, 33), TextureChannel.Alpha);
-			borderLeft = new Sprite(sheet, new Rectangle(128, 161, 33, 62), TextureChannel.Alpha);
-			borderRight = new Sprite(sheet, new Rectangle(223, 161, 33, 62), TextureChannel.Alpha);
-			cornerTopLeft = new Sprite(sheet, new Rectangle(128, 128, 33, 33), TextureChannel.Alpha);
-			cornerTopRight = new Sprite(sheet, new Rectangle(223, 128, 33, 33), TextureChannel.Alpha);
-			cornerBottomLeft = new Sprite(sheet, new Rectangle(128, 223, 33, 33), TextureChannel.Alpha);
-			cornerBottomRight = new Sprite(sheet, new Rectangle(223, 223, 33, 33), TextureChannel.Alpha);
+			borderTop = new Sprite(sheet, new Rectangle(161, 128, 62, 33), TextureChannel.RGBA);
+			borderBottom = new Sprite(sheet, new Rectangle(161, 223, 62, 33), TextureChannel.RGBA);
+			borderLeft = new Sprite(sheet, new Rectangle(128, 161, 33, 62), TextureChannel.RGBA);
+			borderRight = new Sprite(sheet, new Rectangle(223, 161, 33, 62), TextureChannel.RGBA);
+			cornerTopLeft = new Sprite(sheet, new Rectangle(128, 128, 33, 33), TextureChannel.RGBA);
+			cornerTopRight = new Sprite(sheet, new Rectangle(223, 128, 33, 33), TextureChannel.RGBA);
+			cornerBottomLeft = new Sprite(sheet, new Rectangle(128, 223, 33, 33), TextureChannel.RGBA);
+			cornerBottomRight = new Sprite(sheet, new Rectangle(223, 223, 33, 33), TextureChannel.RGBA);
 
-			nodLogo = new Sprite(sheet, new Rectangle(0, 256, 256, 256), TextureChannel.Alpha);
-			gdiLogo = new Sprite(sheet, new Rectangle(256, 256, 256, 256), TextureChannel.Alpha);
-			evaLogo = new Sprite(sheet, new Rectangle(256, 64, 128, 64), TextureChannel.Alpha);
+			nodLogo = new Sprite(sheet, new Rectangle(0, 256, 256, 256), TextureChannel.RGBA);
+			gdiLogo = new Sprite(sheet, new Rectangle(256, 256, 256, 256), TextureChannel.RGBA);
+			evaLogo = new Sprite(sheet, new Rectangle(256, 64, 128, 64), TextureChannel.RGBA);
 			nodPos = new float2(bounds.Width / 2 - 384, bounds.Height / 2 - 128);
 			gdiPos = new float2(bounds.Width / 2 + 128, bounds.Height / 2 - 128);
 			evaPos = new float2(bounds.Width - 43 - 128, 43);
 
-			brightBlock = new Sprite(sheet, new Rectangle(320, 0, 16, 35), TextureChannel.Alpha);
-			dimBlock = new Sprite(sheet, new Rectangle(336, 0, 16, 35), TextureChannel.Alpha);
+			brightBlock = new Sprite(sheet, new Rectangle(320, 0, 16, 35), TextureChannel.RGBA);
+			dimBlock = new Sprite(sheet, new Rectangle(336, 0, 16, 35), TextureChannel.RGBA);
 
-			versionText = m.Mod.Version;
+			versionText = modData.Manifest.Metadata.Version;
 		}
 
 		bool setup;
@@ -121,10 +127,12 @@ namespace OpenRA.Mods.Cnc
 			r.EndFrame(nih);
 		}
 
-		public override void Dispose()
+		protected override void Dispose(bool disposing)
 		{
-			if (sheet != null)
+			if (disposing && sheet != null)
 				sheet.Dispose();
+
+			base.Dispose(disposing);
 		}
 	}
 }

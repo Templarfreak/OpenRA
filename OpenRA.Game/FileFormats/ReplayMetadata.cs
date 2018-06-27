@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -78,41 +79,27 @@ namespace OpenRA.FileFormats
 
 		public static ReplayMetadata Read(string path)
 		{
-			using (var fs = new FileStream(path, FileMode.Open))
-				return Read(fs, path);
-		}
-
-		static ReplayMetadata Read(FileStream fs, string path)
-		{
-			if (!fs.CanSeek)
-				return null;
-
-			if (fs.Length < 20)
-				return null;
-
 			try
 			{
-				fs.Seek(-(4 + 4), SeekOrigin.End);
-				var dataLength = fs.ReadInt32();
-				if (fs.ReadInt32() == MetaEndMarker)
+				using (var fs = new FileStream(path, FileMode.Open))
 				{
-					// go back by (end marker + length storage + data + version + start marker) bytes
-					fs.Seek(-(4 + 4 + dataLength + 4 + 4), SeekOrigin.Current);
-					try
+					if (!fs.CanSeek)
+						return null;
+
+					if (fs.Length < 20)
+						return null;
+
+					fs.Seek(-(4 + 4), SeekOrigin.End);
+					var dataLength = fs.ReadInt32();
+					if (fs.ReadInt32() == MetaEndMarker)
 					{
+						// Go back by (end marker + length storage + data + version + start marker) bytes
+						fs.Seek(-(4 + 4 + dataLength + 4 + 4), SeekOrigin.Current);
 						return new ReplayMetadata(fs, path);
-					}
-					catch (InvalidOperationException ex)
-					{
-						Log.Write("debug", ex.ToString());
-					}
-					catch (NotSupportedException ex)
-					{
-						Log.Write("debug", ex.ToString());
 					}
 				}
 			}
-			catch (IOException ex)
+			catch (Exception ex)
 			{
 				Log.Write("debug", ex.ToString());
 			}

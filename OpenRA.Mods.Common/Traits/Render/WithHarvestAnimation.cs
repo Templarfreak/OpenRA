@@ -1,72 +1,90 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using OpenRA.Activities;
-using OpenRA.Graphics;
 using OpenRA.Traits;
 
-namespace OpenRA.Mods.Common.Traits
+namespace OpenRA.Mods.Common.Traits.Render
 {
-	[Desc("Displays an overlay whenever resources are harvested by the actor.")]
-	class WithHarvestAnimationInfo : ITraitInfo, Requires<RenderSpritesInfo>, Requires<IBodyOrientationInfo>
+	public class WithHarvestAnimationInfo : ITraitInfo, Requires<WithSpriteBodyInfo>, Requires<HarvesterInfo>
 	{
-		[Desc("Sequence name to use")]
-		public readonly string Sequence = "harvest";
+		[Desc("Prefix added to idle and harvest sequences depending on fullness of harvester.")]
+		[SequenceReference(null, true)] public readonly string[] PrefixByFullness = { "" };
 
-		[Desc("Position relative to body")]
-		public readonly WVec Offset = WVec.Zero;
+		[Desc("Displayed while harvesting.")]
+		[SequenceReference] public readonly string HarvestSequence = "harvest";
 
-		public readonly string Palette = "effect";
-
-		public object Create(ActorInitializer init) { return new WithHarvestAnimation(init.Self, this); }
+		public object Create(ActorInitializer init) { return new WithHarvestAnimation(init, this); }
 	}
 
-	class WithHarvestAnimation : INotifyHarvesterAction
+	public class WithHarvestAnimation : ITick, INotifyHarvesterAction
 	{
-		WithHarvestAnimationInfo info;
-		Animation anim;
-		bool visible;
+		public readonly WithHarvestAnimationInfo Info;
+		readonly WithSpriteBody wsb;
+		readonly Harvester harv;
 
-		public WithHarvestAnimation(Actor self, WithHarvestAnimationInfo info)
+		// TODO: Remove this once WithSpriteBody has its own replacement
+		public bool IsModifying;
+
+		public WithHarvestAnimation(ActorInitializer init, WithHarvestAnimationInfo info)
 		{
-			this.info = info;
-			var rs = self.Trait<RenderSprites>();
-			var body = self.Trait<IBodyOrientation>();
-
-			anim = new Animation(self.World, rs.GetImage(self), RenderSimple.MakeFacingFunc(self));
-			anim.IsDecoration = true;
-			anim.Play(info.Sequence);
-			rs.Add(new AnimationWithOffset(anim,
-				() => body.LocalToWorld(info.Offset.Rotate(body.QuantizeOrientation(self, self.Orientation))),
-				() => !visible,
-				() => false,
-				p => ZOffsetFromCenter(self, p, 0)), info.Palette);
+			Info = info;
+			harv = init.Self.Trait<Harvester>();
+			wsb = init.Self.Trait<WithSpriteBody>();
 		}
 
-		public void Harvested(Actor self, ResourceType resource)
+		protected virtual string NormalizeHarvesterSequence(Actor self, string baseSequence)
 		{
-			if (visible)
-				return;
+			var desiredState = harv.Fullness * (Info.PrefixByFullness.Length - 1) / 100;
+			var desiredPrefix = Info.PrefixByFullness[desiredState];
 
-			visible = true;
-			anim.PlayThen(info.Sequence, () => visible = false);
+			if (wsb.DefaultAnimation.HasSequence(desiredPrefix + baseSequence))
+				return desiredPrefix + baseSequence;
+			else
+				return baseSequence;
 		}
 
-		public void MovingToResources(Actor self, CPos targetCell, Activity next) { }
-		public void MovingToRefinery(Actor self, CPos targetCell, Activity next) { }
-		public void MovementCancelled(Actor self) { }
-
-		public static int ZOffsetFromCenter(Actor self, WPos pos, int offset)
+		void ITick.Tick(Actor self)
 		{
-			var delta = self.CenterPosition - pos;
-			return delta.Y + delta.Z + offset;
+			var baseSequence = wsb.NormalizeSequence(self, wsb.Info.Sequence);
+			var sequence = NormalizeHarvesterSequence(self, baseSequence);
+			if (!IsModifying && wsb.DefaultAnimation.HasSequence(sequence) && wsb.DefaultAnimation.CurrentSequence.Name != sequence)
+				wsb.DefaultAnimation.ReplaceAnim(sequence);
 		}
+
+		void INotifyHarvesterAction.Harvested(Actor self, ResourceType resource)
+		{
+			var baseSequence = wsb.NormalizeSequence(self, Info.HarvestSequence);
+			var sequence = NormalizeHarvesterSequence(self, baseSequence);
+			if (!IsModifying && wsb.DefaultAnimation.HasSequence(sequence))
+			{
+				IsModifying = true;
+				wsb.PlayCustomAnimation(self, sequence, () => IsModifying = false);
+			}
+		}
+
+		// If IsModifying isn't set to true, the docking animation
+		// will be overridden by the WithHarvestAnimation fullness modifier.
+		void INotifyHarvesterAction.Docked()
+		{
+			IsModifying = true;
+		}
+
+		void INotifyHarvesterAction.Undocked()
+		{
+			IsModifying = false;
+		}
+
+		void INotifyHarvesterAction.MovingToResources(Actor self, CPos targetCell, Activity next) { }
+		void INotifyHarvesterAction.MovingToRefinery(Actor self, Actor refineryActor, Activity next) { }
+		void INotifyHarvesterAction.MovementCancelled(Actor self) { }
 	}
 }

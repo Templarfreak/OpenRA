@@ -1,14 +1,14 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System;
 using System.Linq;
 using OpenRA.Server;
 using S = OpenRA.Server.Server;
@@ -24,8 +24,8 @@ namespace OpenRA.Mods.Common.Server
 		// TickTimeout is in microseconds
 		public int TickTimeout { get { return PingInterval * 100; } }
 
-		int lastPing = 0;
-		int lastConnReport = 0;
+		long lastPing = 0;
+		long lastConnReport = 0;
 		bool isInitialPing = true;
 
 		public void Tick(S server)
@@ -36,7 +36,7 @@ namespace OpenRA.Mods.Common.Server
 				lastPing = Game.RunTime;
 
 				// Ignore client timeout in singleplayer games to make debugging easier
-				if (server.LobbyInfo.IsSinglePlayer && !server.Settings.Dedicated)
+				if (server.LobbyInfo.NonBotClients.Count() < 2 && !server.Dedicated)
 					foreach (var c in server.Conns.ToList())
 						server.SendOrderTo(c, "Ping", Game.RunTime.ToString());
 				else
@@ -49,7 +49,7 @@ namespace OpenRA.Mods.Common.Server
 						var client = server.GetClient(c);
 						if (client == null)
 						{
-							server.DropClient(c, -1);
+							server.DropClient(c);
 							server.SendMessage("A player has been dropped after timing out.");
 							continue;
 						}
@@ -66,7 +66,7 @@ namespace OpenRA.Mods.Common.Server
 						else
 						{
 							server.SendMessage(client.Name + " has been dropped after timing out.");
-							server.DropClient(c, -1);
+							server.DropClient(c);
 						}
 					}
 

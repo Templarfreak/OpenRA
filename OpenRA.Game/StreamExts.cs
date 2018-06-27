@@ -1,16 +1,18 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace OpenRA
@@ -79,7 +81,7 @@ namespace OpenRA
 
 		public static void Write(this Stream s, int value)
 		{
-			s.Write(BitConverter.GetBytes(value));
+			s.WriteArray(BitConverter.GetBytes(value));
 		}
 
 		public static float ReadFloat(this Stream s)
@@ -116,10 +118,22 @@ namespace OpenRA
 		public static byte[] ReadAllBytes(this Stream s)
 		{
 			using (s)
-				return s.ReadBytes((int)(s.Length - s.Position));
+			{
+				if (s.CanSeek)
+					return s.ReadBytes((int)(s.Length - s.Position));
+
+				var bytes = new List<byte>();
+				var buffer = new byte[1024];
+				int count;
+				while ((count = s.Read(buffer, 0, buffer.Length)) > 0)
+					bytes.AddRange(buffer.Take(count));
+				return bytes.ToArray();
+			}
 		}
 
-		public static void Write(this Stream s, byte[] data)
+		// Note: renamed from Write() to avoid being aliased by
+		// System.IO.Stream.Write(System.ReadOnlySpan) (which is not implemented in Mono)
+		public static void WriteArray(this Stream s, byte[] data)
 		{
 			s.Write(data, 0, data.Length);
 		}
@@ -154,7 +168,7 @@ namespace OpenRA
 				bytes = new byte[0];
 
 			s.Write(bytes.Length);
-			s.Write(bytes);
+			s.WriteArray(bytes);
 
 			return 4 + bytes.Length;
 		}

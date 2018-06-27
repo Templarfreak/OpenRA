@@ -1,30 +1,32 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Runtime.InteropServices;
-using OpenRA.FileSystem;
 
 namespace OpenRA.Graphics
 {
 	public sealed class Sheet : IDisposable
 	{
-		readonly object textureLock = new object();
 		bool dirty;
 		bool releaseBufferOnCommit;
 		ITexture texture;
 		byte[] data;
 
 		public readonly Size Size;
+		public readonly SheetType Type;
+
 		public byte[] GetData()
 		{
 			CreateBuffer();
@@ -33,66 +35,50 @@ namespace OpenRA.Graphics
 
 		public bool Buffered { get { return data != null || texture == null; } }
 
-		public Sheet(Size size)
+		public Sheet(SheetType type, Size size)
 		{
+			Type = type;
 			Size = size;
 		}
 
-		public Sheet(ITexture texture)
+		public Sheet(SheetType type, ITexture texture)
 		{
+			Type = type;
 			this.texture = texture;
 			Size = texture.Size;
 		}
 
-		public Sheet(string filename)
+		public Sheet(SheetType type, Stream stream)
 		{
-			using (var stream = GlobalFileSystem.Open(filename))
 			using (var bitmap = (Bitmap)Image.FromStream(stream))
 			{
 				Size = bitmap.Size;
+				data = new byte[4 * Size.Width * Size.Height];
 
-				var dataStride = 4 * Size.Width;
-				data = new byte[dataStride * Size.Height];
-
-				var bd = bitmap.LockBits(bitmap.Bounds(),
-					ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-				for (var y = 0; y < Size.Height; y++)
-					Marshal.Copy(IntPtr.Add(bd.Scan0, y * bd.Stride), data, y * dataStride, dataStride);
-				bitmap.UnlockBits(bd);
+				Util.FastCopyIntoSprite(new Sprite(this, bitmap.Bounds(), TextureChannel.Red), bitmap);
 			}
 
+			Type = type;
 			ReleaseBuffer();
 		}
 
 		public ITexture GetTexture()
 		{
-			// This is only called from the main thread but 'dirty'
-			// is set from other threads too via CommitData().
-			GenerateTexture();
-			return texture;
-		}
-
-		void GenerateTexture()
-		{
-			lock (textureLock)
+			if (texture == null)
 			{
-				if (texture == null)
-				{
-					texture = Game.Renderer.Device.CreateTexture();
-					dirty = true;
-				}
-
-				if (data != null)
-				{
-					if (dirty)
-					{
-						texture.SetData(data, Size.Width, Size.Height);
-						dirty = false;
-						if (releaseBufferOnCommit)
-							data = null;
-					}
-				}
+				texture = Game.Renderer.Context.CreateTexture();
+				dirty = true;
 			}
+
+			if (data != null && dirty)
+			{
+				texture.SetData(data, Size.Width, Size.Height);
+				dirty = false;
+				if (releaseBufferOnCommit)
+					data = null;
+			}
+
+			return texture;
 		}
 
 		public Bitmap AsBitmap()
@@ -141,42 +127,36 @@ namespace OpenRA.Graphics
 
 		public void CreateBuffer()
 		{
-			lock (textureLock)
-			{
-				if (data != null)
-					return;
-				if (texture == null)
-					data = new byte[4 * Size.Width * Size.Height];
-				else
-					data = texture.GetData();
-				releaseBufferOnCommit = false;
-			}
+			if (data != null)
+				return;
+			if (texture == null)
+				data = new byte[4 * Size.Width * Size.Height];
+			else
+				data = texture.GetData();
+			releaseBufferOnCommit = false;
 		}
 
-		public void CommitData()
+		public void CommitBufferedData()
 		{
-			CommitData(false);
+			if (!Buffered)
+				throw new InvalidOperationException(
+					"This sheet is unbuffered. You cannot call CommitBufferedData on an unbuffered sheet. " +
+					"If you need to completely replace the texture data you should set data into the texture directly. " +
+					"If you need to make only small changes to the texture data consider creating a buffered sheet instead.");
+
+			dirty = true;
 		}
 
 		public void ReleaseBuffer()
 		{
-			CommitData(true);
-		}
+			if (!Buffered)
+				return;
+			dirty = true;
+			releaseBufferOnCommit = true;
 
-		void CommitData(bool releaseBuffer)
-		{
-			lock (textureLock)
-			{
-				if (!Buffered)
-					throw new InvalidOperationException(
-						"This sheet is unbuffered. You cannot call CommitData on an unbuffered sheet. " +
-						"If you need to completely replace the texture data you should set data into the texture directly. " +
-						"If you need to make only small changes to the texture data consider creating a buffered sheet instead.");
-
-				dirty = true;
-				if (releaseBuffer)
-					releaseBufferOnCommit = true;
-			}
+			// Commit data from the buffer to the texture, allowing the buffer to be released and reclaimed by GC.
+			if (Game.Renderer != null)
+				GetTexture();
 		}
 
 		public void Dispose()

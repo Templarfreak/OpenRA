@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -45,22 +46,22 @@ namespace OpenRA.Mods.Common.Traits
 			lastAttackTime = -info.NotifyInterval * 25;
 		}
 
-		public void Damaged(Actor self, AttackInfo e)
+		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
-			// only track last hit against our base
-			if (!self.HasTrait<Harvester>())
+			// Don't track self-damage
+			if (e.Attacker != null && e.Attacker.Owner == self.Owner)
 				return;
 
-			// don't track self-damage
-			if (e.Attacker != null && e.Attacker.Owner == self.Owner)
+			// Only track last hit against our harvesters
+			if (!self.Info.HasTraitInfo<HarvesterInfo>())
 				return;
 
 			if (self.World.WorldTick - lastAttackTime > info.NotifyInterval * 25)
 			{
-				Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", info.Notification, self.Owner.Country.Race);
+				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech", info.Notification, self.Owner.Faction.InternalName);
 
 				if (radarPings != null)
-					radarPings.Add(() => self.Owner == self.World.LocalPlayer, self.CenterPosition, info.RadarPingColor, info.RadarPingDuration);
+					radarPings.Add(() => self.Owner.IsAlliedWith(self.World.RenderPlayer), self.CenterPosition, info.RadarPingColor, info.RadarPingDuration);
 			}
 
 			lastAttackTime = self.World.WorldTick;

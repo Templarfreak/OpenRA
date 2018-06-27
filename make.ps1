@@ -1,46 +1,11 @@
-function FindMSBuild
-{
-	$msBuildVersions = @("4.0")
-	foreach ($msBuildVersion in $msBuildVersions)
-	{
-		$key = "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\{0}" -f $msBuildVersion
-		$property = Get-ItemProperty $key -ErrorAction SilentlyContinue
-		if ($property -eq $null -or $property.MSBuildToolsPath -eq $null)
-		{
-			continue
-		}
-		$path = Join-Path $property.MSBuildToolsPath -ChildPath "MSBuild.exe"
-		if (Test-Path $path)
-		{
-			return $path
-		}
-	}
-	return $null
-}
+####### The starting point for the script is the bottom #######
 
-if ($args.Length -eq 0)
+###############################################################
+########################## FUNCTIONS ##########################
+###############################################################
+function All-Command 
 {
-	echo "Command list:"
-	echo ""
-	echo "  all             Builds the game and its development tools."
-	echo "  dependencies    Copies the game's dependencies into the main game folder."
-	echo "  version         Sets the version strings for the default mods to the latest"
-	echo "                  version for the current Git branch."
-	echo "  clean           Removes all built and copied files. Use the 'all' and"
-	echo "                  'dependencies' commands to restore removed files."
-	echo "  test            Tests the default mods for errors."
-	echo "  check           Checks .cs files for StyleCop violations."
-	echo "  docs            Generates the trait and Lua API documentation."
-	echo ""
-	$command = (Read-Host "Enter command").Split(' ', 2)
-}
-else
-{
-	$command = $args
-}
-
-if ($command -eq "all")
-{
+	Dependencies-Command 
 	$msBuild = FindMSBuild
 	$msBuildArguments = "/t:Rebuild /nr:false"
 	if ($msBuild -eq $null)
@@ -60,7 +25,8 @@ if ($command -eq "all")
 		}
 	}
 }
-elseif ($command -eq "clean")
+
+function Clean-Command 
 {
 	$msBuild = FindMSBuild
 	$msBuildArguments = "/t:Clean /nr:false"
@@ -72,27 +38,41 @@ elseif ($command -eq "clean")
 	{
 		$proc = Start-Process $msBuild $msBuildArguments -NoNewWindow -PassThru -Wait
 		rm *.dll
-		rm *.config
+		rm *.dll.config
 		rm mods/*/*.dll
-		if (Test-Path -Path thirdparty/download/)
+		rm *.pdb
+		rm mods/*/*.pdb
+		rm *.exe
+		rm ./*/bin -r
+		rm ./*/obj -r
+		if (Test-Path thirdparty/download/)
 		{
 			rmdir thirdparty/download -Recurse -Force
 		}
 		echo "Clean complete."
 	}
 }
-elseif ($command -eq "version")
-{	
+
+function Version-Command 
+{
 	if ($command.Length -gt 1)
 	{
 		$version = $command[1]
 	}
 	elseif (Get-Command 'git' -ErrorAction SilentlyContinue)
 	{
-		$version = git name-rev --name-only --tags --no-undefined HEAD 2>$null
-		if ($version -eq $null)
+		$gitRepo = git rev-parse --is-inside-work-tree
+		if ($gitRepo)
 		{
-			$version = "git-" + (git rev-parse --short HEAD)
+			$version = git name-rev --name-only --tags --no-undefined HEAD 2>$null
+			if ($version -eq $null)
+			{
+				$version = "git-" + (git rev-parse --short HEAD)
+			}
+		}
+		else
+		{
+			echo "Not a git repository. The version will remain unchanged."
 		}
 	}
 	else
@@ -102,83 +82,216 @@ elseif ($command -eq "version")
 	
 	if ($version -ne $null)
 	{
-		$mods = @("mods/ra/mod.yaml", "mods/cnc/mod.yaml", "mods/d2k/mod.yaml", "mods/modchooser/mod.yaml")
+		$version | out-file ".\VERSION"
+		$mods = @("mods/ra/mod.yaml", "mods/cnc/mod.yaml", "mods/d2k/mod.yaml", "mods/ts/mod.yaml", "mods/modcontent/mod.yaml", "mods/all/mod.yaml")
 		foreach ($mod in $mods)
 		{
 			$replacement = (gc $mod) -Replace "Version:.*", ("Version: {0}" -f $version)
+			sc $mod $replacement
+
+			$prefix = $(gc $mod) | Where { $_.ToString().EndsWith(": User") }
+			if ($prefix -and $prefix.LastIndexOf("/") -ne -1)
+			{
+				$prefix = $prefix.Substring(0, $prefix.LastIndexOf("/"))
+			}
+			$replacement = (gc $mod) -Replace ".*: User", ("{0}/{1}: User" -f $prefix, $version)
 			sc $mod $replacement
 		}
 		echo ("Version strings set to '{0}'." -f $version)
 	}
 }
-elseif ($command -eq "dependencies")
+
+function Dependencies-Command
 {
 	cd thirdparty
 	./fetch-thirdparty-deps.ps1
 	cp download/*.dll ..
+	cp download/GeoLite2-Country.mmdb.gz ..
 	cp download/windows/*.dll ..
 	cd ..
 	echo "Dependencies copied."
 }
-elseif ($command -eq "test")
+
+function Test-Command
 {
-	echo "Testing mods..."
-	echo "Testing Red Alert mod MiniYAML..."
-	./OpenRA.Utility.exe ra --check-yaml
-	echo "Testing Tiberian Dawn mod MiniYAML..."
-	./OpenRA.Utility.exe cnc --check-yaml
-	echo "Testing Dune 2000 mod MiniYAML..."
-	./OpenRA.Utility.exe d2k --check-yaml
-	echo "Testing Tiberian Sun mod MiniYAML..."
-	./OpenRA.Utility.exe ts --check-yaml
-}
-elseif ($command -eq "check")
-{
-	echo "Checking for code style violations in OpenRA.Renderer.Null..."
-	./OpenRA.Utility.exe ra --check-code-style OpenRA.Renderer.Null
-	echo "Checking for code style violations in OpenRA.GameMonitor..."
-	./OpenRA.Utility.exe ra --check-code-style OpenRA.GameMonitor
-	echo "Checking for code style violations in OpenRA.Game..."
-	./OpenRA.Utility.exe ra --check-code-style OpenRA.Game
-	echo "Checking for code style violations in OpenRA.Mods.Common..."
-	./OpenRA.Utility.exe ra --check-code-style OpenRA.Mods.Common
-	echo "Checking for code style violations in OpenRA.Mods.RA..."
-	./OpenRA.Utility.exe ra --check-code-style OpenRA.Mods.RA
-	echo "Checking for code style violations in OpenRA.Mods.Cnc..."
-	./OpenRA.Utility.exe cnc --check-code-style OpenRA.Mods.Cnc
-	echo "Checking for code style violations in OpenRA.Mods.D2k..."
-	./OpenRA.Utility.exe cnc --check-code-style OpenRA.Mods.D2k
-	echo "Checking for code style violations in OpenRA.Mods.TS..."
-	./OpenRA.Utility.exe cnc --check-code-style OpenRA.Mods.TS
-	echo "Checking for code style violations in OpenRA.Editor..."
-	./OpenRA.Utility.exe cnc --check-code-style OpenRA.Editor
-	echo "Checking for code style violations in OpenRA.Renderer.Sdl2..."
-	./OpenRA.Utility.exe cnc --check-code-style OpenRA.Renderer.Sdl2
-	echo "Checking for code style violations in OpenRA.Utility..."
-	./OpenRA.Utility.exe cnc --check-code-style OpenRA.Utility
-	echo "Checking for code style violations in OpenRA.Test..."
-	./OpenRA.Utility.exe cnc --check-code-style OpenRA.Test
-}
-elseif ($command -eq "docs")
-{
-	./make.ps1 version
-	./OpenRA.Utility.exe d2k --docs | Out-File -Encoding "UTF8" DOCUMENTATION.md
-	./OpenRA.Utility.exe ra --lua-docs | Out-File -Encoding "UTF8" Lua-API.md
-}
-else
-{
-	echo ("Invalid command '{0}'" -f $command)
+	if (Test-Path OpenRA.Utility.exe)
+	{
+		echo "Testing mods..."
+		echo "Testing Tiberian Sun mod MiniYAML..."
+		./OpenRA.Utility.exe ts --check-yaml
+		echo "Testing Dune 2000 mod MiniYAML..."
+		./OpenRA.Utility.exe d2k --check-yaml
+		echo "Testing Tiberian Dawn mod MiniYAML..."
+		./OpenRA.Utility.exe cnc --check-yaml
+		echo "Testing Red Alert mod MiniYAML..."
+		./OpenRA.Utility.exe ra --check-yaml
+	}
+	else
+	{
+		UtilityNotFound
+	}
 }
 
-if ($args.Length -eq 0)
+function Check-Command {
+	if (Test-Path OpenRA.Utility.exe)
+	{
+		echo "Checking for explicit interface violations..."
+		./OpenRA.Utility.exe all --check-explicit-interfaces
+	}
+	else
+	{
+		UtilityNotFound
+	}
+
+	if (Test-Path OpenRA.StyleCheck.exe)
+	{
+		echo "Checking for code style violations in OpenRA.Platforms.Default..."
+		./OpenRA.StyleCheck.exe OpenRA.Platforms.Default
+		echo "Checking for code style violations in OpenRA.Game..."
+		./OpenRA.StyleCheck.exe OpenRA.Game
+		echo "Checking for code style violations in OpenRA.Mods.Common..."
+		./OpenRA.StyleCheck.exe OpenRA.Mods.Common
+		echo "Checking for code style violations in OpenRA.Mods.Cnc..."
+		./OpenRA.StyleCheck.exe OpenRA.Mods.Cnc
+		echo "Checking for code style violations in OpenRA.Mods.D2k..."
+		./OpenRA.StyleCheck.exe OpenRA.Mods.D2k
+		echo "Checking for code style violations in OpenRA.Utility..."
+		./OpenRA.StyleCheck.exe OpenRA.Utility
+		echo "Checking for code style violations in OpenRA.Test..."
+		./OpenRA.StyleCheck.exe OpenRA.Test
+	}
+	else
+	{
+		echo "OpenRA.StyleCheck.exe could not be found. Build the project first using the `"all`" command."
+	}
+}
+
+function Check-Scripts-Command
+{
+	if ((Get-Command "luac.exe" -ErrorAction SilentlyContinue) -ne $null)
+	{
+		echo "Testing Lua scripts..."
+		foreach ($script in ls "mods/*/maps/*/*.lua")
+		{
+			luac -p $script
+		}
+		foreach ($script in ls "lua/*.lua")
+		{
+			luac -p $script
+		}
+		echo "Check completed!"
+	}
+	else
+	{
+		echo "luac.exe could not be found. Please install Lua."
+	}
+}
+
+function Docs-Command
+{
+	if (Test-Path OpenRA.Utility.exe)
+	{
+		./make.ps1 version
+		./OpenRA.Utility.exe all --docs | Out-File -Encoding "UTF8" DOCUMENTATION.md
+		./OpenRA.Utility.exe all --weapon-docs | Out-File -Encoding "UTF8" WEAPONS.md
+		./OpenRA.Utility.exe all --lua-docs | Out-File -Encoding "UTF8" Lua-API.md
+		./OpenRA.Utility.exe all --settings-docs | Out-File -Encoding "UTF8" Settings.md
+	}
+	else
+	{
+		UtilityNotFound
+	}
+}
+
+function FindMSBuild
+{
+	$key = "HKLM:\SOFTWARE\Microsoft\MSBuild\ToolsVersions\4.0"
+	$property = Get-ItemProperty $key -ErrorAction SilentlyContinue
+	if ($property -eq $null -or $property.MSBuildToolsPath -eq $null)
+	{
+		return $null
+	}
+
+	$path = Join-Path $property.MSBuildToolsPath -ChildPath "MSBuild.exe"
+	if (Test-Path $path)
+	{
+		return $path
+	}
+
+	return $null
+}
+
+function UtilityNotFound
+{
+	echo "OpenRA.Utility.exe could not be found. Build the project first using the `"all`" command."
+}
+
+function WaitForInput
 {
 	echo "Press enter to continue."
 	while ($true)
 	{
 		if ([System.Console]::KeyAvailable)
 		{
-			break
+			exit
 		}
 		Start-Sleep -Milliseconds 50
 	}
+}
+
+###############################################################
+############################ Main #############################
+###############################################################
+if ($PSVersionTable.PSVersion.Major -clt 3)
+{
+	echo "The makefile requires PowerShell version 3 or higher."
+	echo "Please download and install the latest Windows Management Framework version from Microsoft."
+	WaitForInput
+}
+
+if ($args.Length -eq 0)
+{
+	echo "Command list:"
+	echo ""
+	echo "  all, a              Builds the game and its development tools."
+	echo "  dependencies, d     Copies the game's dependencies into the main game folder."
+	echo "  version, v          Sets the version strings for the default mods to the"
+	echo "                      latest version for the current Git branch."
+	echo "  clean, c            Removes all built and copied files. Use the 'all' and"
+	echo "                      'dependencies' commands to restore removed files."
+	echo "  test, t             Tests the default mods for errors."
+	echo "  check, ck           Checks .cs files for StyleCop violations."
+	echo "  check-scripts, cs   Checks .lua files for syntax errors."
+	echo "  docs                Generates the trait and Lua API documentation."
+	echo ""
+	$command = (Read-Host "Enter command").Split(' ', 2)
+}
+else
+{
+	$command = $args
+}
+
+$execute = $command
+if ($command.Length -gt 1)
+{
+	$execute = $command[0]
+}
+
+switch ($execute)
+{
+	{"all",           "a"  -contains $_} { All-Command }
+	{"dependencies",  "d"  -contains $_} { Dependencies-Command }
+	{"version",       "v"  -contains $_} { Version-Command }
+	{"clean",         "c"  -contains $_} { Clean-Command }
+	{"test",          "t"  -contains $_} { Test-Command }
+	{"check",         "ck" -contains $_} { Check-Command }
+	{"check-scripts", "cs" -contains $_} { Check-Scripts-Command }
+	 "docs"                              { Docs-Command }
+	Default { echo ("Invalid command '{0}'" -f $command) }
+}
+
+#In case the script was called without any parameters we keep the window open 
+if ($args.Length -eq 0)
+{
+	WaitForInput
 }

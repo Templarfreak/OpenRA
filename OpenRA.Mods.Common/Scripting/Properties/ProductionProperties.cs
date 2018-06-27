@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -13,8 +14,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Eluant;
 using OpenRA.Mods.Common.Activities;
-using OpenRA.Mods.Common.Scripting;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Scripting;
 using OpenRA.Traits;
 
@@ -32,14 +33,22 @@ namespace OpenRA.Mods.Common.Scripting
 		}
 
 		[ScriptActorPropertyActivity]
-		[Desc("Build a unit, ignoring the production queue. The activity will wait if the exit is blocked.")]
-		public void Produce(string actorType, string raceVariant = null)
+		[Desc("Build a unit, ignoring the production queue. The activity will wait if the exit is blocked.",
+			"If productionType is nil or unavailable, then an exit will be selected based on Buildable info.")]
+		public void Produce(string actorType, string factionVariant = null, string productionType = null)
 		{
 			ActorInfo actorInfo;
 			if (!Self.World.Map.Rules.Actors.TryGetValue(actorType, out actorInfo))
 				throw new LuaException("Unknown actor type '{0}'".F(actorType));
 
-			Self.QueueActivity(new WaitFor(() => p.Produce(Self, actorInfo, raceVariant)));
+			var faction = factionVariant ?? BuildableInfo.GetInitialFaction(actorInfo, p.Faction);
+			var inits = new TypeDictionary
+			{
+				new OwnerInit(Self.Owner),
+				new FactionInit(faction)
+			};
+
+			Self.QueueActivity(new WaitFor(() => p.Produce(Self, actorInfo, productionType, inits)));
 		}
 	}
 
@@ -54,7 +63,7 @@ namespace OpenRA.Mods.Common.Scripting
 			rp = self.Trait<RallyPoint>();
 		}
 
-		[Desc("Query or set a factory's rally point")]
+		[Desc("Query or set a factory's rally point.")]
 		public CPos RallyPoint
 		{
 			get { return rp.Location; }
@@ -73,7 +82,7 @@ namespace OpenRA.Mods.Common.Scripting
 			pb = self.Trait<PrimaryBuilding>();
 		}
 
-		[Desc("Query or set the factory's primary building status")]
+		[Desc("Query or set the factory's primary building status.")]
 		public bool IsPrimaryBuilding
 		{
 			get { return pb.IsPrimary; }
@@ -101,7 +110,7 @@ namespace OpenRA.Mods.Common.Scripting
 			"only contain alive actors.")]
 		public bool Build(string[] actorTypes, LuaFunction actionFunc = null)
 		{
-			if (triggers.Triggers[Trigger.OnProduction].Any())
+			if (triggers.HasAnyCallbacksFor(Trigger.OnProduction))
 				return false;
 
 			var queue = queues.Where(q => actorTypes.All(t => GetBuildableInfo(t).Queue.Contains(q.Info.Type)))
@@ -112,7 +121,7 @@ namespace OpenRA.Mods.Common.Scripting
 
 			if (actionFunc != null)
 			{
-				var playerIndex = Self.Owner.ClientIndex;
+				var player = Self.Owner;
 				var squadSize = actorTypes.Length;
 				var squad = new List<Actor>();
 				var func = actionFunc.CopyReference() as LuaFunction;
@@ -120,7 +129,7 @@ namespace OpenRA.Mods.Common.Scripting
 				Action<Actor, Actor> productionHandler = (_, __) => { };
 				productionHandler = (factory, unit) =>
 				{
-					if (playerIndex != factory.Owner.ClientIndex)
+					if (player != factory.Owner)
 					{
 						triggers.OnProducedInternal -= productionHandler;
 						return;
@@ -146,11 +155,11 @@ namespace OpenRA.Mods.Common.Scripting
 			return true;
 		}
 
-		[Desc("Check whether the factory's production queue that builds this type of actor is currently busy." +
+		[Desc("Check whether the factory's production queue that builds this type of actor is currently busy. " +
 			"Note: it does not check whether this particular type of actor is being produced.")]
 		public bool IsProducing(string actorType)
 		{
-			if (triggers.Triggers[Trigger.OnProduction].Any())
+			if (triggers.HasAnyCallbacksFor(Trigger.OnProduction))
 				return true;
 
 			return queues.Where(q => GetBuildableInfo(actorType).Queue.Contains(q.Info.Type))
@@ -160,7 +169,7 @@ namespace OpenRA.Mods.Common.Scripting
 		BuildableInfo GetBuildableInfo(string actorType)
 		{
 			var ri = Self.World.Map.Rules.Actors[actorType];
-			var bi = ri.Traits.GetOrDefault<BuildableInfo>();
+			var bi = ri.TraitInfoOrDefault<BuildableInfo>();
 
 			if (bi == null)
 				throw new LuaException("Actor of type {0} cannot be produced".F(actorType));
@@ -202,9 +211,9 @@ namespace OpenRA.Mods.Common.Scripting
 		[Desc("Build the specified set of actors using classic (RA-style) production queues. " +
 			"The function will return true if production could be started, false otherwise. " +
 			"If an actionFunc is given, it will be called as actionFunc(Actor[] actors) once " +
-			"production of all actors has been completed.  The actors array is guaranteed to " +
+			"production of all actors has been completed. The actors array is guaranteed to " +
 			"only contain alive actors. Note: This function will fail to work when called " +
-			"during the first tick")]
+			"during the first tick.")]
 		public bool Build(string[] actorTypes, LuaFunction actionFunc = null)
 		{
 			var typeToQueueMap = new Dictionary<string, string>();
@@ -252,7 +261,7 @@ namespace OpenRA.Mods.Common.Scripting
 			return true;
 		}
 
-		[Desc("Check whether the production queue that builds this type of actor is currently busy." +
+		[Desc("Check whether the production queue that builds this type of actor is currently busy. " +
 			"Note: it does not check whether this particular type of actor is being produced.")]
 		public bool IsProducing(string actorType)
 		{
@@ -267,7 +276,7 @@ namespace OpenRA.Mods.Common.Scripting
 		BuildableInfo GetBuildableInfo(string actorType)
 		{
 			var ri = Player.World.Map.Rules.Actors[actorType];
-			var bi = ri.Traits.GetOrDefault<BuildableInfo>();
+			var bi = ri.TraitInfoOrDefault<BuildableInfo>();
 
 			if (bi == null)
 				throw new LuaException("Actor of type {0} cannot be produced".F(actorType));

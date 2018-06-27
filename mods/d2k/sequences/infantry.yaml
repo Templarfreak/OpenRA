@@ -1,8 +1,16 @@
-rifle:
+light_inf:
 	stand: DATA.R8
 		Start: 206
 		Facings: -8
 		Transpose: true
+	idle1: DATA.R8
+		Frames: 387, 394, 401, 408, 415, 422, 429, 436
+		Length: 8
+		Tick: 80
+	idle2: DATA.R8
+		Frames: 388, 395, 402, 409, 416, 423, 430, 437
+		Length: 8
+		Tick: 80
 	run: DATA.R8
 		Start: 214
 		Length: 6
@@ -15,7 +23,7 @@ rifle:
 		Facings: -8
 		Transpose: true
 	prone-stand: DATA.R8
-		Start: 302
+		Start: 310
 		Facings: -8
 		Transpose: true
 	prone-run: DATA.R8
@@ -24,7 +32,7 @@ rifle:
 		Facings: -8
 		Transpose: true
 		Tick: 110
-	standup-0: DATA.R8
+	standup: DATA.R8
 		Start: 302
 		Facings: -8
 		Transpose: true
@@ -35,35 +43,43 @@ rifle:
 		Facings: -8
 		Transpose: true
 	die1: DATA.R8
-		Frames: 382, 389, 396, 403, 410, 417, 424, 431, 438, 439, 440, 441
+		Frames: 382, 389, 396, 403, 410, 417, 424, 431, 438, 443, 448, 453
 		Length: 12
 		Tick: 80
 	die2: DATA.R8
-		Frames: 383, 390, 397, 404, 411, 418, 425, 432
-		Length: 8
+		Frames: 383, 390, 397, 404, 411, 418, 425, 432, 439, 444, 449, 454
+		Length: 12
 		Tick: 80
 	die3: DATA.R8
-		Frames: 384, 391, 398, 405, 412, 419, 426, 433
-		Length: 8
+		Frames: 384, 391, 398, 405, 412, 419, 426, 433, 440, 445, 450, 455
+		Length: 12
 		Tick: 80
 	die4: DATA.R8
-		Frames: 385, 392, 399, 406, 413, 420, 427, 434
-		Length: 8
+		Frames: 385, 392, 399, 406, 413, 420, 427, 434, 441, 446, 451, 456
+		Length: 12
 		Tick: 80
 	die-crushed: DATA.R8
-		Frames: 386, 393, 400, 407, 414, 421, 428, 435
-		Length: 8
+		Frames: 386, 393, 400, 407, 414, 421, 428, 435, 442, 447, 452, 457
+		Length: 12
 		Tick: 800
 		ZOffset: -511
 	icon: DATA.R8
-		Start: 4011
+		Start: 4272
 		Offset: -30,-24
 
-bazooka:
+trooper:
 	stand: DATA.R8
 		Start: 458
 		Facings: -8
 		Transpose: true
+	idle1: DATA.R8
+		Frames: 639, 646, 653, 660, 667, 674, 681, 688
+		Length: 8
+		Tick: 80
+	idle2: DATA.R8
+		Frames: 640, 647, 654, 661, 668, 675, 682, 689
+		Length: 8
+		Tick: 80
 	run: DATA.R8
 		Start: 466
 		Length: 6
@@ -85,7 +101,7 @@ bazooka:
 		Facings: -8
 		Transpose: true
 		Tick: 120
-	standup-0: DATA.R8
+	standup: DATA.R8
 		Start: 554
 		Facings: -8
 		Transpose: true
@@ -116,7 +132,7 @@ bazooka:
 		Tick: 800
 		ZOffset: -511
 	icon: DATA.R8
-		Start: 4012
+		Start: 4273
 		Offset: -30,-24
 
 engineer:
@@ -124,9 +140,32 @@ engineer:
 		Start: 1166
 		Facings: -8
 		Transpose: true
+	idle1: DATA.R8
+		Frames: 1347, 1354, 1361, 1368, 1375, 1382, 1389, 1396
+		Length: 8
+		Tick: 80
+	idle2: DATA.R8
+		Frames: 1348, 1355, 1362, 1369, 1376, 1383, 1390, 1397
+		Length: 8
+		Tick: 80
 	run: DATA.R8
 		Start: 1174
 		Length: 6
+		Facings: -8
+		Transpose: true
+		Tick: 120
+	standup: DATA.R8
+		Start: 1262
+		Facings: -8
+		Transpose: true
+		Tick: 120
+	prone-stand: DATA.R8
+		Start: 1270
+		Facings: -8
+		Transpose: true
+	prone-run: DATA.R8
+		Start: 1278
+		Length: 3
 		Facings: -8
 		Transpose: true
 		Tick: 120
@@ -152,24 +191,55 @@ engineer:
 		Tick: 800
 		ZOffset: -511
 	icon: DATA.R8
-		Start: 4013
+		Start: 4274
 		Offset: -30,-24
 
-medic: # actually thumper
+thumper:
 	stand: DATA.R8
 		Start: 1402
 		Facings: -8
 		Transpose: true
+	idle1: DATA.R8
+		Frames: 1548, 1555, 1562, 1569, 1576, 1583, 1590, 1597
+		Length: 8
+		Tick: 80
+	idle2: DATA.R8
+		Frames: 1549, 1556, 1563, 1570, 1577, 1584, 1591, 1598
+		Length: 8
+		Tick: 80
 	run: DATA.R8
 		Start: 1410
 		Length: 6
 		Facings: -8
 		Transpose: true
 		Tick: 120
-	heal: DATA.R8
+	standup: DATA.R8
+		Start: 1462
+		Facings: -8
+		Transpose: true
+		Tick: 120
+	prone-stand: DATA.R8
+		Start: 1470
+		Facings: -8
+		Transpose: true
+	prone-run: DATA.R8
+		Start: 1478
+		Length: 3
+		Facings: -8
+		Transpose: true
+		Tick: 120
+	deploy: DATA.R8
+		Start: 1458
+		Length: 5
+	thump: DATA.R8
 		Start: 1458
 		Length: 5
 		Tick: 480
+	thump-sand: DATA.R8
+		Frames: 3882, 3883, 3879, 3880, 3881
+		Length: 5
+		Tick: 480
+		BlendMode: Multiply
 	die1: DATA.R8
 		Frames: 1543, 1550, 1557, 1564, 1571, 1578, 1585, 1592, 1599, 1600, 1601, 1602
 		Length: 12
@@ -192,23 +262,7 @@ medic: # actually thumper
 		Tick: 800
 		ZOffset: -511
 	icon: DATA.R8
-		Start: 4014
-		Offset: -30,-24
-
-thumping:
-	idle: DATA.R8
-		Start: 1458
-		Length: 5
-		Tick: 150
-	make: DATA.R8
-		Start: 1458
-		Length: 5
-	damaged-idle: DATA.R8
-		Start: 1458
-		Length: 5
-		Tick: 150
-	icon: DATA.R8
-		Frames: 4014
+		Start: 4275
 		Offset: -30,-24
 
 fremen:
@@ -216,6 +270,14 @@ fremen:
 		Start: 694
 		Facings: -8
 		Transpose: true
+	idle1: DATA.R8
+		Frames: 875, 882, 889, 896, 903, 910, 917, 924
+		Length: 8
+		Tick: 80
+	idle2: DATA.R8
+		Frames: 876, 883, 890, 897, 904, 911, 918, 925
+		Length: 8
+		Tick: 80
 	run: DATA.R8
 		Start: 702
 		Length: 6
@@ -237,7 +299,7 @@ fremen:
 		Facings: -8
 		Transpose: true
 		Tick: 120
-	standup-0: DATA.R8
+	standup: DATA.R8
 		Start: 790
 		Facings: -8
 		Transpose: true
@@ -269,7 +331,7 @@ fremen:
 		Tick: 800
 		ZOffset: -511
 	icon: DATA.R8
-		Start: 4032
+		Start: 4293
 		Offset: -30,-24
 
 saboteur:
@@ -277,6 +339,14 @@ saboteur:
 		Start: 2149
 		Facings: -8
 		Transpose: true
+	idle1: DATA.R8
+		Frames: 2330, 2337, 2344, 2351, 2358, 2365, 2372, 2379
+		Length: 8
+		Tick: 80
+	idle2: DATA.R8
+		Frames: 2331, 2338, 2345, 2352, 2359, 2366, 2373, 2380
+		Length: 8
+		Tick: 80
 	run: DATA.R8
 		Start: 2157
 		Length: 6
@@ -293,7 +363,7 @@ saboteur:
 		Facings: -8
 		Transpose: true
 		Tick: 120
-	standup-0: DATA.R8
+	standup: DATA.R8
 		Start: 2245
 		Facings: -8
 		Transpose: true
@@ -320,7 +390,7 @@ saboteur:
 		Tick: 800
 		ZOffset: -511
 	icon: DATA.R8
-		Start: 4034
+		Start: 4295
 		Offset: -30,-24
 
 sardaukar:
@@ -328,6 +398,16 @@ sardaukar:
 		Start: 930
 		Facings: -8
 		Transpose: true
+	idle1: DATA.R8
+		Frames: 1111, 1118, 1125, 1132, 1139, 1146, 1153, 1160
+		Length: 8
+		Tick: 80
+		Offset: -1,0
+	idle2: DATA.R8
+		Frames: 1112, 1119, 1126, 1133, 1140, 1147, 1154, 1161
+		Length: 8
+		Tick: 80
+		Offset: -1,0
 	run: DATA.R8
 		Start: 938
 		Length: 6
@@ -349,7 +429,7 @@ sardaukar:
 		Facings: -8
 		Transpose: true
 		Tick: 120
-	standup-0: DATA.R8
+	standup: DATA.R8
 		Start: 1026
 		Facings: -8
 		Transpose: true
@@ -381,72 +461,107 @@ sardaukar:
 		Tick: 800
 		ZOffset: -511
 	icon: DATA.R8
-		Start: 4015
+		Start: 4276
 		Offset: -30,-24
 
-grenadier: # 2502 - 2749 in 1.06 DATA.R8
-	stand: grenadier.shp
-		Facings: 8
-	idle: grenadier.shp
-		Start: 203
-		Length: 16
-	run: grenadier.shp
-		Start: 8
-		Length: 6
-		Facings: 8
-		Tick: 120
-	shoot: grenadier.shp
-		Start: 56
-		Length: 6
-		Facings: 8
-		Tick: 120
-	die1: grenadier.shp
-		Start: 176
-		Length: 19
-	die2: grenadier.shp
-		Start: 176
-		Length: 19
-	die3: grenadier.shp
-		Start: 176
-		Length: 19
-	die4: grenadier.shp
-		Start: 176
-		Length: 19
-	die-crushed: grenadier.shp
-		Start: 195
+grenadier:
+	stand: DATA.R8
+		Start: 2606
+		Facings: -8
+		Transpose: true
+	idle1: DATA.R8
+		Frames: 2700, 2707, 2714, 2721, 2728, 2735, 2742, 2749
 		Length: 8
+	idle2: DATA.R8
+		Frames: 2699, 2706, 2713, 2720, 2727, 2734, 2741, 2748
+		Length: 8
+	run: DATA.R8
+		Start: 2526
+		Length: 6
+		Facings: -8
+		Transpose: true
+		Tick: 120
+	throw: DATA.R8
+		Start: 2574
+		Length: 5
+		Facings: -8
+		Transpose: true
+		Tick: 120
+	die1: DATA.R8
+		Frames: 2694, 2701, 2708, 2715, 2722, 2729, 2736, 2743
+		Length: 8
+	die2: DATA.R8
+		Frames: 2695, 2702, 2709, 2716, 2723, 2730, 2737, 2744
+		Length: 8
+	die3: DATA.R8
+		Frames: 2696, 2703, 2710, 2717, 2724, 2731, 2738, 2745
+		Length: 8
+	die4: DATA.R8
+		Frames: 2697, 2704, 2711, 2718, 2725, 2732, 2738, 2746
+		Length: 8
+	die-crushed: DATA.R8
+		Frames: 2698, 2705, 2712, 2719, 2726, 2733, 2740, 2747
 		Tick: 800
 		ZOffset: -511
-	prone-stand: grenadier.shp
-		Start: 104
+	prone-stand: DATA.R8
+		Start: 2622
+		Facings: -8
+		Transpose: true
+	prone-run: DATA.R8
+		Start: 2622
 		Length: 4
-		Facings: 8
-	prone-run: grenadier.shp
-		Start: 104
-		Length: 4
-		Facings: 8
+		Facings: -8
 		Tick: 120
-	prone-shoot: grenadier.shp
-		Start: 136
+		Transpose: true
+	prone-throw: DATA.R8
+		Start: 2654
 		Length: 5
-		Facings: 8
+		Facings: -8
 		Tick: 120
-	icon: grenadiericon.shp # 4281 in 1.06 DATA.R8
+		Transpose: true
+	icon: DATA.R8
+		Start: 4297
+		Offset: -30,-24
 
 sandworm:
 	mouth: DATA.R8
-		Start: 3549
+		Start: 3802
 		Length: 15
 		Tick: 100
 	sand: DATA.R8
-		Start: 3565
+		Start: 3818
 		Length: 20
 		Tick: 100
 	idle: DATA.R8
-		Start: 3586
-		Length: 35
-		Tick: 180
-		BlendMode: Additive
-	burrowed: DATA.R8
 		Start: 39
+	lightninga: DATA.R8
+		Start: 3844
+		Length: 5
+		Tick: 80
+		BlendMode: Additive
+	lightningb: DATA.R8
+		Start: 3849
+		Length: 5
+		Tick: 80
+		BlendMode: Additive
+	lightningc: DATA.R8
+		Start: 3854
+		Length: 5
+		Tick: 80
+		BlendMode: Additive
+	lightningd: DATA.R8
+		Start: 3859
+		Length: 5
+		Tick: 80
+		BlendMode: Additive
+	lightninge: DATA.R8
+		Start: 3864
+		Length: 5
+		Tick: 80
+		BlendMode: Additive
+	lightningf: DATA.R8
+		Start: 3869
+		Length: 5
+		Tick: 80
+		BlendMode: Additive
 	icon: wormicon.shp

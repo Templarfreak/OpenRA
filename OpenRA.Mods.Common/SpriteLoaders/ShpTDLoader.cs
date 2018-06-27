@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -13,8 +14,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using OpenRA.FileFormats;
 using OpenRA.Graphics;
+using OpenRA.Mods.Common.FileFormats;
 
 namespace OpenRA.Mods.Common.SpriteLoaders
 {
@@ -71,7 +72,79 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 
 	public class ShpTDSprite
 	{
-		enum Format { Format20 = 0x20, Format40 = 0x40, Format80 = 0x80 }
+		enum Format { XORPrev = 0x20, XORLCW = 0x40, LCW = 0x80 }
+
+		class TrimmedFrame : ISpriteFrame
+		{
+			public Size Size { get; private set; }
+			public Size FrameSize { get; private set; }
+			public float2 Offset { get; private set; }
+			public byte[] Data { get; private set; }
+			public bool DisableExportPadding { get { return false; } }
+
+			public TrimmedFrame(ImageHeader header)
+			{
+				var origData = header.Data;
+				var origSize = header.Size;
+				var top = origSize.Height - 1;
+				var bottom = 0;
+				var left = origSize.Width - 1;
+				var right = 0;
+
+				// Scan frame data to find left-, top-, right-, bottom-most
+				// rows/columns with non-zero pixel data
+				var i = 0;
+				for (var y = 0; y < origSize.Height; y++)
+				{
+					for (var x = 0; x < origSize.Width; x++, i++)
+					{
+						if (origData[i] != 0)
+						{
+							top = Math.Min(y, top);
+							bottom = Math.Max(y, bottom);
+							left = Math.Min(x, left);
+							right = Math.Max(x, right);
+						}
+					}
+				}
+
+				var trimmedWidth = right - left + 1;
+				var trimmedHeight = bottom - top + 1;
+
+				// Pad the dimensions to an even number to avoid issues with half-integer offsets
+				var widthFudge = trimmedWidth % 2;
+				var heightFudge = trimmedHeight % 2;
+				var destWidth = trimmedWidth + widthFudge;
+				var destHeight = trimmedHeight + heightFudge;
+
+				if (trimmedWidth == origSize.Width && trimmedHeight == origSize.Height)
+				{
+					// Nothing to trim, so copy old data directly
+					Size = header.Size;
+					FrameSize = header.FrameSize;
+					Offset = header.Offset;
+					Data = header.Data;
+				}
+				else if (trimmedWidth > 0 && trimmedHeight > 0)
+				{
+					// Trim frame
+					Data = new byte[destWidth * destHeight];
+					for (var y = 0; y < trimmedHeight; y++)
+						Array.Copy(origData, (y + top) * origSize.Width + left, Data, y * destWidth, trimmedWidth);
+
+					Size = new Size(destWidth, destHeight);
+					FrameSize = origSize;
+					Offset = 0.5f * new float2(
+						left + right + widthFudge - origSize.Width + 1,
+						top + bottom + heightFudge - origSize.Height + 1);
+				}
+				else
+				{
+					// Empty frame
+					Data = new byte[0];
+				}
+			}
+		}
 
 		class ImageHeader : ISpriteFrame
 		{
@@ -131,7 +204,6 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 
 			stream.Position += 4;
 			var headers = new ImageHeader[imageCount];
-			Frames = headers.AsReadOnly();
 			for (var i = 0; i < headers.Length; i++)
 				headers[i] = new ImageHeader(stream, this);
 
@@ -142,10 +214,10 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 			for (var i = 0; i < imageCount; i++)
 			{
 				var h = headers[i];
-				if (h.Format == Format.Format20)
+				if (h.Format == Format.XORPrev)
 					h.RefImage = headers[i - 1];
-				else if (h.Format == Format.Format40 && !offsets.TryGetValue(h.RefOffset, out h.RefImage))
-					throw new InvalidDataException("Reference doesnt point to image data {0}->{1}".F(h.FileOffset, h.RefOffset));
+				else if (h.Format == Format.XORLCW && !offsets.TryGetValue(h.RefOffset, out h.RefImage))
+					throw new InvalidDataException("Reference doesn't point to image data {0}->{1}".F(h.FileOffset, h.RefOffset));
 			}
 
 			shpBytesFileOffset = stream.Position;
@@ -153,6 +225,10 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 
 			foreach (var h in headers)
 				Decompress(h);
+
+			Frames = headers.Select(f => (ISpriteFrame)new TrimmedFrame(f))
+				.ToArray()
+				.AsReadOnly();
 		}
 
 		void Decompress(ImageHeader h)
@@ -166,8 +242,8 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 
 			switch (h.Format)
 			{
-				case Format.Format20:
-				case Format.Format40:
+				case Format.XORPrev:
+				case Format.XORLCW:
 					{
 						if (h.RefImage.Data == null)
 						{
@@ -177,14 +253,14 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 						}
 
 						h.Data = CopyImageData(h.RefImage.Data);
-						Format40.DecodeInto(shpBytes, h.Data, (int)(h.FileOffset - shpBytesFileOffset));
+						XORDeltaCompression.DecodeInto(shpBytes, h.Data, (int)(h.FileOffset - shpBytesFileOffset));
 						break;
 					}
 
-				case Format.Format80:
+				case Format.LCW:
 					{
 						var imageBytes = new byte[Size.Width * Size.Height];
-						Format80.DecodeInto(shpBytes, imageBytes, (int)(h.FileOffset - shpBytesFileOffset));
+						LCWCompression.DecodeInto(shpBytes, imageBytes, (int)(h.FileOffset - shpBytesFileOffset));
 						h.Data = imageBytes;
 						break;
 					}
@@ -203,7 +279,7 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 
 		public static void Write(Stream s, Size size, IEnumerable<byte[]> frames)
 		{
-			var compressedFrames = frames.Select(f => Format80.Encode(f)).ToList();
+			var compressedFrames = frames.Select(f => LCWCompression.Encode(f)).ToList();
 
 			// note: end-of-file and all-zeroes headers
 			var dataOffset = 14 + (compressedFrames.Count + 2) * 8;
@@ -219,7 +295,7 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 
 				foreach (var f in compressedFrames)
 				{
-					var ih = new ImageHeader { Format = Format.Format80, FileOffset = (uint)dataOffset };
+					var ih = new ImageHeader { Format = Format.LCW, FileOffset = (uint)dataOffset };
 					dataOffset += f.Length;
 
 					ih.WriteTo(bw);

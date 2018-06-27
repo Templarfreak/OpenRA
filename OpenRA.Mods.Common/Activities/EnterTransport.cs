@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -16,13 +17,13 @@ namespace OpenRA.Mods.Common.Activities
 {
 	class EnterTransport : Enter
 	{
-		readonly Actor transport;
 		readonly Passenger passenger;
 		readonly int maxTries;
+		Actor transport;
 		Cargo cargo;
 
-		public EnterTransport(Actor self, Actor transport, int maxTries = 0, bool targetCenter = false)
-			: base(self, transport, maxTries, targetCenter)
+		public EnterTransport(Actor self, Actor transport, int maxTries = 0, bool repathWhileMoving = true)
+			: base(self, transport, EnterBehaviour.Exit, maxTries, repathWhileMoving)
 		{
 			this.transport = transport;
 			this.maxTries = maxTries;
@@ -63,8 +64,8 @@ namespace OpenRA.Mods.Common.Activities
 			var type = target.Actor.Info.Name;
 			return TryGetAlternateTargetInCircle(
 				self, passenger.Info.AlternateTransportScanRange,
-				t => cargo = t.Actor.Trait<Cargo>(), // update cargo
-				a => { var c = a.TraitOrDefault<Cargo>(); return c != null && (c.Unloading || c.CanLoad(a, self)); },
+				t => { transport = t.Actor; cargo = t.Actor.Trait<Cargo>(); }, // update transport and cargo
+				a => { var c = a.TraitOrDefault<Cargo>(); return c != null && c.Info.Types.Contains(passenger.Info.CargoType) && (c.Unloading || c.CanLoad(a, self)); },
 				new Func<Actor, bool>[] { a => a.Info.Name == type }); // Prefer transports of the same type
 		}
 	}

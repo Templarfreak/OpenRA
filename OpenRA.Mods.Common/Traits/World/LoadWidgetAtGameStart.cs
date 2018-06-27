@@ -1,15 +1,15 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using OpenRA.Graphics;
-using OpenRA.Mods.Common.Widgets;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
@@ -22,6 +22,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("The widget tree to open when a regular map is loaded (i.e. the ingame UI).")]
 		public readonly string IngameRoot = "INGAME_ROOT";
+
+		[Desc("The widget tree to open when the map editor is loaded.")]
+		public readonly string EditorRoot = "EDITOR_ROOT";
 
 		[Desc("Remove any existing UI when a map is loaded.")]
 		public readonly bool ClearRoot = true;
@@ -44,7 +47,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (info.ClearRoot)
 				Ui.ResetAll();
 
-			var widget = world.Type == WorldType.Shellmap ? info.ShellmapRoot : info.IngameRoot;
+			var widget = world.Type == WorldType.Shellmap ? info.ShellmapRoot :
+				world.Type == WorldType.Editor ? info.EditorRoot : info.IngameRoot;
+
 			Game.LoadWidget(world, widget, Ui.Root, new WidgetArgs());
 		}
 	}

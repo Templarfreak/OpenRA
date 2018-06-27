@@ -1,65 +1,142 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
+using OpenRA.Mods.Common.Warheads;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class ExplodesInfo : ITraitInfo
+	public enum ExplosionType { Footprint, CenterPosition }
+
+	[Desc("This actor explodes when killed.")]
+	public class ExplodesInfo : ConditionalTraitInfo, Requires<HealthInfo>
 	{
-		[WeaponReference]
-		public readonly string Weapon = "UnitExplode";
-		[WeaponReference]
+		[WeaponReference, FieldLoader.Require, Desc("Default weapon to use for explosion if ammo/payload is loaded.")]
+		public readonly string Weapon = null;
+
+		[WeaponReference, Desc("Fallback weapon to use for explosion if empty (no ammo/payload).")]
 		public readonly string EmptyWeapon = "UnitExplode";
 
-		public readonly int Chance = 100;
-		public readonly string[] DeathType = null;
+		[Desc("Chance that the explosion will use Weapon instead of EmptyWeapon when exploding, provided the actor has ammo/payload.")]
+		public readonly int LoadedChance = 100;
 
-		public object Create(ActorInitializer init) { return new Explodes(this); }
+		[Desc("Chance that this actor will explode at all.")]
+		public readonly int Chance = 100;
+
+		[Desc("Health level at which actor will explode.")]
+		public readonly int DamageThreshold = 0;
+
+		[Desc("DeathType(s) that trigger the explosion. Leave empty to always trigger an explosion.")]
+		public readonly HashSet<string> DeathTypes = new HashSet<string>();
+
+		[Desc("Possible values are CenterPosition (explosion at the actors' center) and ",
+			"Footprint (explosion on each occupied cell).")]
+		public readonly ExplosionType Type = ExplosionType.CenterPosition;
+
+		public WeaponInfo WeaponInfo { get; private set; }
+		public WeaponInfo EmptyWeaponInfo { get; private set; }
+
+		public override object Create(ActorInitializer init) { return new Explodes(this, init.Self); }
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			if (!string.IsNullOrEmpty(Weapon))
+			{
+				WeaponInfo weapon;
+				var weaponToLower = Weapon.ToLowerInvariant();
+				if (!rules.Weapons.TryGetValue(weaponToLower, out weapon))
+					throw new YamlException("Weapons Ruleset does not contain an entry '{0}'".F(weaponToLower));
+				WeaponInfo = weapon;
+			}
+
+			if (!string.IsNullOrEmpty(EmptyWeapon))
+			{
+				WeaponInfo emptyWeapon;
+				var emptyWeaponToLower = EmptyWeapon.ToLowerInvariant();
+				if (!rules.Weapons.TryGetValue(emptyWeaponToLower, out emptyWeapon))
+					throw new YamlException("Weapons Ruleset does not contain an entry '{0}'".F(emptyWeaponToLower));
+				EmptyWeaponInfo = emptyWeapon;
+			}
+
+			base.RulesetLoaded(rules, ai);
+		}
 	}
 
-	public class Explodes : INotifyKilled
+	public class Explodes : ConditionalTrait<ExplodesInfo>, INotifyKilled, INotifyDamage, INotifyCreated
 	{
-		readonly ExplodesInfo explodesInfo;
+		readonly Health health;
+		BuildingInfo buildingInfo;
 
-		public Explodes(ExplodesInfo info) { explodesInfo = info; }
-
-		public void Killed(Actor self, AttackInfo e)
+		public Explodes(ExplodesInfo info, Actor self)
+			: base(info)
 		{
-			if (!self.IsInWorld)
-				return;
-
-			if (self.World.SharedRandom.Next(100) > explodesInfo.Chance)
-				return;
-
-			if (explodesInfo.DeathType != null && e.Warhead != null && !explodesInfo.DeathType.Contains(e.Warhead.DeathType))
-				return;
-
-			var weaponName = ChooseWeaponForExplosion(self);
-			if (weaponName != null)
-			{
-				var weapon = e.Attacker.World.Map.Rules.Weapons[weaponName.ToLowerInvariant()];
-				if (weapon.Report != null && weapon.Report.Any())
-					Sound.Play(weapon.Report.Random(e.Attacker.World.SharedRandom), self.CenterPosition);
-
-				// Use .FromPos since this actor is killed. Cannot use Target.FromActor
-				weapon.Impact(Target.FromPos(self.CenterPosition), e.Attacker, Enumerable.Empty<int>());
-			}
+			health = self.Trait<Health>();
 		}
 
-		string ChooseWeaponForExplosion(Actor self)
+		void INotifyCreated.Created(Actor self)
+		{
+			buildingInfo = self.Info.TraitInfoOrDefault<BuildingInfo>();
+		}
+
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
+		{
+			if (IsTraitDisabled || !self.IsInWorld)
+				return;
+
+			if (self.World.SharedRandom.Next(100) > Info.Chance)
+				return;
+
+			if (Info.DeathTypes.Count > 0 && !e.Damage.DamageTypes.Overlaps(Info.DeathTypes))
+				return;
+
+			var weapon = ChooseWeaponForExplosion(self);
+			if (weapon == null)
+				return;
+
+			if (weapon.Report != null && weapon.Report.Any())
+				Game.Sound.Play(SoundType.World, weapon.Report.Random(e.Attacker.World.SharedRandom), self.CenterPosition);
+
+			if (Info.Type == ExplosionType.Footprint && buildingInfo != null)
+			{
+				var cells = buildingInfo.UnpathableTiles(self.Location);
+				foreach (var c in cells)
+					weapon.Impact(Target.FromPos(self.World.Map.CenterOfCell(c)), e.Attacker, Enumerable.Empty<int>());
+
+				return;
+			}
+
+			// Use .FromPos since this actor is killed. Cannot use Target.FromActor
+			weapon.Impact(Target.FromPos(self.CenterPosition), e.Attacker, Enumerable.Empty<int>());
+		}
+
+		WeaponInfo ChooseWeaponForExplosion(Actor self)
 		{
 			var shouldExplode = self.TraitsImplementing<IExplodeModifier>().All(a => a.ShouldExplode(self));
-			return shouldExplode ? explodesInfo.Weapon : explodesInfo.EmptyWeapon;
+			var useFullExplosion = self.World.SharedRandom.Next(100) <= Info.LoadedChance;
+			return (shouldExplode && useFullExplosion) ? Info.WeaponInfo : Info.EmptyWeaponInfo;
+		}
+
+		void INotifyDamage.Damaged(Actor self, AttackInfo e)
+		{
+			if (IsTraitDisabled || !self.IsInWorld)
+				return;
+
+			if (Info.DamageThreshold == 0)
+				return;
+
+			// Cast to long to avoid overflow when multiplying by the health
+			if (health.HP * 100L < Info.DamageThreshold * (long)health.MaxHP)
+				self.World.AddFrameEndTask(w => self.Kill(e.Attacker));
 		}
 	}
 }

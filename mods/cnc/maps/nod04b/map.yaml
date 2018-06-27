@@ -1,10 +1,8 @@
-MapFormat: 7
+MapFormat: 11
 
 RequiresMod: cnc
 
-Title: Oum Hadjer (b)
-
-Description: A small village friendly to our cause has been increasingly harassed by GDI, and the Brotherhood wishes you to assist them in their efforts.\n\nSeek out the enemy village and destroy it. The event will be disguised as a GDI attack.
+Title: 04b: Oum Hadjer
 
 Author: Westwood Studios
 
@@ -16,45 +14,30 @@ Bounds: 7,17,52,44
 
 Visibility: MissionSelector
 
-Type: Campaign
+Categories: Campaign
 
-Videos:
-	Briefing: nod4b.vqa
-	GameLost: nodlose.vqa
-
-Options:
-	Crates: False
-	Creeps: False
-	Fog: True
-	Shroud: True
-	AllyBuildRadius: False
-	FragileAlliances: False
-	StartingCash: 0
-	ConfigurableStartingUnits: False
-	ShortGame: False
+LockPreview: True
 
 Players:
 	PlayerReference@GDI:
 		Name: GDI
-		Race: gdi
-		ColorRamp: 31,222,183
+		Faction: gdi
+		Color: F5D378
 		Enemies: Nod
 	PlayerReference@Neutral:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Race: gdi
-		Allies: GDI
-		Enemies: Nod
+		Faction: gdi
 	PlayerReference@Nod:
 		Name: Nod
 		Playable: True
 		AllowBots: False
 		Required: True
-		LockRace: True
-		Race: nod
+		LockFaction: True
+		Faction: nod
 		LockColor: True
-		ColorRamp: 3,255,127
+		Color: FE1100
 		LockSpawn: True
 		LockTeam: True
 		Enemies: GDI
@@ -275,10 +258,10 @@ Actors:
 		Owner: Neutral
 	Actor77: v31
 		Location: 10,52
-		Owner: Neutral	
+		Owner: Neutral
 	Actor87: v23
 		Location: 9,59
-		Owner: Neutral	
+		Owner: Neutral
 	Actor92: jeep
 		Location: 51,25
 		Owner: GDI
@@ -288,7 +271,7 @@ Actors:
 	Actor94: jeep
 		Location: 39,48
 		Owner: GDI
-		Facing: 96		
+		Facing: 96
 	Actor110: e1
 		Location: 40,49
 		Owner: GDI
@@ -311,7 +294,7 @@ Actors:
 	Actor114: e2
 		Location: 35,40
 		Owner: GDI
-		SubCell: 1	
+		SubCell: 1
 	waypoint27: waypoint
 		Location: 31,36
 		Owner: Neutral
@@ -472,94 +455,25 @@ Actors:
 		Facing: 64
 		SubCell: 0
 	EntryPointVehicle: waypoint
-		Location: 33,13
+		Location: 33,17
 		Owner: Neutral
 	RallyPointVehicle: waypoint
 		Location: 33,30
 		Owner: Neutral
 	EntryPointRocket: waypoint
-		Location: 35,15
+		Location: 35,17
 		Owner: Neutral
 	RallyPointRocket: waypoint
-		Location: 34,32
+		Location: 35,32
 		Owner: Neutral
 	EntryPointGunner: waypoint
-		Location: 31,15
+		Location: 31,17
 		Owner: Neutral
 	RallyPointGunner: waypoint
-		Location: 32,32
+		Location: 31,32
 		Owner: Neutral
 	CameraPoint: waypoint
 		Location: 32,22
 		Owner: Neutral
-		
-Smudges:
 
-Rules:
-	Player:
-		-ConquestVictoryConditions:
-		MissionObjectives:
-			EarlyGameOver: true
-		EnemyWatcher:
-	World:
-		-CrateSpawner:
-		-SpawnMPUnits:
-		-MPStartLocations:
-		ObjectivesPanel:
-			PanelName: MISSION_OBJECTIVES
-		LuaScript:
-			Scripts: nod04b.lua 
-	^Vehicle:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-		AnnounceOnSeen:
-	^Tank:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-		AnnounceOnSeen:
-	^Helicopter:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Infantry:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Building:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Wall:
-		Tooltip:
-			ShowOwnerRow: false
-	^CivBuilding:
-		Tooltip:
-			ShowOwnerRow: false
-	^CivBuildingHusk:
-		Tooltip:
-			ShowOwnerRow: false
-	^Husk:
-		Tooltip:
-			GenericVisibility: Enemy, Ally, Neutral
-			GenericStancePrefix: false
-			ShowOwnerRow: false
-	TRAN:
-		RejectsOrders:
-		Selectable:
-			Selectable: false
-		RevealsShroud:
-			Range: 5c0
-
-Sequences:
-
-VoxelSequences:
-
-Weapons:
-
-Voices:
-
-Notifications:
-
-Translations:
+Rules: cnc|rules/campaign-maprules.yaml, cnc|rules/campaign-tooltips.yaml, cnc|rules/campaign-palettes.yaml, rules.yaml

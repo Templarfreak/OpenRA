@@ -1,184 +1,249 @@
 Metadata:
 	Title: Dune 2000
-	Description: Three great houses fight for the precious spice, melange.\nHe who controls the spice controls the universe!\n\nTry to establish a foothold on the desert planet Arrakis\nwith its harsh environmental conditions and protect your\nharvesting operations from giant sandworms as well as\nruthless enemy factions.
 	Version: {DEV_VERSION}
-	Author: the OpenRA Developers
+	Website: https://www.openra.net
+	WebIcon32: https://www.openra.net/images/icons/d2k_32x32.png
 
-Folders:
-	.
-	./mods/d2k
-	./mods/d2k/bits
-	./mods/d2k/bits/tex
-	./mods/d2k/bits/xmas
-	./mods/d2k/uibits
-	./mods/ra/uibits
-	~^Content/d2k
-	~^Content/d2k/GAMESFX
-	~^Content/d2k/Music
-
-MapFolders:
-	./mods/d2k/maps: System
-	~^maps/d2k: User
+PackageFormats: D2kSoundResources
 
 Packages:
-	SOUND.RS
+	~^Content/d2k/v2/
+	~^Content/d2k/v2/GAMESFX
+	~^Content/d2k/v2/Movies
+	~^Content/d2k/v2/Music
+	.
+	$d2k: d2k
+	./mods/common: common
+
+	~SOUND.RS
+	d2k|bits
+	d2k|bits/scripts
+	d2k|bits/tex
+	d2k|uibits
+
+MapFolders:
+	d2k|maps: System
+	~^maps/d2k/{DEV_VERSION}: User
 
 Rules:
-	./mods/d2k/rules/misc.yaml
-	./mods/d2k/rules/ai.yaml
-	./mods/d2k/rules/player.yaml
-	./mods/d2k/rules/world.yaml
-	./mods/d2k/rules/palettes.yaml
-	./mods/d2k/rules/defaults.yaml
-	./mods/d2k/rules/vehicles.yaml
-	./mods/d2k/rules/starport.yaml
-	./mods/d2k/rules/husks.yaml
-	./mods/d2k/rules/structures.yaml
-	./mods/d2k/rules/aircraft.yaml
-	./mods/d2k/rules/infantry.yaml
-	./mods/d2k/rules/arrakis.yaml
+	d2k|rules/misc.yaml
+	d2k|rules/ai.yaml
+	d2k|rules/player.yaml
+	d2k|rules/world.yaml
+	d2k|rules/palettes.yaml
+	d2k|rules/defaults.yaml
+	d2k|rules/infantry.yaml
+	d2k|rules/vehicles.yaml
+	d2k|rules/aircraft.yaml
+	d2k|rules/structures.yaml
+	d2k|rules/starport.yaml
+	d2k|rules/husks.yaml
+	d2k|rules/arrakis.yaml
 
 Sequences:
-	./mods/d2k/sequences/aircraft.yaml
-	./mods/d2k/sequences/vehicles.yaml
-	./mods/d2k/sequences/infantry.yaml
-	./mods/d2k/sequences/structures.yaml
-	./mods/d2k/sequences/misc.yaml
+	d2k|sequences/aircraft.yaml
+	d2k|sequences/vehicles.yaml
+	d2k|sequences/infantry.yaml
+	d2k|sequences/structures.yaml
+	d2k|sequences/misc.yaml
 
 TileSets:
-	./mods/d2k/tilesets/arrakis.yaml
+	d2k|tilesets/arrakis.yaml
 
-TileSize: 32,32
+MapGrid:
+	TileSize: 32,32
+	Type: Rectangular
 
 Cursors:
-	./mods/d2k/cursors.yaml
+	d2k|cursors.yaml
 
 Chrome:
-	./mods/d2k/chrome.yaml
+	d2k|chrome.yaml
 
 Assemblies:
-	./mods/common/OpenRA.Mods.Common.dll
-	./mods/ra/OpenRA.Mods.RA.dll
-	./mods/cnc/OpenRA.Mods.Cnc.dll
-	./mods/d2k/OpenRA.Mods.D2k.dll
+	common|OpenRA.Mods.Common.dll
+	common|OpenRA.Mods.Cnc.dll
+	d2k|OpenRA.Mods.D2k.dll
 
 ChromeLayout:
-	./mods/d2k/chrome/install.yaml
-	./mods/d2k/chrome/ingame.yaml
-	./mods/ra/chrome/ingame-chat.yaml
-	./mods/ra/chrome/ingame-diplomacy.yaml
-	./mods/ra/chrome/ingame-fmvplayer.yaml
-	./mods/d2k/chrome/ingame-menu.yaml
-	./mods/ra/chrome/ingame-info.yaml
-	./mods/ra/chrome/ingame-infoscripterror.yaml
-	./mods/ra/chrome/ingame-infobriefing.yaml
-	./mods/ra/chrome/ingame-infoobjectives.yaml
-	./mods/d2k/chrome/ingame-infostats.yaml
-	./mods/d2k/chrome/ingame-observer.yaml
-	./mods/ra/chrome/ingame-observerstats.yaml
-	./mods/d2k/chrome/ingame-player.yaml
-	./mods/ra/chrome/ingame-perf.yaml
-	./mods/ra/chrome/ingame-debug.yaml
-	./mods/d2k/chrome/ingame-leavemap.yaml
-	./mods/d2k/chrome/mainmenu.yaml
-	./mods/ra/chrome/settings.yaml
-	./mods/ra/chrome/credits.yaml
-	./mods/ra/chrome/lobby.yaml
-	./mods/ra/chrome/lobby-mappreview.yaml
-	./mods/d2k/chrome/lobby-playerbin.yaml
-	./mods/d2k/chrome/lobby-dialogs.yaml
-	./mods/d2k/chrome/color-picker.yaml
-	./mods/ra/chrome/map-chooser.yaml
-	./mods/ra/chrome/create-server.yaml
-	./mods/ra/chrome/serverbrowser.yaml
-	./mods/ra/chrome/connection.yaml
-	./mods/ra/chrome/directconnect.yaml
-	./mods/ra/chrome/replaybrowser.yaml
-	./mods/d2k/chrome/dropdowns.yaml
-	./mods/ra/chrome/musicplayer.yaml
-	./mods/d2k/chrome/tooltips.yaml
-	./mods/ra/chrome/assetbrowser.yaml
-	./mods/ra/chrome/missionbrowser.yaml
-	./mods/ra/chrome/confirmation-dialogs.yaml
+	common|chrome/ingame.yaml
+	common|chrome/ingame-chat.yaml
+	common|chrome/ingame-fmvplayer.yaml
+	d2k|chrome/ingame-menu.yaml
+	common|chrome/ingame-info.yaml
+	common|chrome/ingame-infoscripterror.yaml
+	common|chrome/ingame-infobriefing.yaml
+	common|chrome/ingame-infoobjectives.yaml
+	d2k|chrome/ingame-infostats.yaml
+	common|chrome/ingame-observer.yaml
+	common|chrome/ingame-observerstats.yaml
+	d2k|chrome/ingame-player.yaml
+	common|chrome/ingame-perf.yaml
+	common|chrome/ingame-debug.yaml
+	common|chrome/ingame-infochat.yaml
+	d2k|chrome/mainmenu.yaml
+	common|chrome/settings.yaml
+	common|chrome/credits.yaml
+	common|chrome/lobby.yaml
+	common|chrome/lobby-mappreview.yaml
+	d2k|chrome/lobby-players.yaml
+	common|chrome/lobby-options.yaml
+	common|chrome/lobby-music.yaml
+	common|chrome/lobby-servers.yaml
+	common|chrome/lobby-kickdialogs.yaml
+	common|chrome/color-picker.yaml
+	common|chrome/map-chooser.yaml
+	common|chrome/multiplayer-browser.yaml
+	d2k|chrome/multiplayer-browserpanels.yaml
+	common|chrome/multiplayer-createserver.yaml
+	common|chrome/multiplayer-directconnect.yaml
+	common|chrome/connection.yaml
+	d2k|chrome/dropdowns.yaml
+	common|chrome/musicplayer.yaml
+	d2k|chrome/tooltips.yaml
+	common|chrome/assetbrowser.yaml
+	d2k|chrome/missionbrowser.yaml
+	common|chrome/confirmation-dialogs.yaml
+	common|chrome/editor.yaml
+	common|chrome/replaybrowser.yaml
 
 Weapons:
-	./mods/d2k/weapons.yaml
+	d2k|weapons/debris.yaml
+	d2k|weapons/smallguns.yaml
+	d2k|weapons/largeguns.yaml
+	d2k|weapons/missiles.yaml
+	d2k|weapons/other.yaml
 
 Voices:
-	./mods/d2k/audio/voices.yaml
+	d2k|audio/voices.yaml
 
 Notifications:
-	./mods/d2k/audio/notifications.yaml
+	d2k|audio/notifications.yaml
 
 Music:
-	./mods/d2k/audio/music.yaml
+	d2k|audio/music.yaml
 
 Translations:
-	./mods/d2k/languages/english.yaml
+	d2k|languages/english.yaml
+
+Hotkeys:
+	common|hotkeys/game.yaml
+	common|hotkeys/observer.yaml
+	common|hotkeys/production-common.yaml
+	common|hotkeys/supportpowers.yaml
+	common|hotkeys/viewport.yaml
+	d2k|hotkeys.yaml
 
 LoadScreen: LogoStripeLoadScreen
-	Image: ./mods/d2k/uibits/loadscreen.png
-	Text: Filling Crates..., Breeding Sandworms..., Fuelling carryalls..., Deploying harvesters..., Preparing 'thopters..., Summoning mentats...
-
-ContentInstaller:
-	MenuWidget: INSTALL_PANEL
-	MusicMenuWidget: INSTALL_MUSIC_PANEL
-# TODO: check if DATA.R8 is at 1.03 patch level with 4840 frames
-	TestFiles: BLOXBASE.R8, BLOXBAT.R8, BLOXBGBS.R8, BLOXICE.R8, BLOXTREE.R8, BLOXWAST.R8, DATA.R8, SOUND.RS
-	PackageMirrorList: http://www.openra.net/packages/d2k-103-mirrors.txt
-	DiskTestFiles: music/ambush.aud, setup/setup.z
-	PackageToExtractFromCD: setup/setup.z
-	ExtractFilesFromCD: SOUND.RS, DATA.R8, MOUSE.R8, BLOXBASE.R8, BLOXBAT.R8, BLOXBGBS.R8, BLOXICE.R8, BLOXTREE.R8, BLOXWAST.R8, A_ECONF1.AUD, A_ECONF2.AUD, A_ECONF3.AUD, A_ESEL1.AUD, A_ESEL2.AUD, A_ESEL3.AUD, A_FCONF1.AUD, A_FCONF2.AUD, A_FCONF3.AUD,A_FCONF4.AUD, A_FSEL1.AUD, A_FSEL2.AUD, A_FSEL3.AUD, A_FSEL4.AUD, AI_1MIN.AUD, AI_2MIN.AUD, AI_3MIN.AUD, AI_4MIN.AUD, AI_5MIN.AUD, AI_ABORT.AUD, AI_ATACK.AUD, AI_BDRDY.AUD, AI_BLOST.AUD, AI_BUILD.AUD, AI_CANCL.AUD, AI_CAPT.AUD, A_ICONF1.AUD, A_ICONF2.AUD, A_ICONF3.AUD, AI_DHRDY.AUD, AI_DPLOY.AUD, AI_ENEMY.AUD, AI_GANEW.AUD, AI_GLOAD.AUD, AI_GSAVE.AUD, AI_GUARD.AUD, AI_HATTK.AUD, AI_HOLD.AUD, AI_LAUNC.AUD, AI_MAP1A.AUD, AI_MAP1B.AUD, AI_MAP1C.AUD, AI_MAP2A.AUD, AI_MAP2B.AUD, AI_MAP2C.AUD, AI_MAP3A.AUD, AI_MAP4A.AUD, AI_MAP5A.AUD, AI_MAP6A.AUD, AI_MAP7A.AUD, AI_MAP8A.AUD, AI_MAP9A.AUD, AI_MEND.AUD, AI_MFAIL.AUD, AI_MONEY.AUD, AI_MWIN.AUD, AI_NEWOP.AUD, AI_NROOM.AUD, AI_ORDER.AUD, AI_PLACE.AUD, AI_POWER.AUD, AI_PREP.AUD, AI_PRMRY.AUD, AI_REINF.AUD, AI_RUN.AUD, A_ISEL1.AUD, A_ISEL2.AUD, A_ISEL3.AUD, AI_SELL.AUD, AI_SILOS.AUD, AI_SPORT.AUD, AI_TRAIN.AUD, AI_ULOST.AUD, AI_UNRDY.AUD, AI_UPGOP.AUD, AI_UPGRD.AUD, AI_WATTK.AUD, AI_WSIGN.AUD, A_VCONF1.AUD, A_VCONF2.AUD, A_VCONF3.AUD, A_VSEL1.AUD, A_VSEL2.AUD, A_VSEL3.AUD, G_SCONF1.AUD, G_SCONF2.AUD, G_SCONF3.AUD, G_SSEL1.AUD, G_SSEL2.AUD, G_SSEL3.AUD, H_ECONF1.AUD, H_ECONF2.AUD, H_ECONF3.AUD, H_ESEL1.AUD, H_ESEL2.AUD, H_ESEL3.AUD, HI_1MIN.AUD, HI_2MIN.AUD, HI_3MIN.AUD, HI_4MIN.AUD, HI_5MIN.AUD, HI_ABORT.AUD, HI_ATACK.AUD, HI_BDRDY.AUD, HI_BLOST.AUD, HI_BUILD.AUD, HI_CANCL.AUD, HI_CAPT.AUD, H_ICONF1.AUD, H_ICONF2.AUD, H_ICONF3.AUD, HI_DHRDY.AUD, HI_DPLOY.AUD, HI_ENEMY.AUD, HI_GANEW.AUD,HI_GLOAD.AUD, HI_GSAVE.AUD, HI_GUARD.AUD, HI_HATTK.AUD, HI_HOLD.AUD, HI_LAUNC.AUD, HI_MAP1A.AUD, HI_MAP1B.AUD, HI_MAP1C.AUD, HI_MAP2A.AUD, HI_MAP2B.AUD, HI_MAP2C.AUD, HI_MAP3A.AUD, HI_MAP3B.AUD, HI_MAP4A.AUD, HI_MAP4B.AUD, HI_MAP5A.AUD, HI_MAP6A.AUD, HI_MAP6B.AUD, HI_MAP7A.AUD, HI_MAP9A.AUD, HI_MAP9.AUD, HI_MEND.AUD, HI_MFAIL.AUD, HI_MONEY.AUD, HI_MWIN.AUD, HI_NEWOP.AUD, HI_NROOM.AUD, HI_ORDER.AUD, HI_PLACE.AUD, HI_POWER.AUD, HI_PREP.AUD, HI_PRMRY.AUD, HI_REINF.AUD, HI_RUN.AUD, H_ISEL1.AUD, H_ISEL2.AUD, H_ISEL3.AUD, HI_SELL.AUD, HI_SILOS.AUD,HI_SPORT.AUD, HI_TRAIN.AUD, HI_ULOST.AUD, HI_UNRDY.AUD, HI_UPGOP.AUD, HI_UPGRD.AUD, HI_WATTK.AUD, HI_WSIGN.AUD, H_VCONF1.AUD, H_VCONF2.AUD, H_VCONF3.AUD, H_VSEL1.AUD, H_VSEL2.AUD, H_VSEL3.AUD, O_ECONF1.AUD, O_ECONF2.AUD, O_ECONF3.AUD, O_ESEL1.AUD, O_ESEL2.AUD, O_ESEL3.AUD, OI_1MIN.AUD, OI_2MIN.AUD, OI_3MIN.AUD, OI_4MIN.AUD, OI_5MIN.AUD, OI_ABORT.AUD, OI_ATACK.AUD, OI_BDRDY.AUD, OI_BLOST.AUD, OI_BUILD.AUD, OI_CANCL.AUD, OI_CAPT.AUD, O_ICONF1.AUD, O_ICONF2.AUD, O_ICONF3.AUD, OI_DHRDY.AUD, OI_DPLOY.AUD, OI_ENEMY.AUD, OI_GANEW.AUD, OI_GLOAD.AUD, OI_GSAVE.AUD, OI_GUARD.AUD, OI_HATTK.AUD, OI_HOLD.AUD, OI_LAUNC.AUD, OI_MAP1A.AUD, OI_MAP1B.AUD, OI_MAP1C.AUD, OI_MAP2A.AUD, OI_MAP2B.AUD, OI_MAP2C.AUD, OI_MAP3A.AUD, OI_MAP4A.AUD, OI_MAP5A.AUD, OI_MAP6A.AUD, OI_MAP7A.AUD, OI_MAP8A.AUD, OI_MAP9A.AUD, OI_MEND.AUD, OI_MFAIL.AUD, OI_MONEY.AUD, OI_MWIN.AUD, OI_NEWOP.AUD, OI_NROOM.AUD, OI_ORDER.AUD, OI_PLACE.AUD, OI_POWER.AUD, OI_PREP.AUD, OI_PRMRY.AUD, OI_REINF.AUD, OI_RUN.AUD, O_ISEL1.AUD, O_ISEL2.AUD, O_ISEL3.AUD, OI_SELL.AUD, OI_SILOS.AUD, OI_SPORT.AUD, OI_TRAIN.AUD, OI_ULOST.AUD, OI_UNRDY.AUD, OI_UPGOP.AUD, OI_UPGRD.AUD, OI_WATTK.AUD, OI_WSIGN.AUD, O_SCONF1.AUD, O_SCONF2.AUD, O_SCONF3.AUD, O_SSEL1.AUD, O_SSEL2.AUD, O_SSEL3.AUD, O_VCONF1.AUD, O_VCONF2.AUD, O_VCONF3.AUD, O_VSEL1.AUD, O_VSEL2.AUD, O_VSEL3.AUD
-	CopyFilesFromCD: music/ambush.aud, music/arakatak.aud, music/atregain.aud, music/entordos.aud, music/fightpwr.aud, music/fremen.aud, music/hark_bat.aud, music/landsand.aud, music/options.aud, music/plotting.aud, music/risehark.aud, music/robotix.aud, music/score.aud, music/soldappr.aud, music/spicesct.aud, music/undercon.aud, music/waitgame.aud
-	ShippedSoundtracks: 1
+	Image: d2k|uibits/loadscreen.png
+	Text: Filling Crates..., Breeding Sandworms..., Fuelling carryalls..., Deploying harvesters..., Preparing thopters..., Summoning mentats...
 
 ServerTraits:
 	LobbyCommands
 	PlayerPinger
 	MasterServerPinger
 	LobbySettingsNotification
-	ColorValidator
-
-LobbyDefaults:
-	AllowCheats: false
-	Crates: true
-	StartingUnitsClass: none
-	FragileAlliances: false
-	Shroud: true
-	Fog: true
-	TechLevel: Unrestricted
 
 ChromeMetrics:
-	./mods/d2k/metrics.yaml
+	common|metrics.yaml
+	d2k|metrics.yaml
 
 Fonts:
 	Regular:
-		Font:./mods/common/FreeSans.ttf
+		Font: common|FreeSans.ttf
 		Size:14
 	Bold:
-		Font:./mods/common/FreeSansBold.ttf
+		Font: common|FreeSansBold.ttf
 		Size:14
 	Title:
-		Font:./mods/d2k/Dune2k.ttf
+		Font: d2k|Dune2k.ttf
 		Size:32
 	MediumBold:
-		Font:./mods/common/FreeSansBold.ttf
+		Font: common|FreeSansBold.ttf
 		Size:18
 	BigBold:
-		Font:./mods/common/FreeSansBold.ttf
+		Font: common|FreeSansBold.ttf
 		Size:24
 	Small:
-		Font:./mods/common/FreeSans.ttf
+		Font: common|FreeSans.ttf
 		Size:12
 	Tiny:
-		Font:./mods/common/FreeSans.ttf
+		Font: common|FreeSans.ttf
 		Size:10
 	TinyBold:
-		Font:./mods/common/FreeSansBold.ttf
+		Font: common|FreeSansBold.ttf
 		Size:10
 
+Missions:
+	d2k|missions.yaml
+
 SupportsMapsFrom: d2k
+
+SoundFormats: Aud, Wav
 
 SpriteFormats: R8, ShpTD, TmpRA
 
 SpriteSequenceFormat: DefaultSpriteSequence
+
+ModelSequenceFormat: PlaceholderModelSequence
+
+GameSpeeds:
+	slowest:
+		Name: Slowest
+		Timestep: 80
+		OrderLatency: 2
+	slower:
+		Name: Slower
+		Timestep: 50
+		OrderLatency: 3
+	default:
+		Name: Normal
+		Timestep: 40
+		OrderLatency: 3
+	fast:
+		Name: Fast
+		Timestep: 35
+		OrderLatency: 4
+	faster:
+		Name: Faster
+		Timestep: 30
+		OrderLatency: 4
+	fastest:
+		Name: Fastest
+		Timestep: 20
+		OrderLatency: 6
+
+ColorValidator:
+	TeamColorPresets: ffc9ca, f53333, ffae00, fff830, 87f506, f872ad, da06f3, ddb8ff, def7b2, 39c46f, 200738, 280df6, 2f86f2, 76d2f8, 498221, 000000
+
+ModContent:
+	InstallPromptMessage: Dune 2000 requires artwork and audio from the original game.\n\nQuick Install will automatically download this content (without\nmusic or videos) from an online mirror of the game files.\n\nAdvanced Install includes options for copying the music, videos,\nand other content from an original game disc.
+	HeaderMessage: The original game content may be copied from an original game disc,\nor downloaded from an online mirror of the game files.
+	QuickDownload: quickinstall
+	Packages:
+		base: Base Game Files
+			TestFiles: ^Content/d2k/v2/BLOXBASE.R8, ^Content/d2k/v2/BLOXBAT.R8, ^Content/d2k/v2/BLOXBGBS.R8, ^Content/d2k/v2/BLOXICE.R8, ^Content/d2k/v2/BLOXTREE.R8, ^Content/d2k/v2/BLOXWAST.R8, ^Content/d2k/v2/SOUND.RS, ^Content/d2k/v2/PALETTE.BIN, ^Content/d2k/v2/FONT.BIN,  ^Content/d2k/v2/FONTCOL.FNT,  ^Content/d2k/v2/FONTCOL.FPL
+			Sources: d2k-a, d2k-a-linux, d2k-b, d2k-b-linux, d2k-c, d2k-c-linux, d2k-d, d2k-d-linux, d2k-e, d2k-e-linux, gruntmods
+			Required: true
+			Download: basefiles
+		patch: 1.06 Patch Content
+			TestFiles: ^Content/d2k/v2/DATA.R8, ^Content/d2k/v2/BLOXXMAS.R8
+			Sources: gruntmods
+			Required: true
+			Download: patch106
+		music: Game Music
+			TestFiles: ^Content/d2k/v2/Music/AMBUSH.AUD
+			Sources: d2k-a, d2k-a-linux, d2k-b, d2k-b-linux, d2k-c, d2k-c-linux, d2k-d, d2k-d-linux, d2k-e, d2k-e-linux, gruntmods
+		movies: Campaign Briefings
+			TestFiles: ^Content/d2k/v2/Movies/A_BR01_E.VQA
+			Sources: d2k-a, d2k-a-linux, d2k-b, d2k-b-linux, d2k-c, d2k-c-linux, d2k-d, d2k-d-linux, d2k-e, d2k-e-linux
+	Downloads:
+		d2k|installer/downloads.yaml
+	Sources:
+		d2k|installer/d2k-a.yaml
+		d2k|installer/d2k-b.yaml
+		d2k|installer/d2k-c.yaml
+		d2k|installer/d2k-d.yaml
+		d2k|installer/d2k-e.yaml
+		d2k|installer/downloads.yaml
+		d2k|installer/gruntmods.yaml

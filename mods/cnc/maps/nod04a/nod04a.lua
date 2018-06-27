@@ -1,3 +1,11 @@
+--[[
+   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   This file is part of OpenRA, which is free software. It is made
+   available to you under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of
+   the License, or (at your option) any later version. For more
+   information, see COPYING.
+]]
 NodUnitsBuggy = { 'bggy', 'bggy', 'bggy', 'bggy', 'bggy' }
 NodUnitsBikes = { 'bike', 'bike', 'bike' }
 NodUnitsGunner = { 'e1', 'e1', 'e1', 'e1', 'e1', 'e1' }
@@ -43,7 +51,7 @@ ZzzzTriggerFunctionTime = DateTime.Minutes(2) + DateTime.Seconds(30)
 NodCiviliansActors = { NodCiv1, NodCiv2, NodCiv3, NodCiv4, NodCiv5, NodCiv6, NodCiv7, NodCiv8, NodCiv9 }
 
 Atk6TriggerFunction = function()
-	Reinforcements.ReinforceWithTransport(GDI, 'apc', Atk6Units, Atk6WaypointsPart1, Atk6WaypointsPart2,
+	Reinforcements.ReinforceWithTransport(enemy, 'apc', Atk6Units, Atk6WaypointsPart1, Atk6WaypointsPart2,
 	function(transport, cargo)
 		Utils.Do(cargo, function(actor)
 			IdleHunt(actor)
@@ -57,7 +65,7 @@ end
 Atk5TriggerFunction = function ()
 	if not Atk5TriggerSwitch then
 		Atk5TriggerSwitch = true
-		Reinforcements.ReinforceWithTransport(GDI, 'apc', Atk5Units, Atk5Waypoints, nil,
+		Reinforcements.ReinforceWithTransport(enemy, 'apc', Atk5Units, Atk5Waypoints, nil,
 		function(transport, cargo)
 			transport.UnloadPassengers()
 			Utils.Do(cargo, function(actor)
@@ -71,7 +79,7 @@ Atk5TriggerFunction = function ()
 end
 
 Atk1TriggerFunction = function()
-	Reinforcements.Reinforce(GDI, Atk1Units, Spawnpoint, 15,
+	Reinforcements.Reinforce(enemy, Atk1Units, Spawnpoint, 15,
 	function(actor)
 		Atk1Movement(actor)
 	end)
@@ -79,7 +87,7 @@ end
 
 XxxxTriggerFunction = function()
 	if not XxxxTriggerSwitch then
-		Reinforcements.Reinforce(GDI, XxxxUnits, Spawnpoint, 15,
+		Reinforcements.Reinforce(enemy, XxxxUnits, Spawnpoint, 15,
 		function(actor)
 			Atk2Movement(actor)
 		end)
@@ -88,7 +96,7 @@ end
 
 YyyyTriggerFunction = function()
 	if not YyyyTriggerSwitch then
-		Reinforcements.Reinforce(GDI, YyyyUnits, Spawnpoint, 15,
+		Reinforcements.Reinforce(enemy, YyyyUnits, Spawnpoint, 15,
 		function(actor)
 			Atk4Movement(actor)
 		end)
@@ -97,7 +105,7 @@ end
 
 ZzzzTriggerFunction = function()
 	if not ZzzzTriggerSwitch then
-		Reinforcements.ReinforceWithTransport(GDI, 'apc', ZzzzUnits, Atk5Waypoints, nil,
+		Reinforcements.ReinforceWithTransport(enemy, 'apc', ZzzzUnits, Atk5Waypoints, nil,
 		function(transport, cargo)
 			transport.UnloadPassengers()
 			Utils.Do(cargo, function(actor)
@@ -145,20 +153,21 @@ Atk4Movement = function(unit)
 end
 
 InsertNodUnits = function()
-	Reinforcements.Reinforce(Nod, NodUnitsBuggy, { UnitsEntryBuggy.Location, UnitsRallyBuggy.Location }, 11)
-	Reinforcements.Reinforce(Nod, NodUnitsBikes, { UnitsEntryBikes.Location, UnitsRallyBikes.Location }, 15)
-	Reinforcements.Reinforce(Nod, NodUnitsGunner, { UnitsEntryGunner.Location, UnitsRallyGunner.Location }, 15)
-	Reinforcements.Reinforce(Nod, NodUnitsRocket, { UnitsEntryRocket.Location, UnitsRallyRocket.Location }, 15)
+	Media.PlaySpeechNotification(player, "Reinforce")
+	Reinforcements.Reinforce(player, NodUnitsBuggy, { UnitsEntryBuggy.Location, UnitsRallyBuggy.Location }, 11)
+	Reinforcements.Reinforce(player, NodUnitsBikes, { UnitsEntryBikes.Location, UnitsRallyBikes.Location }, 15)
+	Reinforcements.Reinforce(player, NodUnitsGunner, { UnitsEntryGunner.Location, UnitsRallyGunner.Location }, 15)
+	Reinforcements.Reinforce(player, NodUnitsRocket, { UnitsEntryRocket.Location, UnitsRallyRocket.Location }, 15)
 end
 
 CreateCivilians = function(actor, discoverer)
 	Utils.Do(NodCiviliansActors, function(actor)
-		actor.Owner = Nod
+		actor.Owner = player
 	end)
 
-	NodObjective2 = Nod.AddPrimaryObjective("Protect the civilians that support Nod.")
+	NodObjective2 = player.AddPrimaryObjective("Protect the civilians that support Nod.")
 	Trigger.OnAllKilled(NodCiviliansActors, function()
-		Nod.MarkFailedObjective(NodObjective2)
+		player.MarkFailedObjective(NodObjective2)
 	end)
 
 	Utils.Do(GcivActors, function(actor)
@@ -171,26 +180,26 @@ CreateCivilians = function(actor, discoverer)
 end
 
 WorldLoaded = function()
+	player = Player.GetPlayer("Nod")
 	NodSupporter = Player.GetPlayer("NodSupporter")
-	Nod = Player.GetPlayer("Nod")
-	GDI = Player.GetPlayer("GDI")
+	enemy = Player.GetPlayer("GDI")
 
-	Trigger.OnObjectiveAdded(Nod, function(p, id)
+	Trigger.OnObjectiveAdded(player, function(p, id)
 		Media.DisplayMessage(p.GetObjectiveDescription(id), "New " .. string.lower(p.GetObjectiveType(id)) .. " objective")
 	end)
-	Trigger.OnObjectiveCompleted(Nod, function(p, id)
+	Trigger.OnObjectiveCompleted(player, function(p, id)
 		Media.DisplayMessage(p.GetObjectiveDescription(id), "Objective completed")
 	end)
-	Trigger.OnObjectiveFailed(Nod, function(p, id)
+	Trigger.OnObjectiveFailed(player, function(p, id)
 		Media.DisplayMessage(p.GetObjectiveDescription(id), "Objective failed")
 	end)
 
-	Trigger.OnPlayerWon(Nod, function()
-		Media.PlaySpeechNotification(Nod, "Win")
+	Trigger.OnPlayerWon(player, function()
+		Media.PlaySpeechNotification(player, "Win")
 	end)
 
-	Trigger.OnPlayerLost(Nod, function()
-		Media.PlaySpeechNotification(Nod, "Lose")
+	Trigger.OnPlayerLost(player, function()
+		Media.PlaySpeechNotification(player, "Lose")
 	end)
 
 	Trigger.OnAnyKilled(Atk6ActorTriggerActivator, Atk6TriggerFunction)
@@ -198,9 +207,9 @@ WorldLoaded = function()
 	OnAnyDamaged(Atk5ActorTriggerActivator, Atk5TriggerFunction)
 
 	Trigger.OnEnteredFootprint(Atk3CellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
+		if a.Owner == player then
 			for type, count in pairs({ ['e1'] = 3, ['e2'] = 2, ['mtnk'] = 1 }) do
-				local myActors = Utils.Take(count, GDI.GetActorsByType(type))
+				local myActors = Utils.Take(count, enemy.GetActorsByType(type))
 				Utils.Do(myActors, function(actor)
 					Atk3Movement(actor)
 				end)
@@ -214,8 +223,8 @@ WorldLoaded = function()
 	end)
 
 	Trigger.OnEnteredFootprint(Atk2CellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
-			MyActors = Utils.Take(1, GDI.GetActorsByType('jeep'))
+		if a.Owner == player then
+			MyActors = Utils.Take(1, enemy.GetActorsByType('jeep'))
 			Utils.Do(MyActors, function(actor)
 				Atk2Movement(actor)
 			end)
@@ -224,7 +233,7 @@ WorldLoaded = function()
 	end)
 
 	Trigger.OnEnteredFootprint(GcivCellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
+		if a.Owner == player then
 			Utils.Do(GcivActors, function(actor)
 				GcivMovement(actor)
 			end)
@@ -235,9 +244,9 @@ WorldLoaded = function()
 	Trigger.AfterDelay(Atk1TriggerFunctionTime, Atk1TriggerFunction)
 
 	Trigger.OnEnteredFootprint(Atk4CellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
+		if a.Owner == player then
 			for type, count in pairs({ ['e1'] = 2,['e2'] = 1 }) do
-				local myActors = Utils.Take(count, GDI.GetActorsByType(type))
+				local myActors = Utils.Take(count, enemy.GetActorsByType(type))
 				Utils.Do(myActors, function(actor)
 					Atk4Movement(actor)
 				end)
@@ -251,21 +260,21 @@ WorldLoaded = function()
 	Trigger.AfterDelay(ZzzzTriggerFunctionTime, ZzzzTriggerFunction)
 
 	Trigger.OnEnteredFootprint(DelxCellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
+		if a.Owner == player then
 			XxxxTriggerSwitch = true
 			Trigger.RemoveFootprintTrigger(id)
 		end
 	end)
 
 	Trigger.OnEnteredFootprint(DelyCellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
+		if a.Owner == player then
 			YyyyTriggerSwitch = true
 			Trigger.RemoveFootprintTrigger(id)
 		end
 	end)
 
 	Trigger.OnEnteredFootprint(DelzCellTriggerActivator, function(a, id)
-		if a.Owner == Nod then
+		if a.Owner == player then
 			ZzzzTriggerSwitch = true
 			Trigger.RemoveFootprintTrigger(id)
 		end
@@ -274,22 +283,23 @@ WorldLoaded = function()
 	Trigger.OnPlayerDiscovered(NodSupporter, CreateCivilians)
 
 	Trigger.OnAllKilled(WinActorTriggerActivator, function()
-		Nod.MarkCompletedObjective(NodObjective1)
+		player.MarkCompletedObjective(NodObjective1)
 		if NodObjective2 then
-			Nod.MarkCompletedObjective(NodObjective2)
+			player.MarkCompletedObjective(NodObjective2)
 		end
 	end)
 
-	GDIObjective = GDI.AddPrimaryObjective("Eliminate all Nod forces in the area.")
-	NodObjective1 = Nod.AddPrimaryObjective("Kill all civilian which support the GDI.")
+	GDIObjective = enemy.AddPrimaryObjective("Eliminate all Nod forces in the area.")
+	NodObjective1 = player.AddPrimaryObjective("Kill all civilian GDI supporters.")
 
 	InsertNodUnits()
+	Camera.Position = waypoint6.CenterPosition
 end
 
 Tick = function()
-	if Nod.HasNoRequiredUnits()  then
+	if player.HasNoRequiredUnits() then
 		if DateTime.GameTime > 2 then
-			GDI.MarkCompletedObjective(GDIObjective)
+			enemy.MarkCompletedObjective(GDIObjective)
 		end
 	end
 end

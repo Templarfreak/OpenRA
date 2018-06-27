@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -61,8 +62,8 @@ namespace OpenRA.Mods.Common.Traits
 					Powers.Add(key, new SupportPowerInstance(key, this)
 					{
 						Instances = new List<SupportPower>(),
-						RemainingTime = t.Info.StartFullyCharged ? 0 : t.Info.ChargeTime * 25,
-						TotalTime = t.Info.ChargeTime * 25,
+						RemainingTime = t.Info.StartFullyCharged ? 0 : t.Info.ChargeInterval,
+						TotalTime = t.Info.ChargeInterval,
 					});
 
 					if (t.Info.Prerequisites.Any())
@@ -78,7 +79,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ActorRemoved(Actor a)
 		{
-			if (a.Owner != Self.Owner || !a.HasTrait<SupportPower>())
+			if (a.Owner != Self.Owner || !a.Info.HasTraitInfo<SupportPowerInfo>())
 				return;
 
 			foreach (var t in a.TraitsImplementing<SupportPower>())
@@ -95,7 +96,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		public void Tick(Actor self)
+		void ITick.Tick(Actor self)
 		{
 			foreach (var power in Powers.Values)
 				power.Tick();
@@ -119,11 +120,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		public IEnumerable<SupportPowerInstance> GetPowersForActor(Actor a)
 		{
-			if (a.Owner != Self.Owner || !a.HasTrait<SupportPower>())
+			if (a.Owner != Self.Owner || !a.Info.HasTraitInfo<SupportPowerInfo>())
 				return NoInstances;
 
 			return a.TraitsImplementing<SupportPower>()
-				.Select(t => Powers[MakeKey(t)]);
+				.Select(t => Powers[MakeKey(t)])
+				.Where(p => p.Instances.Any(i => !i.IsTraitDisabled && i.Self == a));
 		}
 
 		public void PrerequisitesAvailable(string key)
@@ -152,24 +154,26 @@ namespace OpenRA.Mods.Common.Traits
 	public class SupportPowerInstance
 	{
 		readonly SupportPowerManager manager;
-		readonly string key;
+
+		public readonly string Key;
 
 		public List<SupportPower> Instances;
 		public int RemainingTime;
 		public int TotalTime;
 		public bool Active { get; private set; }
-		public bool Disabled { get { return !prereqsAvailable || !upgradeAvailable; } }
+		public bool Disabled { get { return (!prereqsAvailable && !manager.DevMode.AllTech) || !instancesEnabled || oneShotFired; } }
 
 		public SupportPowerInfo Info { get { return Instances.Select(i => i.Info).FirstOrDefault(); } }
 		public bool Ready { get { return Active && RemainingTime == 0; } }
 
-		bool upgradeAvailable;
+		bool instancesEnabled;
 		bool prereqsAvailable = true;
+		bool oneShotFired;
 
 		public SupportPowerInstance(string key, SupportPowerManager manager)
 		{
 			this.manager = manager;
-			this.key = key;
+			Key = key;
 		}
 
 		public void PrerequisitesAvailable(bool available)
@@ -177,20 +181,15 @@ namespace OpenRA.Mods.Common.Traits
 			prereqsAvailable = available;
 		}
 
-		static bool InstanceDisabled(SupportPower sp)
-		{
-			return sp.Self.IsDisabled();
-		}
-
 		bool notifiedCharging;
 		bool notifiedReady;
 		public void Tick()
 		{
-			upgradeAvailable = Instances.Any(i => !i.IsTraitDisabled);
-			if (!upgradeAvailable)
+			instancesEnabled = Instances.Any(i => !i.IsTraitDisabled);
+			if (!instancesEnabled)
 				RemainingTime = TotalTime;
 
-			Active = !Disabled && Instances.Any(i => !i.Self.IsDisabled());
+			Active = !Disabled && Instances.Any(i => !i.IsTraitPaused);
 			if (!Active)
 				return;
 
@@ -204,14 +203,14 @@ namespace OpenRA.Mods.Common.Traits
 					--RemainingTime;
 				if (!notifiedCharging)
 				{
-					power.Charging(power.Self, key);
+					power.Charging(power.Self, Key);
 					notifiedCharging = true;
 				}
 
 				if (RemainingTime == 0
 					&& !notifiedReady)
 				{
-					power.Charged(power.Self, key);
+					power.Charged(power.Self, Key);
 					notifiedReady = true;
 				}
 			}
@@ -222,7 +221,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Ready)
 				return;
 
-			manager.Self.World.OrderGenerator = Instances.First().OrderGenerator(key, manager);
+			var power = Instances.FirstOrDefault(i => !i.IsTraitPaused);
+			if (power == null)
+				return;
+
+			power.SelectTarget(power.Self, Key, manager);
 		}
 
 		public void Activate(Order order)
@@ -230,7 +233,17 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Ready)
 				return;
 
-			var power = Instances.First(i => !InstanceDisabled(i));
+			var power = Instances.Where(i => !i.IsTraitPaused && !i.IsTraitDisabled)
+				.MinByOrDefault(a =>
+				{
+					if (a.Self.OccupiesSpace == null)
+						return 0;
+
+					return (a.Self.CenterPosition - a.Self.World.Map.CenterOfCell(order.TargetLocation)).HorizontalLengthSquared;
+				});
+
+			if (power == null)
+				return;
 
 			// Note: order.Subject is the *player* actor
 			power.Activate(power.Self, order, manager);
@@ -238,7 +251,10 @@ namespace OpenRA.Mods.Common.Traits
 			notifiedCharging = notifiedReady = false;
 
 			if (Info.OneShot)
+			{
 				PrerequisitesAvailable(false);
+				oneShotFired = true;
+			}
 		}
 	}
 
@@ -261,11 +277,11 @@ namespace OpenRA.Mods.Common.Traits
 			expectedButton = button;
 		}
 
-		public IEnumerable<Order> Order(World world, CPos xy, MouseInput mi)
+		public IEnumerable<Order> Order(World world, CPos cell, int2 worldPixel, MouseInput mi)
 		{
 			world.CancelInputMode();
-			if (mi.Button == expectedButton && world.Map.Contains(xy))
-				yield return new Order(order, manager.Self, false) { TargetLocation = xy, SuppressVisualFeedback = true };
+			if (mi.Button == expectedButton && world.Map.Contains(cell))
+				yield return new Order(order, manager.Self, Target.FromCell(world, cell), false) { SuppressVisualFeedback = true };
 		}
 
 		public virtual void Tick(World world)
@@ -276,7 +292,10 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		public IEnumerable<IRenderable> Render(WorldRenderer wr, World world) { yield break; }
-		public IEnumerable<IRenderable> RenderAfterWorld(WorldRenderer wr, World world) { yield break; }
-		public string GetCursor(World world, CPos xy, MouseInput mi) { return world.Map.Contains(xy) ? cursor : "generic-blocked"; }
+		public IEnumerable<IRenderable> RenderAboveShroud(WorldRenderer wr, World world) { yield break; }
+		public string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
+		{
+			return world.Map.Contains(cell) ? cursor : "generic-blocked";
+		}
 	}
 }

@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -26,17 +27,21 @@ namespace OpenRA.Mods.Common.Widgets
 		public string Font = ChromeMetrics.Get<string>("TextFont");
 		public Color TextColor = ChromeMetrics.Get<Color>("TextColor");
 		public bool Contrast = ChromeMetrics.Get<bool>("TextContrast");
-		public Color ContrastColor = ChromeMetrics.Get<Color>("TextContrastColor");
+		public bool Shadow = ChromeMetrics.Get<bool>("TextShadow");
+		public Color ContrastColorDark = ChromeMetrics.Get<Color>("TextContrastColorDark");
+		public Color ContrastColorLight = ChromeMetrics.Get<Color>("TextContrastColorLight");
 		public bool WordWrap = false;
 		public Func<string> GetText;
 		public Func<Color> GetColor;
-		public Func<Color> GetContrastColor;
+		public Func<Color> GetContrastColorDark;
+		public Func<Color> GetContrastColorLight;
 
 		public LabelWidget()
 		{
 			GetText = () => Text;
 			GetColor = () => TextColor;
-			GetContrastColor = () => ContrastColor;
+			GetContrastColorDark = () => ContrastColorDark;
+			GetContrastColorLight = () => ContrastColorLight;
 		}
 
 		protected LabelWidget(LabelWidget other)
@@ -47,11 +52,14 @@ namespace OpenRA.Mods.Common.Widgets
 			Font = other.Font;
 			TextColor = other.TextColor;
 			Contrast = other.Contrast;
-			ContrastColor = other.ContrastColor;
+			ContrastColorDark = other.ContrastColorDark;
+			ContrastColorLight = other.ContrastColorLight;
+			Shadow = other.Shadow;
 			WordWrap = other.WordWrap;
 			GetText = other.GetText;
 			GetColor = other.GetColor;
-			GetContrastColor = other.GetContrastColor;
+			GetContrastColorDark = other.GetContrastColorDark;
+			GetContrastColorLight = other.GetContrastColorLight;
 		}
 
 		public override void Draw()
@@ -83,9 +91,12 @@ namespace OpenRA.Mods.Common.Widgets
 				text = WidgetUtils.WrapText(text, Bounds.Width, font);
 
 			var color = GetColor();
-			var contrast = GetContrastColor();
+			var bgDark = GetContrastColorDark();
+			var bgLight = GetContrastColorLight();
 			if (Contrast)
-				font.DrawTextWithContrast(text, position, color, contrast, 2);
+				font.DrawTextWithContrast(text, position, color, bgDark, bgLight, 2);
+			else if (Shadow)
+				font.DrawTextWithShadow(text, position, color, bgDark, bgLight, 1);
 			else
 				font.DrawText(text, position, color);
 		}

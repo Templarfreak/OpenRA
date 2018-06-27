@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -33,24 +34,24 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			if (autoTarget != null && --scanTicks <= 0)
 			{
-				autoTarget.ScanAndAttack(self);
+				autoTarget.ScanAndAttack(self, true);
 				scanTicks = ScanInterval;
 			}
 
 			if (inner == null)
 				return NextActivity;
 
-			inner = Util.RunActivity(self, inner);
+			inner = ActivityUtils.RunActivity(self, inner);
 
 			return this;
 		}
 
-		public override void Cancel(Actor self)
+		public override bool Cancel(Actor self, bool keepQueue = false)
 		{
-			if (inner != null)
-				inner.Cancel(self);
+			if (!IsCanceled && inner != null && !inner.Cancel(self))
+				return false;
 
-			base.Cancel(self);
+			return base.Cancel(self, keepQueue);
 		}
 
 		public override IEnumerable<Target> GetTargets(Actor self)

@@ -4,7 +4,7 @@ GenericVoice:
 		gdi: .v01,.v03
 	Voices:
 		Select: await1,ready,report1,yessir1
-		Move: ackno,affirm1,noprob,ritaway,roger,ugotit
+		Action: ackno,affirm1,noprob,ritaway,roger,ugotit
 		Die: nuyell1,nuyell4,nuyell5,nuyell6
 		Burned: yell1
 		Zapped: nuyell3
@@ -17,12 +17,13 @@ VehicleVoice:
 		gdi: .v00,.v02
 	Voices:
 		Select: vehic1,yessir1,report1,await1,unit1
-		Move: ackno,affirm1,movout1
+		Action: ackno,affirm1,movout1
+		Unload: movout1
 
 CivilianMaleVoice:
 	Voices:
 		Select: guyyeah1
-		Move: guyokay1
+		Action: guyokay1
 		Die: nuyell1,nuyell4,nuyell5,nuyell6
 		Burned: yell1
 		Zapped: nuyell3
@@ -31,7 +32,17 @@ CivilianMaleVoice:
 CivilianFemaleVoice:
 	Voices:
 		Select: girlyeah
-		Move: girlokay
+		Action: girlokay
+		Die: nuyell1,nuyell4,nuyell5,nuyell6
+		Burned: yell1
+		Zapped: nuyell3
+		Poisoned: nuyell12
+
+MoebiusVoice:
+	Voices:
+		Select: mcomnd1,mhello1,myes1,mhmmm1,mthanks1
+		Move: myesyes1,mplan3,mtiber1,mcourse1
+		Action: myesyes1,mplan3,mtiber1,mcourse1
 		Die: nuyell1,nuyell4,nuyell5,nuyell6
 		Burned: yell1
 		Zapped: nuyell3
@@ -41,14 +52,14 @@ CommandoVoice:
 	Voices:
 		Select: yeah1,yes1,yo1
 		Move: cmon1,onit1,gotit1
-		Attack: onit1,gotit1
+		Attack: onit1,gotit1,noprblm1
 		Demolish: bombit1
 		Die: ramyell1
 		Burned: ramyell1
 		Zapped: ramyell1
 		Poisoned: ramyell1
 		Build: rokroll1
-		Kill: keepem1,laugh1,lefty1
+		Kill: keepem1,laugh1,lefty1,tuffguy1
 
 DinoVoice:
 	Voices:

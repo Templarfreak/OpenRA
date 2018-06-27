@@ -1,15 +1,15 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System;
-using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
@@ -19,47 +19,80 @@ namespace OpenRA.Mods.Common.Activities
 {
 	public class HeliAttack : Activity
 	{
-		readonly Target target;
-		readonly Helicopter helicopter;
+		readonly Aircraft helicopter;
 		readonly AttackHeli attackHeli;
-		readonly AmmoPool[] ammoPools;
+		readonly bool attackOnlyVisibleTargets;
+		readonly bool autoReloads;
 
-		public HeliAttack(Actor self, Target target)
+		Target target;
+		bool canHideUnderFog;
+		protected Target Target
 		{
-			this.target = target;
-			helicopter = self.Trait<Helicopter>();
+			get
+			{
+				return target;
+			}
+
+			private set
+			{
+				target = value;
+				if (target.Type == TargetType.Actor)
+					canHideUnderFog = target.Actor.Info.HasTraitInfo<HiddenUnderFogInfo>();
+			}
+		}
+
+		public HeliAttack(Actor self, Target target, bool attackOnlyVisibleTargets = true)
+		{
+			Target = target;
+			helicopter = self.Trait<Aircraft>();
 			attackHeli = self.Trait<AttackHeli>();
-			ammoPools = self.TraitsImplementing<AmmoPool>().ToArray();
+			this.attackOnlyVisibleTargets = attackOnlyVisibleTargets;
+			autoReloads = self.TraitsImplementing<AmmoPool>().All(p => p.AutoReloads);
 		}
 
 		public override Activity Tick(Actor self)
 		{
+			// Refuse to take off if it would land immediately again.
+			if (helicopter.ForceLanding)
+			{
+				Cancel(self);
+				return NextActivity;
+			}
+
 			if (IsCanceled || !target.IsValidFor(self))
 				return NextActivity;
 
-			// If all ammo pools are depleted and none reload automatically, return to helipad to reload and then move to next activity
-			// TODO: This should check whether there is ammo left that is actually suitable for the target
-			if (ammoPools.All(x => !x.Info.SelfReloads && !x.HasAmmo()))
-				return Util.SequenceActivities(new HeliReturn(self), NextActivity);
+			var pos = self.CenterPosition;
+			var targetPos = attackHeli.GetTargetPosition(pos, target);
+			if (attackOnlyVisibleTargets && target.Type == TargetType.Actor && canHideUnderFog
+				&& !target.Actor.CanBeViewedByPlayer(self.Owner))
+			{
+				var newTarget = Target.FromCell(self.World, self.World.Map.CellContaining(targetPos));
 
-			var dist = target.CenterPosition - self.CenterPosition;
+				Cancel(self);
+				self.SetTargetLine(newTarget, Color.Green);
+				return new HeliFly(self, newTarget);
+			}
+
+			// If all valid weapons have depleted their ammo and RearmBuilding is defined, return to RearmBuilding to reload and then resume the activity
+			if (!autoReloads && helicopter.Info.RearmBuildings.Any() && attackHeli.Armaments.All(x => x.IsTraitPaused || !x.Weapon.IsValidAgainst(target, self.World, self)))
+				return ActivityUtils.SequenceActivities(new HeliReturnToBase(self, helicopter.Info.AbortOnResupply), this);
+
+			var dist = targetPos - pos;
 
 			// Can rotate facing while ascending
-			var desiredFacing = Util.GetFacing(dist, helicopter.Facing);
-			helicopter.Facing = Util.TickFacing(helicopter.Facing, desiredFacing, helicopter.ROT);
+			var desiredFacing = dist.HorizontalLengthSquared != 0 ? dist.Yaw.Facing : helicopter.Facing;
+			helicopter.Facing = Util.TickFacing(helicopter.Facing, desiredFacing, helicopter.TurnSpeed);
 
 			if (HeliFly.AdjustAltitude(self, helicopter, helicopter.Info.CruiseAltitude))
 				return this;
 
 			// Fly towards the target
-			// TODO: Fix that the helicopter won't do anything if it has multiple weapons with different ranges
-			// and the weapon with the longest range is out of ammo
-			if (!target.IsInRange(self.CenterPosition, attackHeli.GetMaximumRange()))
+			if (!target.IsInRange(pos, attackHeli.GetMaximumRangeVersusTarget(target)))
 				helicopter.SetPosition(self, helicopter.CenterPosition + helicopter.FlyStep(desiredFacing));
 
 			// Fly backwards from the target
-			// TODO: Same problem as with MaximumRange
-			if (target.IsInRange(self.CenterPosition, attackHeli.GetMinimumRange()))
+			if (target.IsInRange(pos, attackHeli.GetMinimumRangeVersusTarget(target)))
 			{
 				// Facing 0 doesn't work with the following position change
 				var facing = 1;

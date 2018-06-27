@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -35,7 +36,7 @@ namespace OpenRA.Mods.Common.Commands
 				var command = Commands.FirstOrDefault(x => x.Key == name);
 
 				if (command.Value != null)
-					command.Value.InvokeCommand(name.ToLowerInvariant(), message.Substring(1 + name.Length));
+					command.Value.InvokeCommand(name.ToLowerInvariant(), message.Substring(1 + name.Length).Trim());
 				else
 					Game.Debug("{0} is not a valid command.", name);
 
@@ -47,7 +48,8 @@ namespace OpenRA.Mods.Common.Commands
 
 		public void RegisterCommand(string name, IChatCommand command)
 		{
-			Commands.Add(name.ToLowerInvariant(), command);
+			// Override possible duplicates instead of crashing.
+			Commands[name.ToLowerInvariant()] = command;
 		}
 	}
 

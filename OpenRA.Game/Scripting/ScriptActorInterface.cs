@@ -1,15 +1,15 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace OpenRA.Scripting
@@ -41,7 +41,7 @@ namespace OpenRA.Scripting
 			var commandClasses = Context.ActorCommands[actor.Info].AsEnumerable();
 
 			// Destroyed actors cannot have their traits queried
-			if (actor.Destroyed)
+			if (actor.Disposed)
 				commandClasses = commandClasses.Where(c => c.HasAttribute<ExposedForDestroyedActors>());
 
 			var args = new object[] { Context, actor };

@@ -1,28 +1,28 @@
 ############################# INSTRUCTIONS #############################
 #
 # to compile, run:
-#   make
+#   make [DEBUG=false]
 #
-# to compile with development tools, run:
-#   make all
-#
+# to check unit tests (requires NUnit version >= 2.6), run:
+#  make nunit [NUNIT_CONSOLE=<path-to/nunit[2]-console>] [NUNIT_LIBS_PATH=<path-to-libs-dir>] [NUNIT_LIBS=<nunit-libs>]
+#      Use NUNIT_CONSOLE if nunit[3|2]-console was not downloaded by `make dependencies` nor is it in bin search paths
+#      Use NUNIT_LIBS_PATH if NUnit libs are not in search paths. Include trailing /
+#      Use NUNIT_LIBS if NUnit libs have different names (such as including a prefix or suffix)
 # to check the official mods for erroneous yaml files, run:
 #   make test
 #
 # to check the official mod dlls for StyleCop violations, run:
 #   make check
 #
-# to generate documentation aimed at modders, run:
-#   make docs
-#
 # to install, run:
 #   make [prefix=/foo] [bindir=/bar/bin] install
 #
-# to install with development tools, run:
-#   make [prefix=/foo] [bindir=/bar/bin] install-all
-#
 # to install Linux startup scripts, desktop files and icons:
-#   make install-linux-shortcuts
+#   make install-linux-shortcuts [DEBUG=false]
+#
+# to install the engine and common mod files (omitting the default mods):
+#   make install-engine
+#   make install-common-mod-files
 #
 # to uninstall, run:
 #   make uninstall
@@ -37,10 +37,21 @@
 
 ############################## TOOLCHAIN ###############################
 #
-CSC         = dmcs
-CSFLAGS     = -nologo -warn:4 -debug:full -optimize- -codepage:utf8 -unsafe -warnaserror
-DEFINE      = DEBUG;TRACE
-COMMON_LIBS = System.dll System.Core.dll System.Data.dll System.Data.DataSetExtensions.dll System.Drawing.dll System.Xml.dll thirdparty/download/ICSharpCode.SharpZipLib.dll thirdparty/download/FuzzyLogicLibrary.dll thirdparty/download/Mono.Nat.dll thirdparty/download/MaxMind.Db.dll thirdparty/download/MaxMind.GeoIP2.dll thirdparty/download/Eluant.dll
+SDK         ?=
+CSC         = mcs $(SDK)
+CSFLAGS     = -nologo -warn:4 -codepage:utf8 -langversion:5 -unsafe -warnaserror
+DEFINE      = TRACE
+COMMON_LIBS = System.dll System.Core.dll System.Data.dll System.Data.DataSetExtensions.dll System.Drawing.dll System.Numerics.dll System.Xml.dll thirdparty/download/ICSharpCode.SharpZipLib.dll thirdparty/download/FuzzyLogicLibrary.dll thirdparty/download/MaxMind.Db.dll thirdparty/download/Eluant.dll thirdparty/download/rix0rrr.BeaconLib.dll
+NUNIT_LIBS_PATH :=
+NUNIT_LIBS  := $(NUNIT_LIBS_PATH)nunit.framework.dll
+
+DEBUG = true
+ifeq ($(DEBUG), $(filter $(DEBUG),false no n off 0))
+CSFLAGS   += -debug:pdbonly -optimize+
+else
+CSFLAGS   += -debug:full -optimize-
+DEFINE    := DEBUG;$(DEFINE)
+endif
 
 
 
@@ -50,6 +61,7 @@ COMMON_LIBS = System.dll System.Core.dll System.Data.dll System.Data.DataSetExte
 prefix ?= /usr/local
 datarootdir ?= $(prefix)/share
 datadir ?= $(datarootdir)
+mandir ?= $(datarootdir)/man/
 bindir ?= $(prefix)/bin
 libdir ?= $(prefix)/lib
 gameinstalldir ?= $(libdir)/openra
@@ -70,16 +82,15 @@ INSTALL_PROGRAM = $(INSTALL) -m755
 INSTALL_DATA = $(INSTALL) -m644
 
 # program targets
-CORE = rsdl2 rnull game utility
-TOOLS = editor crashdialog
+CORE = pdefault game utility server
 VERSION     = $(shell git name-rev --name-only --tags --no-undefined HEAD 2>/dev/null || echo git-`git rev-parse --short HEAD`)
 
 # dependencies
 UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Linux)
-os-dependencies = linux-dependencies
-else ifeq ($(UNAME_S),Darwin)
+ifeq ($(UNAME_S),Darwin)
 os-dependencies = osx-dependencies
+else
+os-dependencies = linux-dependencies
 endif
 
 
@@ -91,55 +102,49 @@ endif
 game_SRCS := $(shell find OpenRA.Game/ -iname '*.cs')
 game_TARGET = OpenRA.Game.exe
 game_KIND = winexe
-game_LIBS = $(COMMON_LIBS) $(game_DEPS) thirdparty/download/SDL2-CS.dll thirdparty/download/SharpFont.dll
-game_FLAGS = -win32icon:OpenRA.Game/OpenRA.ico
+game_LIBS = $(COMMON_LIBS) $(game_DEPS) thirdparty/download/SharpFont.dll thirdparty/download/Open.Nat.dll
 PROGRAMS += game
 game: $(game_TARGET)
 
-# Renderer dlls
-rsdl2_SRCS := $(shell find OpenRA.Renderer.Sdl2/ -iname '*.cs')
-rsdl2_TARGET = OpenRA.Renderer.Sdl2.dll
-rsdl2_KIND = library
-rsdl2_DEPS = $(game_TARGET)
-rsdl2_LIBS = $(COMMON_LIBS) thirdparty/download/SDL2-CS.dll $(rsdl2_DEPS)
-
-rnull_SRCS := $(shell find OpenRA.Renderer.Null/ -iname '*.cs')
-rnull_TARGET = OpenRA.Renderer.Null.dll
-rnull_KIND = library
-rnull_DEPS = $(game_TARGET)
-rnull_LIBS = $(COMMON_LIBS) $(rnull_DEPS)
-PROGRAMS += rsdl2 rnull
-renderers: $(rsdl2_TARGET) $(rnull_TARGET)
+# Platform dlls
+pdefault_SRCS := $(shell find OpenRA.Platforms.Default/ -iname '*.cs')
+pdefault_TARGET = OpenRA.Platforms.Default.dll
+pdefault_KIND = library
+pdefault_DEPS = $(game_TARGET)
+pdefault_LIBS = $(COMMON_LIBS) thirdparty/download/SDL2-CS.dll thirdparty/download/OpenAL-CS.dll $(pdefault_DEPS)
+PROGRAMS += pdefault
+platforms: $(pdefault_TARGET)
 
 # Mods Common
 mod_common_SRCS := $(shell find OpenRA.Mods.Common/ -iname '*.cs')
 mod_common_TARGET = mods/common/OpenRA.Mods.Common.dll
 mod_common_KIND = library
 mod_common_DEPS = $(game_TARGET)
-mod_common_LIBS = $(COMMON_LIBS) $(STD_MOD_LIBS) thirdparty/download/StyleCop.dll thirdparty/download/StyleCop.CSharp.dll thirdparty/download/StyleCop.CSharp.Rules.dll
+mod_common_LIBS = $(COMMON_LIBS) $(STD_MOD_LIBS)
 PROGRAMS += mod_common
 mod_common: $(mod_common_TARGET)
+
+# NUnit testing
+test_dll_SRCS := $(shell find OpenRA.Test/ -iname '*.cs')
+test_dll_TARGET = OpenRA.Test.dll
+test_dll_KIND = library
+test_dll_DEPS = $(game_TARGET) $(mod_common_TARGET)
+test_dll_FLAGS = -warn:1
+test_dll_LIBS = $(COMMON_LIBS) $(game_TARGET) $(mod_common_TARGET) $(NUNIT_LIBS)
+PROGRAMS += test_dll
+test_dll: $(test_dll_TARGET)
 
 ##### Official Mods #####
 
 STD_MOD_LIBS	= $(game_TARGET)
 STD_MOD_DEPS	= $(STD_MOD_LIBS)
 
-# Red Alert
-mod_ra_SRCS := $(shell find OpenRA.Mods.RA/ -iname '*.cs')
-mod_ra_TARGET = mods/ra/OpenRA.Mods.RA.dll
-mod_ra_KIND = library
-mod_ra_DEPS = $(STD_MOD_DEPS) $(mod_common_TARGET)
-mod_ra_LIBS = $(COMMON_LIBS) $(STD_MOD_LIBS) $(mod_common_TARGET)
-PROGRAMS += mod_ra
-mod_ra: $(mod_ra_TARGET)
-
 # Command and Conquer
 mod_cnc_SRCS := $(shell find OpenRA.Mods.Cnc/ -iname '*.cs')
-mod_cnc_TARGET = mods/cnc/OpenRA.Mods.Cnc.dll
+mod_cnc_TARGET = mods/common/OpenRA.Mods.Cnc.dll
 mod_cnc_KIND = library
-mod_cnc_DEPS = $(STD_MOD_DEPS) $(mod_common_TARGET) $(mod_ra_TARGET)
-mod_cnc_LIBS = $(COMMON_LIBS) $(STD_MOD_LIBS) $(mod_common_TARGET) $(mod_ra_TARGET)
+mod_cnc_DEPS = $(STD_MOD_DEPS) $(mod_common_TARGET)
+mod_cnc_LIBS = $(COMMON_LIBS) $(STD_MOD_LIBS) $(mod_common_TARGET)
 PROGRAMS += mod_cnc
 mod_cnc: $(mod_cnc_TARGET)
 
@@ -147,75 +152,64 @@ mod_cnc: $(mod_cnc_TARGET)
 mod_d2k_SRCS := $(shell find OpenRA.Mods.D2k/ -iname '*.cs')
 mod_d2k_TARGET = mods/d2k/OpenRA.Mods.D2k.dll
 mod_d2k_KIND = library
-mod_d2k_DEPS = $(STD_MOD_DEPS) $(mod_common_TARGET) $(mod_ra_TARGET) $(mod_cnc_TARGET)
-mod_d2k_LIBS = $(COMMON_LIBS) $(STD_MOD_LIBS) $(mod_common_TARGET) $(mod_ra_TARGET)
+mod_d2k_DEPS = $(STD_MOD_DEPS) $(mod_common_TARGET)
+mod_d2k_LIBS = $(COMMON_LIBS) $(STD_MOD_LIBS) $(mod_common_TARGET)
 PROGRAMS += mod_d2k
 mod_d2k: $(mod_d2k_TARGET)
 
-# Tiberian Sun
-mod_ts_SRCS := $(shell find OpenRA.Mods.TS/ -iname '*.cs')
-mod_ts_TARGET = mods/ts/OpenRA.Mods.TS.dll
-mod_ts_KIND = library
-mod_ts_DEPS = $(STD_MOD_DEPS) $(mod_common_TARGET) $(mod_ra_TARGET)
-mod_ts_LIBS = $(COMMON_LIBS) $(STD_MOD_LIBS) $(mod_common_TARGET) $(mod_ra_TARGET)
-PROGRAMS += mod_ts
-mod_ts: $(mod_ts_TARGET)
+check-scripts:
+	@echo
+	@echo "Checking for Lua syntax errors..."
+	@luac -p $(shell find mods/*/maps/* -iname '*.lua')
+	@luac -p $(shell find lua/* -iname '*.lua')
 
-##### Tools #####
-
-# Map Editor
-editor_SRCS := $(shell find OpenRA.Editor/ -iname '*.cs')
-editor_TARGET = OpenRA.Editor.exe
-editor_KIND = winexe
-editor_DEPS = $(game_TARGET) $(mod_common_TARGET)
-editor_LIBS = System.Windows.Forms.dll System.Data.dll System.Drawing.dll $(editor_DEPS) thirdparty/download/Eluant.dll
-editor_EXTRA = -resource:OpenRA.Editor.Form1.resources -resource:OpenRA.Editor.MapSelect.resources
-editor_FLAGS = -win32icon:OpenRA.Editor/OpenRA.Editor.Icon.ico
-
-PROGRAMS += editor
-OpenRA.Editor.MapSelect.resources:
-	resgen2 OpenRA.Editor/MapSelect.resx OpenRA.Editor.MapSelect.resources 1> /dev/null
-OpenRA.Editor.Form1.resources:
-	resgen2 OpenRA.Editor/Form1.resx OpenRA.Editor.Form1.resources 1> /dev/null
-editor: OpenRA.Editor.MapSelect.resources OpenRA.Editor.Form1.resources $(editor_TARGET)
-
-check: utility mods
+check: utility stylecheck mods
+	@echo
+	@echo "Checking for explicit interface violations..."
+	@mono --debug OpenRA.Utility.exe all --check-explicit-interfaces
 	@echo
 	@echo "Checking for code style violations in OpenRA.Game..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Game
+	@mono --debug OpenRA.StyleCheck.exe OpenRA.Game
 	@echo
-	@echo "Checking for code style violations in OpenRA.Renderer.Null..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Renderer.Null
-	@echo
-	@echo "Checking for code style violations in OpenRA.GameMonitor..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.GameMonitor
+	@echo "Checking for code style violations in OpenRA.Platforms.Default..."
+	@mono --debug OpenRA.StyleCheck.exe OpenRA.Platforms.Default
 	@echo
 	@echo "Checking for code style violations in OpenRA.Mods.Common..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Mods.Common
-	@echo
-	@echo "Checking for code style violations in OpenRA.Mods.RA..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Mods.RA
+	@mono --debug OpenRA.StyleCheck.exe OpenRA.Mods.Common
 	@echo
 	@echo "Checking for code style violations in OpenRA.Mods.Cnc..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Mods.Cnc
+	@mono --debug OpenRA.StyleCheck.exe OpenRA.Mods.Cnc
 	@echo
 	@echo "Checking for code style violations in OpenRA.Mods.D2k..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Mods.D2k
-	@echo
-	@echo "Checking for code style violations in OpenRA.Mods.TS..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Mods.TS
-	@echo
-	@echo "Checking for code style violations in OpenRA.Editor..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Editor
-	@echo
-	@echo "Checking for code style violations in OpenRA.Renderer.Sdl2..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Renderer.Sdl2
+	@mono --debug OpenRA.StyleCheck.exe OpenRA.Mods.D2k
 	@echo
 	@echo "Checking for code style violations in OpenRA.Utility..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Utility
+	@mono --debug OpenRA.StyleCheck.exe OpenRA.Utility
 	@echo
 	@echo "Checking for code style violations in OpenRA.Test..."
-	@mono --debug OpenRA.Utility.exe ra --check-code-style OpenRA.Test
+	@mono --debug OpenRA.StyleCheck.exe OpenRA.Test
+	@echo
+	@echo "Checking for code style violations in OpenRA.Server..."
+	@mono --debug OpenRA.StyleCheck.exe OpenRA.Server
+
+NUNIT_CONSOLE := $(shell test -f thirdparty/download/nunit3-console.exe && echo mono thirdparty/download/nunit3-console.exe || \
+	which nunit3-console 2>/dev/null || which nunit2-console 2>/dev/null || which nunit-console 2>/dev/null)
+nunit: test_dll
+	@echo
+	@echo "Checking unit tests..."
+	@if [ "$(NUNIT_CONSOLE)" = "" ] ; then \
+		echo 'nunit[3|2]-console not found!'; \
+		echo 'Was "make dependencies" called or is NUnit installed?'>&2; \
+		echo 'See "make help".'; \
+		exit 1; \
+	fi
+	@if $(NUNIT_CONSOLE) --help | head -n 1 | grep -E "NUnit version (1|2\.[0-5])";then \
+		echo 'NUnit version >= 2.6 required'>&2; \
+		echo 'Try "make dependencies" first to use NUnit from NuGet.'>&2; \
+		echo 'See "make help".'; \
+		exit 1; \
+	fi
+	@$(NUNIT_CONSOLE) --noresult OpenRA.Test.nunit
 
 test: utility mods
 	@echo
@@ -234,16 +228,6 @@ test: utility mods
 
 ##### Launchers / Utilities #####
 
-gamemonitor_SRCS := $(shell find OpenRA.GameMonitor/ -iname '*.cs')
-gamemonitor_TARGET = OpenRA.exe
-gamemonitor_KIND = winexe
-gamemonitor_DEPS = $(game_TARGET)
-gamemonitor_LIBS = $(COMMON_LIBS) $(gamemonitor_DEPS) System.Windows.Forms.dll
-gamemonitor_FLAGS = -win32icon:OpenRA.Game/OpenRA.ico
-PROGRAMS += gamemonitor
-gamemonitor: $(gamemonitor_TARGET)
-
-# Backend for the launcher apps - queries game/mod info and applies actions to an install
 utility_SRCS := $(shell find OpenRA.Utility/ -iname '*.cs')
 utility_TARGET = OpenRA.Utility.exe
 utility_KIND = exe
@@ -252,8 +236,25 @@ utility_LIBS = $(COMMON_LIBS) $(utility_DEPS) thirdparty/download/ICSharpCode.Sh
 PROGRAMS += utility
 utility: $(utility_TARGET)
 
+stylecheck_SRCS := $(shell find OpenRA.StyleCheck/ -iname '*.cs')
+stylecheck_TARGET = OpenRA.StyleCheck.exe
+stylecheck_KIND = exe
+stylecheck_LIBS = thirdparty/download/StyleCop.dll thirdparty/download/StyleCop.CSharp.dll thirdparty/download/StyleCop.CSharp.Rules.dll
+PROGRAMS += stylecheck
+stylecheck: $(stylecheck_TARGET)
+
+# Dedicated server
+server_SRCS := $(shell find OpenRA.Server/ -iname '*.cs')
+server_TARGET = OpenRA.Server.exe
+server_KIND = exe
+server_DEPS = $(game_TARGET)
+server_LIBS = $(COMMON_LIBS) $(server_DEPS)
+PROGRAMS += server
+server: $(server_TARGET)
+
 # Patches binary headers to work around a mono bug
 fixheader.exe: packaging/fixheader.cs
+	@command -v $(CSC) >/dev/null || (echo "Mono is not installed. Please install Mono from http://www.mono-project.com/download/ before building OpenRA."; exit 1)
 	@echo CSC fixheader.exe
 	@$(CSC) packaging/fixheader.cs $(CSFLAGS) -out:fixheader.exe -t:exe $(COMMON_LIBS:%=-r:%)
 
@@ -281,18 +282,14 @@ $(foreach prog,$(PROGRAMS),$(eval $(call BUILD_ASSEMBLY,$(prog))))
 #
 default: core
 
-core: game renderers mods utility
+core: dependencies game platforms mods utility server
 
-tools: editor gamemonitor
+mods: mod_common mod_cnc mod_d2k
 
-package: all-dependencies core tools docs version
-
-mods: mod_common mod_ra mod_cnc mod_d2k mod_ts
-
-all: dependencies core tools
+all: dependencies core stylecheck
 
 clean:
-	@-$(RM_F) *.exe *.dll *.dylib *.config ./OpenRA*/*.dll ./OpenRA*/*.mdb *.mdb mods/**/*.dll mods/**/*.mdb *.resources
+	@-$(RM_F) *.exe *.dll *.dylib *.dll.config ./OpenRA*/*.dll ./OpenRA*/*.mdb *.mdb mods/**/*.dll mods/**/*.mdb *.resources
 	@-$(RM_RF) ./*/bin ./*/obj
 	@-$(RM_RF) ./thirdparty/download
 
@@ -302,170 +299,209 @@ cli-dependencies:
 	@./thirdparty/fetch-thirdparty-deps.sh
 	@ $(CP_R) thirdparty/download/*.dll .
 	@ $(CP_R) thirdparty/download/*.dll.config .
-	@ $(CP) thirdparty/SDL2-CS.dll.config .
 
-linux-dependencies: cli-dependencies linux-native-dependencies
+linux-dependencies: cli-dependencies geoip-dependencies linux-native-dependencies
 
 linux-native-dependencies:
-	@./thirdparty/configure-linux-native-deps.sh
+	@./thirdparty/configure-native-deps.sh
 
-windows-dependencies:
+windows-dependencies: cli-dependencies geoip-dependencies
 	@./thirdparty/fetch-thirdparty-deps-windows.sh
 
-osx-dependencies: cli-dependencies
+osx-dependencies: cli-dependencies geoip-dependencies
 	@./thirdparty/fetch-thirdparty-deps-osx.sh
 	@ $(CP_R) thirdparty/download/osx/*.dylib .
 	@ $(CP_R) thirdparty/download/osx/*.dll.config .
 
+geoip-dependencies:
+	@./thirdparty/fetch-geoip-db.sh
+	@ $(CP) thirdparty/download/GeoLite2-Country.mmdb.gz .
+
 dependencies: $(os-dependencies)
 
-all-dependencies: cli-dependencies windows-dependencies osx-dependencies
+all-dependencies: cli-dependencies windows-dependencies osx-dependencies geoip-dependencies
 
-version: mods/ra/mod.yaml mods/cnc/mod.yaml mods/d2k/mod.yaml mods/modchooser/mod.yaml
+version: VERSION mods/ra/mod.yaml mods/cnc/mod.yaml mods/d2k/mod.yaml mods/ts/mod.yaml mods/modcontent/mod.yaml mods/all/mod.yaml
+	@echo "$(VERSION)" > VERSION
 	@for i in $? ; do \
 		awk '{sub("Version:.*$$","Version: $(VERSION)"); print $0}' $${i} > $${i}.tmp && \
-		mv -f $${i}.tmp $${i} ; \
+		awk '{sub("/[^/]*: User$$", "/$(VERSION): User"); print $0}' $${i}.tmp > $${i} && \
+		rm $${i}.tmp; \
 	done
 
-# Documentation (d2k depends on all mod libraries)
-docs: utility mods version
-	@mono --debug OpenRA.Utility.exe d2k --docs > DOCUMENTATION.md
-	@mono --debug OpenRA.Utility.exe ra --lua-docs > Lua-API.md
+man-page: utility mods
+	@mono --debug OpenRA.Utility.exe all --man-page > openra.6
 
-install: install-core
-
-install-all: install-core install-tools
+install: default install-core
 
 install-linux-shortcuts: install-linux-scripts install-linux-icons install-linux-desktop
 
-install-core: default
-	@-echo "Installing OpenRA to $(DATA_INSTALL_DIR)"
+install-engine:
+	@-echo "Installing OpenRA engine to $(DATA_INSTALL_DIR)"
 	@$(INSTALL_DIR) "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) $(foreach prog,$(CORE),$($(prog)_TARGET)) "$(DATA_INSTALL_DIR)"
-	@$(INSTALL_DIR) "$(DATA_INSTALL_DIR)/mods"
-	@$(CP_R) mods/common "$(DATA_INSTALL_DIR)/mods/"
-	@$(INSTALL_PROGRAM) $(mod_common_TARGET) "$(DATA_INSTALL_DIR)/mods/common"
-	@$(CP_R) mods/cnc "$(DATA_INSTALL_DIR)/mods/"
-	@$(INSTALL_PROGRAM) $(mod_cnc_TARGET) "$(DATA_INSTALL_DIR)/mods/cnc"
-	@$(CP_R) mods/ra "$(DATA_INSTALL_DIR)/mods/"
-	@$(INSTALL_PROGRAM) $(mod_ra_TARGET) "$(DATA_INSTALL_DIR)/mods/ra"
-	@$(CP_R) mods/d2k "$(DATA_INSTALL_DIR)/mods/"
-	@$(INSTALL_PROGRAM) $(mod_d2k_TARGET) "$(DATA_INSTALL_DIR)/mods/d2k"
-	@$(CP_R) mods/modchooser "$(DATA_INSTALL_DIR)/mods/"
 
-	@$(INSTALL_DATA) "global mix database.dat" "$(DATA_INSTALL_DIR)/global mix database.dat"
-	@$(INSTALL_DATA) "GeoLite2-Country.mmdb" "$(DATA_INSTALL_DIR)/GeoLite2-Country.mmdb"
+	@$(INSTALL_DATA) "GeoLite2-Country.mmdb.gz" "$(DATA_INSTALL_DIR)/GeoLite2-Country.mmdb.gz"
+	@$(INSTALL_DATA) VERSION "$(DATA_INSTALL_DIR)/VERSION"
 	@$(INSTALL_DATA) AUTHORS "$(DATA_INSTALL_DIR)/AUTHORS"
 	@$(INSTALL_DATA) COPYING "$(DATA_INSTALL_DIR)/COPYING"
 
 	@$(CP_R) glsl "$(DATA_INSTALL_DIR)"
 	@$(CP_R) lua "$(DATA_INSTALL_DIR)"
 	@$(CP) SDL2-CS* "$(DATA_INSTALL_DIR)"
+	@$(CP) OpenAL-CS* "$(DATA_INSTALL_DIR)"
 	@$(CP) Eluant* "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) ICSharpCode.SharpZipLib.dll "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) FuzzyLogicLibrary.dll "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) SharpFont.dll "$(DATA_INSTALL_DIR)"
 	@$(CP) SharpFont.dll.config "$(DATA_INSTALL_DIR)"
-	@$(INSTALL_PROGRAM) Mono.Nat.dll "$(DATA_INSTALL_DIR)"
+	@$(INSTALL_PROGRAM) Open.Nat.dll "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) MaxMind.Db.dll "$(DATA_INSTALL_DIR)"
-	@$(INSTALL_PROGRAM) MaxMind.GeoIP2.dll "$(DATA_INSTALL_DIR)"
-	@$(INSTALL_PROGRAM) Newtonsoft.Json.dll "$(DATA_INSTALL_DIR)"
-	@$(INSTALL_PROGRAM) RestSharp.dll "$(DATA_INSTALL_DIR)"
+	@$(INSTALL_PROGRAM) rix0rrr.BeaconLib.dll "$(DATA_INSTALL_DIR)"
 
-ifeq ($(shell uname),Linux)
+install-common-mod-files:
+	@-echo "Installing OpenRA common mod files to $(DATA_INSTALL_DIR)"
+	@$(INSTALL_DIR) "$(DATA_INSTALL_DIR)/mods"
+	@$(CP_R) mods/common "$(DATA_INSTALL_DIR)/mods/"
+	@$(INSTALL_PROGRAM) $(mod_common_TARGET) "$(DATA_INSTALL_DIR)/mods/common"
+	@$(INSTALL_PROGRAM) $(mod_cnc_TARGET) "$(DATA_INSTALL_DIR)/mods/common"
+	@$(INSTALL_DATA) "global mix database.dat" "$(DATA_INSTALL_DIR)/global mix database.dat"
+
+install-default-mods:
+	@-echo "Installing OpenRA default mods to $(DATA_INSTALL_DIR)"
+	@$(INSTALL_DIR) "$(DATA_INSTALL_DIR)/mods"
+	@$(CP_R) mods/cnc "$(DATA_INSTALL_DIR)/mods/"
+	@$(CP_R) mods/ra "$(DATA_INSTALL_DIR)/mods/"
+	@$(CP_R) mods/d2k "$(DATA_INSTALL_DIR)/mods/"
+	@$(INSTALL_PROGRAM) $(mod_d2k_TARGET) "$(DATA_INSTALL_DIR)/mods/d2k"
+	@$(CP_R) mods/modcontent "$(DATA_INSTALL_DIR)/mods/"
+
+install-core: install-engine install-common-mod-files install-default-mods
 	@$(CP) *.sh "$(DATA_INSTALL_DIR)"
-endif
-
-install-tools: tools
-	@-echo "Installing OpenRA tools to $(DATA_INSTALL_DIR)"
-	@$(INSTALL_DIR) "$(DATA_INSTALL_DIR)"
-	@$(INSTALL_PROGRAM) $(foreach prog,$(TOOLS),$($(prog)_TARGET)) "$(DATA_INSTALL_DIR)"
 
 install-linux-icons:
-	@$(INSTALL_DIR) "$(DESTDIR)$(datadir)/icons/"
-	@$(CP_R) packaging/linux/hicolor/ "$(DESTDIR)$(datadir)/icons"
+	for SIZE in 16x16 32x32 48x48 64x64 128x128; do \
+		$(INSTALL_DIR) "$(DESTDIR)$(datadir)/icons/hicolor/$$SIZE/apps"; \
+		$(INSTALL_DATA) packaging/linux/icons/ra_$$SIZE.png "$(DESTDIR)$(datadir)/icons/hicolor/$$SIZE/apps/openra-ra.png"; \
+		$(INSTALL_DATA) packaging/linux/icons/cnc_$$SIZE.png "$(DESTDIR)$(datadir)/icons/hicolor/$$SIZE/apps/openra-cnc.png"; \
+		$(INSTALL_DATA) packaging/linux/icons/d2k_$$SIZE.png "$(DESTDIR)$(datadir)/icons/hicolor/$$SIZE/apps/openra-d2k.png"; \
+	done
+	$(INSTALL_DIR) "$(DESTDIR)$(datadir)/icons/hicolor/scalable/apps"
+	$(INSTALL_DATA) packaging/linux/icons/ra_scalable.svg "$(DESTDIR)$(datadir)/icons/hicolor/scalable/apps/openra-ra.svg"
+	$(INSTALL_DATA) packaging/linux/icons/cnc_scalable.svg "$(DESTDIR)$(datadir)/icons/hicolor/scalable/apps/openra-cnc.svg"
 
 install-linux-desktop:
 	@$(INSTALL_DIR) "$(DESTDIR)$(datadir)/applications"
-	@$(INSTALL_DATA) packaging/linux/openra.desktop "$(DESTDIR)$(datadir)/applications"
-	@$(INSTALL_DATA) packaging/linux/openra-editor.desktop "$(DESTDIR)$(datadir)/applications"
+	@sed 's/{MODID}/ra/g' packaging/linux/openra.desktop.in | sed 's/{MODNAME}/Red Alert/g' | sed 's/{TAG}/$(VERSION)/g' > packaging/linux/openra-ra.desktop
+	@$(INSTALL_DATA) packaging/linux/openra-ra.desktop "$(DESTDIR)$(datadir)/applications"
+	@sed 's/{MODID}/cnc/g' packaging/linux/openra.desktop.in | sed 's/{MODNAME}/Tiberian Dawn/g' | sed 's/{TAG}/$(VERSION)/g' > packaging/linux/openra-cnc.desktop
+	@$(INSTALL_DATA) packaging/linux/openra-cnc.desktop "$(DESTDIR)$(datadir)/applications"
+	@sed 's/{MODID}/d2k/g' packaging/linux/openra.desktop.in | sed 's/{MODNAME}/Dune 2000/g' | sed 's/{TAG}/$(VERSION)/g' > packaging/linux/openra-d2k.desktop
+	@$(INSTALL_DATA) packaging/linux/openra-d2k.desktop "$(DESTDIR)$(datadir)/applications"
+	@-$(RM) packaging/linux/openra-ra.desktop packaging/linux/openra-cnc.desktop packaging/linux/openra-d2k.desktop
 
 install-linux-mime:
 	@$(INSTALL_DIR) "$(DESTDIR)$(datadir)/mime/packages/"
-	@$(INSTALL_DATA) packaging/linux/openra-mimeinfo.xml "$(DESTDIR)$(datadir)/mime/packages/openra.xml"
-
-	@$(INSTALL_DIR) "$(DESTDIR)$(datadir)/applications"
-	@$(INSTALL_DATA) packaging/linux/openra-replays.desktop "$(DESTDIR)$(datadir)/applications"
+	@sed 's/{MODID}/ra/g' packaging/linux/openra-mimeinfo.xml.in | sed 's/{TAG}/$(VERSION)/g' > packaging/linux/openra-mimeinfo.xml
+	@$(INSTALL_DATA) packaging/linux/openra-mimeinfo.xml "$(DESTDIR)$(datadir)/mime/packages/openra-ra.xml"
+	@sed 's/{MODID}/cnc/g' packaging/linux/openra-mimeinfo.xml.in | sed 's/{TAG}/$(VERSION)/g' > packaging/linux/openra-mimeinfo.xml
+	@$(INSTALL_DATA) packaging/linux/openra-mimeinfo.xml "$(DESTDIR)$(datadir)/mime/packages/openra-cnc.xml"
+	@sed 's/{MODID}/d2k/g' packaging/linux/openra-mimeinfo.xml.in | sed 's/{TAG}/$(VERSION)/g' > packaging/linux/openra-mimeinfo.xml
+	@$(INSTALL_DATA) packaging/linux/openra-mimeinfo.xml "$(DESTDIR)$(datadir)/mime/packages/openra-d2k.xml"
 
 install-linux-appdata:
 	@$(INSTALL_DIR) "$(DESTDIR)$(datadir)/appdata/"
-	@$(INSTALL_DATA) packaging/linux/openra.appdata.xml "$(DESTDIR)$(datadir)/appdata/"
+	@sed 's/{MODID}/ra/g' packaging/linux/openra.appdata.xml.in | sed 's/{MOD_NAME}/Red Alert/g' | sed 's/{SCREENSHOT_RA}/ type="default"/g' | sed 's/{SCREENSHOT_CNC}//g' | sed 's/{SCREENSHOT_D2K}//g'> packaging/linux/openra-ra.appdata.xml
+	@$(INSTALL_DATA) packaging/linux/openra-ra.appdata.xml "$(DESTDIR)$(datadir)/appdata/"
+	@sed 's/{MODID}/cnc/g' packaging/linux/openra.appdata.xml.in | sed 's/{MOD_NAME}/Tiberian Dawn/g' | sed 's/{SCREENSHOT_RA}//g' | sed 's/{SCREENSHOT_CNC}/ type="default"/g' | sed 's/{SCREENSHOT_D2K}//g'> packaging/linux/openra-cnc.appdata.xml
+	@$(INSTALL_DATA) packaging/linux/openra-cnc.appdata.xml "$(DESTDIR)$(datadir)/appdata/"
+	@sed 's/{MODID}/d2k/g' packaging/linux/openra.appdata.xml.in | sed 's/{MOD_NAME}/Dune 2000/g' | sed 's/{SCREENSHOT_RA}//g' | sed 's/{SCREENSHOT_CNC}//g' | sed 's/{SCREENSHOT_D2K}/ type="default"/g'> packaging/linux/openra-d2k.appdata.xml
+	@$(INSTALL_DATA) packaging/linux/openra-d2k.appdata.xml "$(DESTDIR)$(datadir)/appdata/"
+	@-$(RM) packaging/linux/openra-ra.appdata.xml packaging/linux/openra-cnc.appdata.xml packaging/linux/openra-d2k.appdata.xml
+
+install-man-page: man-page
+	@$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man6/"
+	@$(INSTALL_DATA) openra.6 "$(DESTDIR)$(mandir)/man6/"
 
 install-linux-scripts:
-	@echo "#!/bin/sh" > openra
-	@echo 'cd "$(gameinstalldir)"' >> openra
-	@echo 'mono OpenRA.Game.exe "$$@"' >> openra
-	@echo 'if [ $$? != 0 -a $$? != 1 ]' >> openra
-	@echo 'then' >> openra
-	@echo 'ZENITY=`which zenity` || echo "OpenRA needs zenity installed to display a graphical error dialog. See ~/.openra. for log files."' >> openra
-	@echo '$$ZENITY --question --title "OpenRA" --text "OpenRA has encountered a fatal error.\nLog Files are available in ~/.openra." --ok-label "Quit" --cancel-label "View FAQ" || xdg-open https://github.com/OpenRA/OpenRA/wiki/FAQ' >> openra
-	@echo 'exit 1' >> openra
-	@echo 'fi' >> openra
+ifeq ($(DEBUG), $(filter $(DEBUG),false no n off 0))
+	@sed 's/{DEBUG}//' packaging/linux/openra.in | sed 's|{GAME_INSTALL_DIR}|$(gameinstalldir)|' | sed 's|{BIN_DIR}|$(bindir)|' > packaging/linux/openra.debug.in
+	@sed 's/{DEBUG}//' packaging/linux/openra-server.in | sed 's|{GAME_INSTALL_DIR}|$(gameinstalldir)|' | sed 's|{BIN_DIR}|$(bindir)|' > packaging/linux/openra-server.debug.in
+else
+	@sed 's/{DEBUG}/--debug/' packaging/linux/openra.in | sed 's|{GAME_INSTALL_DIR}|$(gameinstalldir)|' | sed 's|{BIN_DIR}|$(bindir)|' > packaging/linux/openra.debug.in
+	@sed 's/{DEBUG}/--debug/' packaging/linux/openra-server.in | sed 's|{GAME_INSTALL_DIR}|$(gameinstalldir)|' | sed 's|{BIN_DIR}|$(bindir)|' > packaging/linux/openra-server.debug.in
+endif
+
+	@sed 's/{MODID}/ra/g' packaging/linux/openra.debug.in  | sed 's/{TAG}/$(VERSION)/g' | sed 's/{MODNAME}/Red Alert/g' > packaging/linux/openra-ra
+	@sed 's/{MODID}/cnc/g' packaging/linux/openra.debug.in | sed 's/{TAG}/$(VERSION)/g' | sed 's/{MODNAME}/Tiberian Dawn/g' > packaging/linux/openra-cnc
+	@sed 's/{MODID}/d2k/g' packaging/linux/openra.debug.in | sed 's/{TAG}/$(VERSION)/g' | sed 's/{MODNAME}/Dune 2000/g' > packaging/linux/openra-d2k
 
 	@$(INSTALL_DIR) "$(BIN_INSTALL_DIR)"
-	@$(INSTALL_PROGRAM) -m +rx openra "$(BIN_INSTALL_DIR)"
-	@-$(RM) openra
+	@$(INSTALL_PROGRAM) -m +rx packaging/linux/openra-ra "$(BIN_INSTALL_DIR)"
+	@$(INSTALL_PROGRAM) -m +rx packaging/linux/openra-cnc "$(BIN_INSTALL_DIR)"
+	@$(INSTALL_PROGRAM) -m +rx packaging/linux/openra-d2k "$(BIN_INSTALL_DIR)"
+	@-$(RM) packaging/linux/openra-ra packaging/linux/openra-cnc packaging/linux/openra-d2k packaging/linux/openra.debug.in
 
-	@echo "#!/bin/sh" >  openra-editor
-	@echo 'cd "$(gameinstalldir)"' >> openra-editor
-	@echo 'exec mono OpenRA.Editor.exe "$$@"' >> openra-editor
+	@sed 's/{MODID}/ra/g' packaging/linux/openra-server.debug.in | sed 's/{MODNAME}/Red Alert/g' > packaging/linux/openra-ra-server
+	@sed 's/{MODID}/cnc/g' packaging/linux/openra-server.debug.in | sed 's/{MODNAME}/Tiberian Dawn/g' > packaging/linux/openra-cnc-server
+	@sed 's/{MODID}/d2k/g' packaging/linux/openra-server.debug.in | sed 's/{MODNAME}/Dune 2000/g' > packaging/linux/openra-d2k-server
+
 	@$(INSTALL_DIR) "$(BIN_INSTALL_DIR)"
-	@$(INSTALL_PROGRAM) -m +rx openra-editor "$(BIN_INSTALL_DIR)"
-	@-$(RM) openra-editor
+	@$(INSTALL_PROGRAM) -m +rx packaging/linux/openra-ra-server "$(BIN_INSTALL_DIR)"
+	@$(INSTALL_PROGRAM) -m +rx packaging/linux/openra-cnc-server "$(BIN_INSTALL_DIR)"
+	@$(INSTALL_PROGRAM) -m +rx packaging/linux/openra-d2k-server "$(BIN_INSTALL_DIR)"
+	@-$(RM) packaging/linux/openra-ra-server packaging/linux/openra-cnc-server packaging/linux/openra-d2k-server packaging/linux/openra-server.debug.in
 
 uninstall:
 	@-$(RM_R) "$(DATA_INSTALL_DIR)"
-	@-$(RM_F) "$(BIN_INSTALL_DIR)/openra"
-	@-$(RM_F) "$(BIN_INSTALL_DIR)/openra-editor"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/applications/openra.desktop"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/applications/openra-editor.desktop"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/16x16/apps/openra.png"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/32x32/apps/openra.png"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/32x32/apps/openra-editor.png"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/48x48/apps/openra.png"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/48x48/apps/openra-editor.png"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/64x64/apps/openra.png"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/128x128/apps/openra.png"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/mime/packages/openra.xml"
-	@-$(RM_F) "$(DESTDIR)$(datadir)/appdata/openra.appdata.xml"
+	@-$(RM_F) "$(BIN_INSTALL_DIR)/openra-ra"
+	@-$(RM_F) "$(BIN_INSTALL_DIR)/openra-ra-server"
+	@-$(RM_F) "$(BIN_INSTALL_DIR)/openra-cnc"
+	@-$(RM_F) "$(BIN_INSTALL_DIR)/openra-cnc-server"
+	@-$(RM_F) "$(BIN_INSTALL_DIR)/openra-d2k"
+	@-$(RM_F) "$(BIN_INSTALL_DIR)/openra-d2k-server"
+	@-$(RM_F) "$(DESTDIR)$(datadir)/applications/openra-ra.desktop"
+	@-$(RM_F) "$(DESTDIR)$(datadir)/applications/openra-cnc.desktop"
+	@-$(RM_F) "$(DESTDIR)$(datadir)/applications/openra-d2k.desktop"
+	@-for SIZE in 16x16 32x32 48x48 64x64 128x128; do \
+		$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/$$SIZE/apps/openra-ra.png"; \
+		$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/$$SIZE/apps/openra-cnc.png"; \
+		$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/$$SIZE/apps/openra-d2k.png"; \
+	done
+	@-$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/scalable/apps/openra-ra.svg"
+	@-$(RM_F) "$(DESTDIR)$(datadir)/icons/hicolor/scalable/apps/openra-cnc.svg"
+	@-$(RM_F) "$(DESTDIR)$(datadir)/mime/packages/openra-ra.xml"
+	@-$(RM_F) "$(DESTDIR)$(datadir)/mime/packages/openra-cnc.xml"
+	@-$(RM_F) "$(DESTDIR)$(datadir)/mime/packages/openra-d2k.xml"
+	@-$(RM_F) "$(DESTDIR)$(datadir)/appdata/openra-ra.appdata.xml"
+	@-$(RM_F) "$(DESTDIR)$(datadir)/appdata/openra-cnc.appdata.xml"
+	@-$(RM_F) "$(DESTDIR)$(datadir)/appdata/openra-d2k.appdata.xml"
+	@-$(RM_F) "$(DESTDIR)$(mandir)/man6/openra.6"
 
 help:
-	@echo to compile, run:
-	@echo \ \ make
+	@echo 'to compile, run:'
+	@echo '  make [DEBUG=false]'
 	@echo
-	@echo to compile with development tools, run:
-	@echo \ \ make all
+	@echo 'to check unit tests (requires NUnit version >= 2.6), run:'
+	@echo '  make nunit [NUNIT_CONSOLE=<path-to/nunit[3|2]-console>] [NUNIT_LIBS_PATH=<path-to-libs-dir>] [NUNIT_LIBS=<nunit-libs>]'
+	@echo '     Use NUNIT_CONSOLE if nunit[3|2]-console was not downloaded by `make dependencies` nor is it in bin search paths'
+	@echo '     Use NUNIT_LIBS_PATH if NUnit libs are not in search paths. Include trailing /'
+	@echo '     Use NUNIT_LIBS if NUnit libs have different names (such as including a prefix or suffix)'
 	@echo
-	@echo to check the official mods for erroneous yaml files, run:
-	@echo \ \ make test
+	@echo 'to check the official mods for erroneous yaml files, run:'
+	@echo '  make test'
 	@echo
-	@echo to generate documentation aimed at modders, run:
-	@echo \ \ make docs
+	@echo 'to install, run:'
+	@echo '  make [prefix=/foo] [bindir=/bar/bin] install'
 	@echo
-	@echo to install, run:
-	@echo \ \ make \[prefix=/foo\] \[bindir=/bar/bin\] install
+	@echo 'to install Linux startup scripts, desktop files and icons'
+	@echo '  make install-linux-shortcuts [DEBUG=false]'
 	@echo
-	@echo to install with development tools, run:
-	@echo \ \ make \[prefix=/foo\] \[bindir=/bar/bin\] install-all
+	@echo 'to uninstall, run:'
+	@echo '  make uninstall'
 	@echo
-	@echo to install Linux startup scripts, desktop files and icons
-	@echo \ \ make install-linux-shortcuts
-	@echo
-	@echo to uninstall, run:
-	@echo \ \ make uninstall
-	@echo
-	@echo to start the game, run:
-	@echo \ \ openra
+	@echo 'to start the game, run:'
+	@echo '  openra'
 
 
 
@@ -476,4 +512,4 @@ help:
 
 .SUFFIXES:
 
-.PHONY: core tools package all mods clean distclean dependencies version $(PROGRAMS)
+.PHONY: core package all mods clean distclean dependencies version $(PROGRAMS) nunit

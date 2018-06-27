@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -13,7 +14,6 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Effects;
-using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -21,13 +21,13 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public class AirstrikePowerInfo : SupportPowerInfo
 	{
-		[ActorReference]
+		[ActorReference(typeof(AircraftInfo))]
 		public readonly string UnitType = "badr.bomber";
 		public readonly int SquadSize = 1;
 		public readonly WVec SquadOffset = new WVec(-1536, 1536, 0);
 
 		public readonly int QuantizedFacings = 32;
-		public readonly WRange Cordon = new WRange(5120);
+		public readonly WDist Cordon = new WDist(5120);
 
 		[ActorReference]
 		[Desc("Actor to spawn when the aircraft start attacking")]
@@ -37,7 +37,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int CameraRemoveDelay = 25;
 
 		[Desc("Weapon range offset to apply during the beacon clock calculation")]
-		public readonly WRange BeaconDistanceOffset = WRange.FromCells(6);
+		public readonly WDist BeaconDistanceOffset = WDist.FromCells(6);
 
 		public override object Create(ActorInitializer init) { return new AirstrikePower(init.Self, this); }
 	}
@@ -59,14 +59,14 @@ namespace OpenRA.Mods.Common.Traits
 			var info = Info as AirstrikePowerInfo;
 
 			if (randomize)
-				attackFacing = Util.QuantizeFacing(self.World.SharedRandom.Next(256), info.QuantizedFacings) * (256 / info.QuantizedFacings);
+				attackFacing = 256 * self.World.SharedRandom.Next(info.QuantizedFacings) / info.QuantizedFacings;
 
-			var altitude = self.World.Map.Rules.Actors[info.UnitType].Traits.Get<PlaneInfo>().CruiseAltitude.Range;
+			var altitude = self.World.Map.Rules.Actors[info.UnitType].TraitInfo<AircraftInfo>().CruiseAltitude.Length;
 			var attackRotation = WRot.FromFacing(attackFacing);
 			var delta = new WVec(0, -1024, 0).Rotate(attackRotation);
 			target = target + new WVec(0, 0, altitude);
-			var startEdge = target - (self.World.Map.DistanceToEdge(target, -delta) + info.Cordon).Range * delta / 1024;
-			var finishEdge = target + (self.World.Map.DistanceToEdge(target, delta) + info.Cordon).Range * delta / 1024;
+			var startEdge = target - (self.World.Map.DistanceToEdge(target, -delta) + info.Cordon).Length * delta / 1024;
+			var finishEdge = target + (self.World.Map.DistanceToEdge(target, delta) + info.Cordon).Length * delta / 1024;
 
 			Actor camera = null;
 			Beacon beacon = null;
@@ -127,8 +127,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			self.World.AddFrameEndTask(w =>
 			{
-				var notification = self.Owner.IsAlliedWith(self.World.RenderPlayer) ? Info.LaunchSound : Info.IncomingSound;
-				Sound.Play(notification);
+				PlayLaunchSounds();
 
 				Actor distanceTestActor = null;
 				for (var i = -info.SquadSize / 2; i <= info.SquadSize / 2; i++)
@@ -169,10 +168,16 @@ namespace OpenRA.Mods.Common.Traits
 					beacon = new Beacon(
 						self.Owner,
 						target - new WVec(0, 0, altitude),
-						Info.BeaconPalettePrefix,
+						Info.BeaconPaletteIsPlayerPalette,
+						Info.BeaconPalette,
+						Info.BeaconImage,
 						Info.BeaconPoster,
 						Info.BeaconPosterPalette,
-						() => 1 - ((distanceTestActor.CenterPosition - target).HorizontalLength - info.BeaconDistanceOffset.Range) * 1f / distance);
+						Info.ArrowSequence,
+						Info.CircleSequence,
+						Info.ClockSequence,
+						() => 1 - ((distanceTestActor.CenterPosition - target).HorizontalLength - info.BeaconDistanceOffset.Length) * 1f / distance,
+						Info.BeaconDelay);
 
 					w.Add(beacon);
 				}

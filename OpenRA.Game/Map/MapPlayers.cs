@@ -1,10 +1,11 @@
-﻿#region Copyright & License Information
+#region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -28,8 +29,8 @@ namespace OpenRA
 
 		public MapPlayers(Ruleset rules, int playerCount)
 		{
-			var firstRace = rules.Actors["world"].Traits
-				.WithInterface<CountryInfo>().First(c => c.Selectable).Race;
+			var firstFaction = rules.Actors["world"].TraitInfos<FactionInfo>()
+				.First(f => f.Selectable).InternalName;
 
 			Players = new Dictionary<string, PlayerReference>
 			{
@@ -37,7 +38,7 @@ namespace OpenRA
 					"Neutral", new PlayerReference
 					{
 						Name = "Neutral",
-						Race = firstRace,
+						Faction = firstFaction,
 						OwnsWorld = true,
 						NonCombatant = true
 					}
@@ -46,7 +47,7 @@ namespace OpenRA
 					"Creeps", new PlayerReference
 					{
 						Name = "Creeps",
-						Race = firstRace,
+						Faction = firstFaction,
 						NonCombatant = true,
 						Enemies = Exts.MakeArray(playerCount, i => "Multi{0}".F(i))
 					}
@@ -58,7 +59,7 @@ namespace OpenRA
 				var p = new PlayerReference
 				{
 					Name = "Multi{0}".F(index),
-					Race = "Random",
+					Faction = "Random",
 					Playable = true,
 					Enemies = new[] { "Creeps" }
 				};

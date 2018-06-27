@@ -1,14 +1,16 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using OpenRA.Traits;
 
@@ -21,17 +23,23 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Allows King of the Hill (KotH) style gameplay.")]
 	public class StrategicVictoryConditionsInfo : ITraitInfo, Requires<MissionObjectivesInfo>
 	{
-		[Desc("Amount of time (in game ticks) that the player has to hold all the strategic points.", "Defaults to 5 minutes.")]
-		public readonly int TicksToHold = 25 * 60 * 5;
+		[Desc("Amount of time (in game ticks) that the player has to hold all the strategic points.", "Defaults to 7500 ticks (5 minutes at default speed).")]
+		public readonly int HoldDuration = 7500;
 
 		[Desc("Should the timer reset when the player loses hold of a strategic point.")]
 		public readonly bool ResetOnHoldLost = true;
 
 		[Desc("Percentage of all strategic points the player has to hold to win.")]
-		public readonly float RatioRequired = 0.5f;
+		public readonly int RatioRequired = 50;
 
 		[Desc("Delay for the end game notification in milliseconds.")]
-		public int NotificationDelay = 1500;
+		public readonly int NotificationDelay = 1500;
+
+		[Desc("Description of the objective")]
+		[Translate] public readonly string Objective = "Hold all the strategic positions!";
+
+		[Desc("Disable the win/loss messages and audio notifications?")]
+		public readonly bool SuppressNotifications = false;
 
 		public object Create(ActorInitializer init) { return new StrategicVictoryConditions(init.Self, this); }
 	}
@@ -43,34 +51,36 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync] public int TicksLeft;
 		readonly Player player;
 		readonly MissionObjectives mo;
+		readonly bool shortGame;
 		int objectiveID = -1;
 
 		public StrategicVictoryConditions(Actor self, StrategicVictoryConditionsInfo svcInfo)
 		{
 			info = svcInfo;
-			TicksLeft = info.TicksToHold;
+			TicksLeft = info.HoldDuration;
 			player = self.Owner;
 			mo = self.Trait<MissionObjectives>();
+			shortGame = player.World.WorldActor.Trait<MapOptions>().ShortGame;
 		}
 
-		public IEnumerable<TraitPair<StrategicPoint>> AllPoints
+		public IEnumerable<Actor> AllPoints
 		{
-			get { return player.World.ActorsWithTrait<StrategicPoint>(); }
+			get { return player.World.ActorsHavingTrait<StrategicPoint>(); }
 		}
 
 		public int Total { get { return AllPoints.Count(); } }
-		int Owned { get { return AllPoints.Count(a => WorldUtils.AreMutualAllies(player, a.Actor.Owner)); } }
+		int Owned { get { return AllPoints.Count(a => WorldUtils.AreMutualAllies(player, a.Owner)); } }
 
-		public bool Holding { get { return Owned >= info.RatioRequired * Total; } }
+		public bool Holding { get { return Owned >= info.RatioRequired * Total / 100; } }
 
-		public void Tick(Actor self)
+		void ITick.Tick(Actor self)
 		{
 			if (player.WinState != WinState.Undefined || player.NonCombatant) return;
 
 			if (objectiveID < 0)
-				objectiveID = mo.Add(player, "Hold all the strategic positions for a specified time!");
+				objectiveID = mo.Add(player, info.Objective, ObjectiveType.Primary, true);
 
-			if (!self.Owner.NonCombatant && self.Owner.HasNoRequiredUnits())
+			if (!self.Owner.NonCombatant && self.Owner.HasNoRequiredUnits(shortGame))
 				mo.MarkFailed(self.Owner, objectiveID);
 
 			var others = self.World.Players.Where(p => !p.NonCombatant
@@ -87,39 +97,43 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (Holding)
 				{
-					// Hah! We met ths critical owned condition
+					// Hah! We met this critical owned condition
 					if (--TicksLeft == 0)
 						mo.MarkCompleted(player, objectiveID);
 				}
 				else if (TicksLeft != 0)
 					if (info.ResetOnHoldLost)
-						TicksLeft = info.TicksToHold; // Reset the time hold
+						TicksLeft = info.HoldDuration; // Reset the time hold
 			}
 		}
 
 		public void OnPlayerLost(Player player)
 		{
-			Game.Debug("{0} is defeated.", player.PlayerName);
+			foreach (var a in player.World.ActorsWithTrait<INotifyOwnerLost>().Where(a => a.Actor.Owner == player))
+				a.Trait.OnOwnerLost(a.Actor);
 
-			foreach (var a in player.World.Actors.Where(a => a.Owner == player))
-				a.Kill(a);
+			if (info.SuppressNotifications)
+				return;
 
-			if (player == player.World.LocalPlayer)
+			Game.AddChatLine(Color.White, "Battlefield Control", player.PlayerName + " is defeated.");
+			Game.RunAfterDelay(info.NotificationDelay, () =>
 			{
-				Game.RunAfterDelay(info.NotificationDelay, () =>
-				{
-					if (Game.IsCurrentWorld(player.World))
-						Sound.PlayNotification(player.World.Map.Rules, player, "Speech", "Lose", player.Country.Race);
-				});
-			}
+				if (Game.IsCurrentWorld(player.World) && player == player.World.LocalPlayer)
+					Game.Sound.PlayNotification(player.World.Map.Rules, player, "Speech", "Lose", player.Faction.InternalName);
+			});
 		}
 
 		public void OnPlayerWon(Player player)
 		{
-			Game.Debug("{0} is victorious.", player.PlayerName);
+			if (info.SuppressNotifications)
+				return;
 
-			if (player == player.World.LocalPlayer)
-				Game.RunAfterDelay(info.NotificationDelay, () => Sound.PlayNotification(player.World.Map.Rules, player, "Speech", "Win", player.Country.Race));
+			Game.AddChatLine(Color.White, "Battlefield Control", player.PlayerName + " is victorious.");
+			Game.RunAfterDelay(info.NotificationDelay, () =>
+			{
+				if (Game.IsCurrentWorld(player.World) && player == player.World.LocalPlayer)
+					Game.Sound.PlayNotification(player.World.Map.Rules, player, "Speech", "Win", player.Faction.InternalName);
+			});
 		}
 
 		public void OnObjectiveAdded(Player player, int id) { }

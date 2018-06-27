@@ -1,14 +1,16 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using OpenRA.Graphics;
@@ -23,10 +25,15 @@ namespace OpenRA.Mods.Common.Commands
 	public class DevCommands : IChatCommand, IWorldLoaded
 	{
 		World world;
+		DeveloperMode developerMode;
 
 		public void WorldLoaded(World w, WorldRenderer wr)
 		{
 			world = w;
+
+			if (world.LocalPlayer != null)
+				developerMode = world.LocalPlayer.PlayerActor.Trait<DeveloperMode>();
+
 			var console = world.WorldActor.Trait<ChatCommands>();
 			var help = world.WorldActor.Trait<HelpCommand>();
 
@@ -36,7 +43,7 @@ namespace OpenRA.Mods.Common.Commands
 				help.RegisterHelp(name, helpText);
 			};
 
-			register("disableshroud", "toggles shroud and minimap.");
+			register("visibility", "toggles visibility checks and minimap.");
 			register("givecash", "gives the default or specified amount of money.");
 			register("givecashall", "gives the default or specified amount of money to all players and ai.");
 			register("instantbuild", "toggles instant building.");
@@ -47,6 +54,9 @@ namespace OpenRA.Mods.Common.Commands
 			register("all", "toggles all cheats and gives you some cash for your trouble.");
 			register("crash", "crashes the game.");
 			register("levelup", "adds a specified number of levels to the selected actors.");
+			register("poweroutage", "causes owners of selected actors to have a 5 second power outage.");
+			register("kill", "kills selected actors.");
+			register("dispose", "disposes selected actors.");
 		}
 
 		public void InvokeCommand(string name, string arg)
@@ -54,7 +64,7 @@ namespace OpenRA.Mods.Common.Commands
 			if (world.LocalPlayer == null)
 				return;
 
-			if (!world.AllowDevCommands)
+			if (!developerMode.Enabled)
 			{
 				Game.Debug("Cheats are disabled.");
 				return;
@@ -86,7 +96,7 @@ namespace OpenRA.Mods.Common.Commands
 
 					break;
 
-				case "disableshroud": IssueDevCommand(world, "DevShroudDisable"); break;
+				case "visibility": IssueDevCommand(world, "DevVisibility"); break;
 				case "instantbuild": IssueDevCommand(world, "DevFastBuild"); break;
 				case "buildanywhere": IssueDevCommand(world, "DevBuildAnywhere"); break;
 				case "unlimitedpower": IssueDevCommand(world, "DevUnlimitedPower"); break;
@@ -106,14 +116,41 @@ namespace OpenRA.Mods.Common.Commands
 
 					foreach (var actor in world.Selection.Actors)
 					{
-						if (actor.IsDead || actor.Destroyed)
+						if (actor.IsDead)
 							continue;
 
 						var leveluporder = new Order("DevLevelUp", actor, false);
 						leveluporder.ExtraData = (uint)level;
 
-						if (actor.HasTrait<GainsExperience>())
+						if (actor.Info.HasTraitInfo<GainsExperienceInfo>())
 							world.IssueOrder(leveluporder);
+					}
+
+					break;
+
+				case "poweroutage":
+					foreach (var player in world.Selection.Actors.Select(a => a.Owner.PlayerActor).Distinct())
+						world.IssueOrder(new Order("PowerOutage", player, false) { ExtraData = 250 });
+					break;
+
+				case "kill":
+					foreach (var actor in world.Selection.Actors)
+					{
+						if (actor.IsDead)
+							continue;
+
+						world.IssueOrder(new Order("DevKill", world.LocalPlayer.PlayerActor, Target.FromActor(actor), false) { TargetString = arg });
+					}
+
+					break;
+
+				case "dispose":
+					foreach (var actor in world.Selection.Actors)
+					{
+						if (actor.Disposed)
+							continue;
+
+						world.IssueOrder(new Order("DevDispose", world.LocalPlayer.PlayerActor, Target.FromActor(actor), false));
 					}
 
 					break;
@@ -125,6 +162,7 @@ namespace OpenRA.Mods.Common.Commands
 			world.IssueOrder(new Order(command, world.LocalPlayer.PlayerActor, false));
 		}
 
+		[Serializable]
 		class DevException : Exception { }
 	}
 }

@@ -1,10 +1,8 @@
-MapFormat: 7
+MapFormat: 11
 
 RequiresMod: cnc
 
-Title: Repair the GDI base (a)
-
-Description: A GDI field base is under attack. They have fended off one attack but will not survive another.\n\nMove to the base, repair the structures and then launch a strike force to destroy the Nod base in the area.\n\nDestroy all Nod units and structures.
+Title: 05a: Repair the GDI base
 
 Author: Westwood Studios
 
@@ -16,31 +14,15 @@ Bounds: 8,21,49,39
 
 Visibility: MissionSelector
 
-Type: Campaign
+Categories: Campaign
 
-Videos:
-	BackgroundInfo: podium.vqa
-	Briefing: gdi5.vqa
-	GameStart: seige.vqa
-	GameWon: nodlose.vqa
-	GameLost: gdilose.vqa
-
-Options:
-	Crates: False
-	Fog: True
-	Shroud: True
-	AllyBuildRadius: False
-	FragileAlliances: False
-	StartingCash: 2000
-	ConfigurableStartingUnits: False
-	Difficulties: Easy, Normal, Hard
-	ShortGame: False
+LockPreview: True
 
 Players:
 	PlayerReference@Nod:
 		Name: Nod
-		Race: nod
-		ColorRamp: 3,255,127
+		Faction: nod
+		Color: FE1100
 		Allies: Nod
 		Enemies: GDI
 	PlayerReference@GDI:
@@ -48,10 +30,10 @@ Players:
 		Playable: True
 		AllowBots: False
 		Required: True
-		LockRace: True
-		Race: gdi
+		LockFaction: True
+		Faction: gdi
 		LockColor: True
-		ColorRamp: 31,222,183
+		Color: F5D378
 		LockSpawn: True
 		LockTeam: True
 		Allies: GDI
@@ -59,18 +41,13 @@ Players:
 	PlayerReference@AbandonedBase:
 		Name: AbandonedBase
 		NonCombatant: True
-		ColorRamp: 31,222,183
-		Race: gdi
+		Color: F5D378
+		Faction: gdi
 	PlayerReference@Neutral:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Race: gdi
-	PlayerReference@Creeps:
-		Name: Creeps
-		NonCombatant: True
-		Race: Random
-		Enemies: Nod, GDI
+		Faction: gdi
 
 Actors:
 	Actor0: sbag
@@ -697,7 +674,7 @@ Actors:
 		Owner: AbandonedBase
 		Facing: 64
 	GdiWeap: weap
-		Location: 50,54
+		Location: 50,55
 		Owner: AbandonedBase
 		Health: 27
 	GdiNuke1: nuke
@@ -728,7 +705,7 @@ Actors:
 		Owner: Nod
 		FreeActor: False
 	HandOfNod: hand
-		Location: 15,22
+		Location: 15,23
 		Owner: Nod
 	Airfield: afld
 		Location: 9,25
@@ -777,179 +754,6 @@ Actors:
 		Location: 44,40
 		Owner: Neutral
 
-Smudges:
-	sc4 41,55 0:
-	cr1 41,54 0:
-	cr1 13,52 0:
-	sc5 48,51 0:
-	cr1 11,51 0:
-	sc2 53,50 0:
-	sc3 51,50 0:
-	sc4 45,50 0:
-	sc6 49,48 0:
+Rules: cnc|rules/campaign-maprules.yaml, cnc|rules/campaign-tooltips.yaml, cnc|rules/campaign-palettes.yaml, rules.yaml
 
-Rules:
-	World:
-		-SpawnMPUnits:
-		-MPStartLocations:
-		-CrateSpawner:
-		LuaScript:
-			Scripts: gdi05a.lua
-		ObjectivesPanel:
-			PanelName: MISSION_OBJECTIVES
-	Player:
-		-ConquestVictoryConditions:
-		MissionObjectives:
-			EarlyGameOver: true
-		EnemyWatcher:
-	^Vehicle:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Tank:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Helicopter:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Infantry:
-		SpawnViceroid:
-			Probability: 0
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Plane:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Ship:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Building:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-		AnnounceOnSeen:
-	^Wall:
-		Tooltip:
-			ShowOwnerRow: false
-	^Husk:
-		Tooltip:
-			GenericVisibility: Enemy, Ally, Neutral
-			GenericStancePrefix: false
-			ShowOwnerRow: false
-	E2:
-		Buildable:
-			Prerequisites: ~pyle
-	E3:
-		Buildable:
-			Queue: Infantry.Nod
-	E4:
-		Buildable:
-			Prerequisites: ~disabled
-	E5:
-		Buildable:
-			Prerequisites: ~disabled
-	RMBO:
-		Buildable:
-			Prerequisites: ~disabled
-	HARV:
-		Harvester:
-			SearchFromOrderRadius: 24
-		Buildable:
-			Prerequisites: ~disabled
-	LTNK:
-		Buildable:
-			Prerequisites: ~afld
-	MCV:
-		Buildable:
-			Prerequisites: ~disabled
-	MTNK:
-		Buildable:
-			Prerequisites: ~disabled
-	HTNK:
-		Buildable:
-			Prerequisites: ~disabled
-	MSAM:
-		Buildable:
-			Prerequisites: ~disabled
-	ARTY:
-		Buildable:
-			Prerequisites: ~disabled
-	MLRS:
-		Buildable:
-			Prerequisites: ~disabled
-	FTNK:
-		Buildable:
-			Prerequisites: ~disabled
-	STNK:
-		Buildable:
-			Prerequisites: ~disabled
-	WEAP:
-		Buildable:
-			Prerequisites: ~disabled
-	NUK2:
-		Buildable:
-			Prerequisites: ~disabled
-	FIX:
-		Buildable:
-			Prerequisites: ~disabled
-	HPAD:
-		Buildable:
-			Prerequisites: ~disabled
-	EYE:
-		Buildable:
-			Prerequisites: ~disabled
-	GUN:
-		Buildable:
-			Prerequisites: ~disabled
-	ATWR:
-		Buildable:
-			Prerequisites: ~disabled
-	TMPL:
-		Buildable:
-			Prerequisites: ~disabled
-	OBLI:
-		Buildable:
-			Prerequisites: ~disabled
-	MoneyCrate:
-		Inherits: ^Crate
-		GiveCashCrateAction:
-			Amount: 500
-			UseCashTick: yes
-	airstrike.proxy:
-		AirstrikePower:
-			Icon: airstrike
-			StartFullyCharged: True
-			ChargeTime: 120
-			SquadSize: 1
-			QuantizedFacings: 8
-			Description: Air Strike
-			LongDesc: Deploy an aerial napalm strike.\nBurns buildings and infantry along a line.
-			EndChargeSound: airredy1.aud
-			SelectTargetSound: select1.aud
-			InsufficientPowerSound: nopower1.aud
-			IncomingSound: enemya.aud
-			UnitType: a10
-			DisplayBeacon: True
-			BeaconPoster: airstrike
-			DisplayRadarPing: True
-			CameraActor: camera
-
-Sequences:
-
-VoxelSequences:
-
-Weapons:
-	Tiberium:
-		Warhead@1Dam: SpreadDamage
-			Damage: 4
-
-Voices:
-
-Notifications:
-
-Translations:
+Weapons: weapons.yaml

@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -17,20 +18,27 @@ namespace OpenRA.Mods.Common.Activities
 	public class FlyFollow : Activity
 	{
 		Target target;
-		Plane plane;
-		WRange minRange;
-		WRange maxRange;
+		Aircraft plane;
+		WDist minRange;
+		WDist maxRange;
 
-		public FlyFollow(Actor self, Target target, WRange minRange, WRange maxRange)
+		public FlyFollow(Actor self, Target target, WDist minRange, WDist maxRange)
 		{
 			this.target = target;
-			plane = self.Trait<Plane>();
+			plane = self.Trait<Aircraft>();
 			this.minRange = minRange;
 			this.maxRange = maxRange;
 		}
 
 		public override Activity Tick(Actor self)
 		{
+			// Refuse to take off if it would land immediately again.
+			if (plane.ForceLanding)
+			{
+				Cancel(self);
+				return NextActivity;
+			}
+
 			if (IsCanceled || !target.IsValidFor(self))
 				return NextActivity;
 
@@ -40,7 +48,7 @@ namespace OpenRA.Mods.Common.Activities
 				return this;
 			}
 
-			return Util.SequenceActivities(new Fly(self, target, minRange, maxRange), this);
+			return ActivityUtils.SequenceActivities(new Fly(self, target, minRange, maxRange), this);
 		}
 	}
 }

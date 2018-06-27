@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -13,158 +14,158 @@ using System.Drawing;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.GameRules;
+using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.D2k.Traits;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.D2k.Activities
 {
-	enum AttackState { Burrowed, EmergingAboveGround, ReturningUnderground }
+	enum AttackState { Uninitialized, Burrowed, Attacking }
 
 	class SwallowActor : Activity
 	{
 		const int NearEnough = 1;
 
-		readonly CPos location;
 		readonly Target target;
 		readonly Sandworm sandworm;
+		readonly ConditionManager conditionManager;
 		readonly WeaponInfo weapon;
-		readonly RenderUnit renderUnit;
-		readonly RadarPings radarPings;
+		readonly Armament armament;
 		readonly AttackSwallow swallow;
 		readonly IPositionable positionable;
+		readonly IFacing facing;
 
 		int countdown;
+		CPos burrowLocation;
 		AttackState stance;
+		int attackingToken = ConditionManager.InvalidConditionToken;
 
-		public SwallowActor(Actor self, Target target, WeaponInfo weapon)
+		public SwallowActor(Actor self, Target target, Armament a, IFacing facing)
 		{
 			this.target = target;
-			this.weapon = weapon;
+			this.facing = facing;
+			armament = a;
+			weapon = a.Weapon;
 			sandworm = self.Trait<Sandworm>();
 			positionable = self.Trait<Mobile>();
 			swallow = self.Trait<AttackSwallow>();
-			renderUnit = self.Trait<RenderUnit>();
-			radarPings = self.World.WorldActor.TraitOrDefault<RadarPings>();
-			countdown = swallow.Info.AttackTime;
-
-			renderUnit.DefaultAnimation.ReplaceAnim("burrowed");
-			stance = AttackState.Burrowed;
-			location = target.Actor.Location;
+			conditionManager = self.TraitOrDefault<ConditionManager>();
 		}
 
-		bool WormAttack(Actor worm)
+		bool AttackTargets(Actor self, IEnumerable<Actor> targets)
 		{
 			var targetLocation = target.Actor.Location;
-
-			// The target has moved too far away
-			if ((location - targetLocation).Length > NearEnough)
-				return false;
-
-			var lunch = worm.World.ActorMap.GetUnitsAt(targetLocation)
-				.Where(t => !t.Equals(worm) && weapon.IsValidAgainst(t, worm));
-
-			if (!lunch.Any())
-				return false;
-
-			stance = AttackState.EmergingAboveGround;
-			sandworm.IsAttacking = true;
-
-			foreach (var actor in lunch)
+			foreach (var t in targets)
 			{
-				var actor1 = actor;	// loop variable in closure hazard
+				var targetClose = t; // loop variable in closure hazard
 
-				actor.World.AddFrameEndTask(_ =>
+				self.World.AddFrameEndTask(_ =>
+				{
+					// Don't use Kill() because we don't want any of its side-effects (husks, etc)
+					targetClose.Dispose();
+
+					// Harvester insurance
+					if (targetClose.Info.HasTraitInfo<HarvesterInfo>())
 					{
-						actor1.Destroy();
-
-						// Harvester insurance
-						if (!actor1.HasTrait<Harvester>())
-							return;
-
-						var insurance = actor1.Owner.PlayerActor.TraitOrDefault<HarvesterInsurance>();
-
+						var insurance = targetClose.Owner.PlayerActor.TraitOrDefault<HarvesterInsurance>();
 						if (insurance != null)
-							actor1.World.AddFrameEndTask(__ => insurance.TryActivate());
-					});
+							self.World.AddFrameEndTask(__ => insurance.TryActivate());
+					}
+				});
 			}
 
-			positionable.SetPosition(worm, targetLocation);
+			positionable.SetPosition(self, targetLocation);
 
-			var attackPosition = worm.CenterPosition;
-			var affectedPlayers = lunch.Select(x => x.Owner).Distinct().ToList();
+			var attackPosition = self.CenterPosition;
+			var affectedPlayers = targets.Select(x => x.Owner).Distinct().ToList();
+			Game.Sound.Play(SoundType.World, swallow.Info.WormAttackSound, self.CenterPosition);
 
-			PlayAttack(worm, attackPosition, affectedPlayers);
-			foreach (var notify in worm.TraitsImplementing<INotifyAttack>())
-				notify.Attacking(worm, target, null, null);
+			foreach (var player in affectedPlayers)
+				self.World.AddFrameEndTask(w => w.Add(new MapNotificationEffect(player, "Speech", swallow.Info.WormAttackNotification, 25, true, attackPosition, Color.Red)));
+
+			var barrel = armament.CheckFire(self, facing, target);
+			if (barrel == null)
+				return false;
+
+			// armament.CheckFire already calls INotifyAttack.PreparingAttack
+			foreach (var notify in self.TraitsImplementing<INotifyAttack>())
+				notify.Attacking(self, target, armament, barrel);
 
 			return true;
 		}
 
-		// List because IEnumerable gets evaluated too late.
-		void PlayAttack(Actor self, WPos attackPosition, List<Player> affectedPlayers)
-		{
-			renderUnit.PlayCustomAnim(self, "mouth");
-			Sound.Play(swallow.Info.WormAttackSound, self.CenterPosition);
-
-			Game.RunAfterDelay(1000, () =>
-			{
-				foreach (var affectedPlayer in affectedPlayers)
-					NotifyPlayer(affectedPlayer, attackPosition);
-			});
-		}
-
-		void NotifyPlayer(Player player, WPos location)
-		{
-			Sound.PlayNotification(player.World.Map.Rules, player, "Speech", swallow.Info.WormAttackNotification, player.Country.Race);
-
-			if (player == player.World.RenderPlayer)
-				radarPings.Add(() => true, location, Color.Red, 50);
-		}
-
 		public override Activity Tick(Actor self)
 		{
-			if (countdown > 0)
+			switch (stance)
 			{
-				countdown--;
-				return this;
-			}
+				case AttackState.Uninitialized:
+					stance = AttackState.Burrowed;
+					countdown = swallow.Info.AttackDelay;
+					burrowLocation = self.Location;
+					if (conditionManager != null && attackingToken == ConditionManager.InvalidConditionToken &&
+							!string.IsNullOrEmpty(swallow.Info.AttackingCondition))
+						attackingToken = conditionManager.GrantCondition(self, swallow.Info.AttackingCondition);
+					break;
+				case AttackState.Burrowed:
+					if (--countdown > 0)
+						return this;
 
-			// Wait for the worm to get back underground
-			if (stance == AttackState.ReturningUnderground)
-			{
-				sandworm.IsAttacking = false;
+					var targetLocation = target.Actor.Location;
 
-				// There is a chance that the worm would just go away after attacking
-				if (self.World.SharedRandom.Next() % 100 <= sandworm.Info.ChanceToDisappear)
-				{
-					self.CancelActivity();
-					self.World.AddFrameEndTask(w => self.Kill(self));
-				}
-				else
-					renderUnit.DefaultAnimation.ReplaceAnim("idle");
+					// The target has moved too far away
+					if ((burrowLocation - targetLocation).Length > NearEnough)
+					{
+						RevokeCondition(self);
+						return NextActivity;
+					}
 
-				return NextActivity;
-			}
+					// The target reached solid ground
+					if (!positionable.CanEnterCell(targetLocation, null, false))
+					{
+						RevokeCondition(self);
+						return NextActivity;
+					}
 
-			// Wait for the worm to get in position
-			if (stance == AttackState.Burrowed)
-			{
-				// This is so that the worm cancels an attack against a target that has reached solid rock
-				if (!positionable.CanEnterCell(target.Actor.Location, null, false))
+					var targets = self.World.ActorMap.GetActorsAt(targetLocation)
+						.Where(t => !t.Equals(self) && weapon.IsValidAgainst(t, self));
+
+					if (!targets.Any())
+					{
+						RevokeCondition(self);
+						return NextActivity;
+					}
+
+					stance = AttackState.Attacking;
+					countdown = swallow.Info.ReturnDelay;
+					sandworm.IsAttacking = true;
+					AttackTargets(self, targets);
+
+					break;
+				case AttackState.Attacking:
+					if (--countdown > 0)
+						return this;
+
+					sandworm.IsAttacking = false;
+
+					// There is a chance that the worm would just go away after attacking
+					if (self.World.SharedRandom.Next(100) <= sandworm.WormInfo.ChanceToDisappear)
+					{
+						self.CancelActivity();
+						self.World.AddFrameEndTask(w => self.Dispose());
+					}
+
+					RevokeCondition(self);
 					return NextActivity;
-
-				if (!WormAttack(self))
-				{
-					renderUnit.DefaultAnimation.ReplaceAnim("idle");
-					return NextActivity;
-				}
-
-				countdown = swallow.Info.ReturnTime;
-				stance = AttackState.ReturningUnderground;
 			}
 
 			return this;
+		}
+
+		void RevokeCondition(Actor self)
+		{
+			if (attackingToken != ConditionManager.InvalidConditionToken)
+				attackingToken = conditionManager.RevokeCondition(self, attackingToken);
 		}
 	}
 }

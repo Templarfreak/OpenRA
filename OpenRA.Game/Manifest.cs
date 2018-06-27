@@ -1,23 +1,23 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
+using OpenRA.FileSystem;
 using OpenRA.Primitives;
 
 namespace OpenRA
 {
-	public enum TileShape { Rectangle, Diamond }
 	public interface IGlobalModData { }
 
 	public sealed class SpriteSequenceFormat : IGlobalModData
@@ -31,125 +31,114 @@ namespace OpenRA
 		}
 	}
 
-	// Describes what is to be loaded in order to run a mod
+	public sealed class ModelSequenceFormat : IGlobalModData
+	{
+		public readonly string Type;
+		public readonly IReadOnlyDictionary<string, MiniYaml> Metadata;
+		public ModelSequenceFormat(MiniYaml yaml)
+		{
+			Type = yaml.Value;
+			Metadata = new ReadOnlyDictionary<string, MiniYaml>(yaml.ToDictionary());
+		}
+	}
+
+	public class ModMetadata
+	{
+		public string Title;
+		public string Version;
+		public string Website;
+		public string WebIcon32;
+		public bool Hidden;
+	}
+
+	/// <summary> Describes what is to be loaded in order to run a mod. </summary>
 	public class Manifest
 	{
-		public readonly ModMetadata Mod;
+		public readonly string Id;
+		public readonly IReadOnlyPackage Package;
+		public readonly ModMetadata Metadata;
 		public readonly string[]
-			Folders, Rules, ServerTraits,
-			Sequences, VoxelSequences, Cursors, Chrome, Assemblies, ChromeLayout,
+			Rules, ServerTraits,
+			Sequences, ModelSequences, Cursors, Chrome, Assemblies, ChromeLayout,
 			Weapons, Voices, Notifications, Music, Translations, TileSets,
-			ChromeMetrics, MapCompatibility, Missions;
+			ChromeMetrics, MapCompatibility, Missions, Hotkeys;
 
 		public readonly IReadOnlyDictionary<string, string> Packages;
 		public readonly IReadOnlyDictionary<string, string> MapFolders;
 		public readonly MiniYaml LoadScreen;
-		public readonly MiniYaml LobbyDefaults;
-
 		public readonly Dictionary<string, Pair<string, int>> Fonts;
-		public readonly Size TileSize = new Size(24, 24);
-		public readonly TileShape TileShape = TileShape.Rectangle;
 
+		public readonly string[] SoundFormats = { };
 		public readonly string[] SpriteFormats = { };
-
-		[Desc("(x,y,z) offset of the full cell and each sub-cell", "X & Y should be between -512 ... 512 and Z >= 0")]
-		public readonly WVec[] SubCellOffsets =
-		{
-			new WVec(0, 0, 0),       // full cell - index 0
-			new WVec(-299, -256, 0), // top left - index 1
-			new WVec(256, -256, 0),  // top right - index 2
-			new WVec(0, 0, 0),       // center - index 3
-			new WVec(-299, 256, 0),  // bottom left - index 4
-			new WVec(256, 256, 0),   // bottom right - index 5
-		};
-
-		[Desc("Default subcell index used if SubCellInit is absent", "0 - full cell, 1 - first sub-cell")]
-		public readonly int SubCellDefaultIndex = 3;
+		public readonly string[] PackageFormats = { };
 
 		readonly string[] reservedModuleNames = { "Metadata", "Folders", "MapFolders", "Packages", "Rules",
-			"Sequences", "VoxelSequences", "Cursors", "Chrome", "Assemblies", "ChromeLayout", "Weapons",
-			"Voices", "Notifications", "Music", "Translations", "TileSets", "ChromeMetrics", "Missions",
-			"ServerTraits", "LoadScreen", "LobbyDefaults", "Fonts", "TileSize",
-			"TileShape", "SubCells", "SupportsMapsFrom", "SpriteFormats" };
+			"Sequences", "ModelSequences", "Cursors", "Chrome", "Assemblies", "ChromeLayout", "Weapons",
+			"Voices", "Notifications", "Music", "Translations", "TileSets", "ChromeMetrics", "Missions", "Hotkeys",
+			"ServerTraits", "LoadScreen", "Fonts", "SupportsMapsFrom", "SoundFormats", "SpriteFormats",
+			"RequiresMods", "PackageFormats" };
 
 		readonly TypeDictionary modules = new TypeDictionary();
 		readonly Dictionary<string, MiniYaml> yaml;
 
-		public Manifest(string mod)
-		{
-			var path = Platform.ResolvePath(".", "mods", mod, "mod.yaml");
-			yaml = new MiniYaml(null, MiniYaml.FromFile(path)).ToDictionary();
+		bool customDataLoaded;
 
-			Mod = FieldLoader.Load<ModMetadata>(yaml["Metadata"]);
-			Mod.Id = mod;
+		public Manifest(string modId, IReadOnlyPackage package)
+		{
+			Id = modId;
+			Package = package;
+			yaml = new MiniYaml(null, MiniYaml.FromStream(package.GetStream("mod.yaml"), "mod.yaml")).ToDictionary();
+
+			Metadata = FieldLoader.Load<ModMetadata>(yaml["Metadata"]);
 
 			// TODO: Use fieldloader
-			Folders = YamlList(yaml, "Folders", true);
-			MapFolders = YamlDictionary(yaml, "MapFolders", true);
-			Packages = YamlDictionary(yaml, "Packages", true);
-			Rules = YamlList(yaml, "Rules", true);
-			Sequences = YamlList(yaml, "Sequences", true);
-			VoxelSequences = YamlList(yaml, "VoxelSequences", true);
-			Cursors = YamlList(yaml, "Cursors", true);
-			Chrome = YamlList(yaml, "Chrome", true);
-			Assemblies = YamlList(yaml, "Assemblies", true);
-			ChromeLayout = YamlList(yaml, "ChromeLayout", true);
-			Weapons = YamlList(yaml, "Weapons", true);
-			Voices = YamlList(yaml, "Voices", true);
-			Notifications = YamlList(yaml, "Notifications", true);
-			Music = YamlList(yaml, "Music", true);
-			Translations = YamlList(yaml, "Translations", true);
-			TileSets = YamlList(yaml, "TileSets", true);
-			ChromeMetrics = YamlList(yaml, "ChromeMetrics", true);
-			Missions = YamlList(yaml, "Missions", true);
+			MapFolders = YamlDictionary(yaml, "MapFolders");
+
+			MiniYaml packages;
+			if (yaml.TryGetValue("Packages", out packages))
+				Packages = packages.ToDictionary(x => x.Value).AsReadOnly();
+
+			Rules = YamlList(yaml, "Rules");
+			Sequences = YamlList(yaml, "Sequences");
+			ModelSequences = YamlList(yaml, "ModelSequences");
+			Cursors = YamlList(yaml, "Cursors");
+			Chrome = YamlList(yaml, "Chrome");
+			Assemblies = YamlList(yaml, "Assemblies");
+			ChromeLayout = YamlList(yaml, "ChromeLayout");
+			Weapons = YamlList(yaml, "Weapons");
+			Voices = YamlList(yaml, "Voices");
+			Notifications = YamlList(yaml, "Notifications");
+			Music = YamlList(yaml, "Music");
+			Translations = YamlList(yaml, "Translations");
+			TileSets = YamlList(yaml, "TileSets");
+			ChromeMetrics = YamlList(yaml, "ChromeMetrics");
+			Missions = YamlList(yaml, "Missions");
+			Hotkeys = YamlList(yaml, "Hotkeys");
 
 			ServerTraits = YamlList(yaml, "ServerTraits");
 
 			if (!yaml.TryGetValue("LoadScreen", out LoadScreen))
 				throw new InvalidDataException("`LoadScreen` section is not defined.");
 
-			if (!yaml.TryGetValue("LobbyDefaults", out LobbyDefaults))
-				throw new InvalidDataException("`LobbyDefaults` section is not defined.");
-
 			Fonts = yaml["Fonts"].ToDictionary(my =>
-				{
-					var nd = my.ToDictionary();
-					return Pair.New(nd["Font"].Value, Exts.ParseIntegerInvariant(nd["Size"].Value));
-				});
-
-			if (yaml.ContainsKey("TileSize"))
-				TileSize = FieldLoader.GetValue<Size>("TileSize", yaml["TileSize"].Value);
-
-			if (yaml.ContainsKey("TileShape"))
-				TileShape = FieldLoader.GetValue<TileShape>("TileShape", yaml["TileShape"].Value);
-
-			if (yaml.ContainsKey("SubCells"))
 			{
-				var subcells = yaml["SubCells"].ToDictionary();
-
-				// Read (x,y,z) offset (relative to cell center) pairs for positioning subcells
-				if (subcells.ContainsKey("Offsets"))
-					SubCellOffsets = FieldLoader.GetValue<WVec[]>("Offsets", subcells["Offsets"].Value);
-
-				if (subcells.ContainsKey("DefaultIndex"))
-					SubCellDefaultIndex = FieldLoader.GetValue<int>("DefaultIndex", subcells["DefaultIndex"].Value);
-				else	// Otherwise set the default subcell index to the middle subcell entry
-					SubCellDefaultIndex = SubCellOffsets.Length / 2;
-			}
-
-			// Validate default index - 0 for no subcells, otherwise > 1 & <= subcell count (offset triples count - 1)
-			if (SubCellDefaultIndex < (SubCellOffsets.Length > 1 ? 1 : 0) || SubCellDefaultIndex >= SubCellOffsets.Length)
-				throw new InvalidDataException("Subcell default index must be a valid index into the offset triples and must be greater than 0 for mods with subcells");
+				var nd = my.ToDictionary();
+				return Pair.New(nd["Font"].Value, Exts.ParseIntegerInvariant(nd["Size"].Value));
+			});
 
 			// Allow inherited mods to import parent maps.
-			var compat = new List<string>();
-			compat.Add(mod);
+			var compat = new List<string> { Id };
 
 			if (yaml.ContainsKey("SupportsMapsFrom"))
-				foreach (var c in yaml["SupportsMapsFrom"].Value.Split(','))
-					compat.Add(c.Trim());
+				compat.AddRange(yaml["SupportsMapsFrom"].Value.Split(',').Select(c => c.Trim()));
 
 			MapCompatibility = compat.ToArray();
+
+			if (yaml.ContainsKey("PackageFormats"))
+				PackageFormats = FieldLoader.GetValue<string[]>("PackageFormats", yaml["PackageFormats"].Value);
+
+			if (yaml.ContainsKey("SoundFormats"))
+				SoundFormats = FieldLoader.GetValue<string[]>("SoundFormats", yaml["SoundFormats"].Value);
 
 			if (yaml.ContainsKey("SpriteFormats"))
 				SpriteFormats = FieldLoader.GetValue<string[]>("SpriteFormats", yaml["SpriteFormats"].Value);
@@ -182,6 +171,8 @@ namespace OpenRA
 
 				modules.Add(module);
 			}
+
+			customDataLoaded = true;
 		}
 
 		static string[] YamlList(Dictionary<string, MiniYaml> yaml, string key, bool parsePaths = false)
@@ -189,23 +180,29 @@ namespace OpenRA
 			if (!yaml.ContainsKey(key))
 				return new string[] { };
 
-			var list = yaml[key].ToDictionary().Keys.ToArray();
-			return parsePaths ? list.Select(Platform.ResolvePath).ToArray() : list;
+			return yaml[key].ToDictionary().Keys.ToArray();
 		}
 
-		static IReadOnlyDictionary<string, string> YamlDictionary(Dictionary<string, MiniYaml> yaml, string key, bool parsePaths = false)
+		static IReadOnlyDictionary<string, string> YamlDictionary(Dictionary<string, MiniYaml> yaml, string key)
 		{
 			if (!yaml.ContainsKey(key))
 				return new ReadOnlyDictionary<string, string>();
 
-			Func<string, string> keySelector = parsePaths ? (Func<string, string>)Platform.ResolvePath : k => k;
-			var inner = yaml[key].ToDictionary(keySelector, my => my.Value);
-
+			var inner = yaml[key].ToDictionary(my => my.Value);
 			return new ReadOnlyDictionary<string, string>(inner);
 		}
 
+		public bool Contains<T>() where T : IGlobalModData
+		{
+			return modules.Contains<T>();
+		}
+
+		/// <summary>Load a cached IGlobalModData instance.</summary>
 		public T Get<T>() where T : IGlobalModData
 		{
+			if (!customDataLoaded)
+				throw new InvalidOperationException("Attempted to call Manifest.Get() before loading custom data!");
+
 			var module = modules.GetOrDefault<T>();
 
 			// Lazily create the default values if not explicitly defined.
@@ -216,6 +213,37 @@ namespace OpenRA
 			}
 
 			return module;
+		}
+
+		/// <summary>
+		/// Load an uncached IGlobalModData instance directly from the manifest yaml.
+		/// This should only be used by external mods that want to query data from this mod.
+		/// </summary>
+		public T Get<T>(ObjectCreator oc) where T : IGlobalModData
+		{
+			MiniYaml data;
+			var t = typeof(T);
+			if (!yaml.TryGetValue(t.Name, out data))
+			{
+				// Lazily create the default values if not explicitly defined.
+				return (T)oc.CreateBasic(t);
+			}
+
+			IGlobalModData module;
+			var ctor = t.GetConstructor(new[] { typeof(MiniYaml) });
+			if (ctor != null)
+			{
+				// Class has opted-in to DIY initialization
+				module = (IGlobalModData)ctor.Invoke(new object[] { data.Value });
+			}
+			else
+			{
+				// Automatically load the child nodes using FieldLoader
+				module = oc.CreateObject<IGlobalModData>(t.Name);
+				FieldLoader.Load(module, data);
+			}
+
+			return (T)module;
 		}
 	}
 }

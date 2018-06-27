@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -17,19 +18,37 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Spawns remains of a husk actor with the correct facing.")]
-	public class HuskInfo : IOccupySpaceInfo, IFacingInfo
+	public class HuskInfo : ITraitInfo, IOccupySpaceInfo, IFacingInfo, IActorPreviewInitInfo
 	{
-		public readonly string[] AllowedTerrain = { };
+		public readonly HashSet<string> AllowedTerrain = new HashSet<string>();
+
+		[Desc("Facing to use for actor previews (map editor, color picker, etc)")]
+		public readonly int PreviewFacing = 92;
+
+		IEnumerable<object> IActorPreviewInitInfo.ActorPreviewInits(ActorInfo ai, ActorPreviewType type)
+		{
+			yield return new FacingInit(PreviewFacing);
+		}
 
 		public object Create(ActorInitializer init) { return new Husk(init, this); }
 
 		public int GetInitialFacing() { return 128; }
+
+		public IReadOnlyDictionary<CPos, SubCell> OccupiedCells(ActorInfo info, CPos location, SubCell subCell = SubCell.Any)
+		{
+			var occupied = new Dictionary<CPos, SubCell>() { { location, SubCell.FullCell } };
+			return new ReadOnlyDictionary<CPos, SubCell>(occupied);
+		}
+
+		bool IOccupySpaceInfo.SharesCell { get { return false; } }
 	}
 
-	public class Husk : IPositionable, IFacing, ISync, INotifyCreated, INotifyAddedToWorld, INotifyRemovedFromWorld, IDisable
+	public class Husk : IPositionable, IFacing, ISync, INotifyCreated, INotifyAddedToWorld, INotifyRemovedFromWorld,
+		IDeathActorInitModifier, IEffectiveOwner
 	{
-		readonly HuskInfo info;
 		readonly Actor self;
+		readonly HuskInfo info;
+		readonly Player effectiveOwner;
 
 		readonly int dragSpeed;
 		readonly WPos finalPosition;
@@ -38,12 +57,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Sync] public WPos CenterPosition { get; private set; }
 		[Sync] public int Facing { get; set; }
 
-		public int ROT { get { return 0; } }
+		public int TurnSpeed { get { return 0; } }
 
 		public Husk(ActorInitializer init, HuskInfo info)
 		{
 			this.info = info;
-			this.self = init.Self;
+			self = init.Self;
 
 			TopLeft = init.Get<LocationInit, CPos>();
 			CenterPosition = init.Contains<CenterPositionInit>() ? init.Get<CenterPositionInit, WPos>() : init.World.Map.CenterOfCell(TopLeft);
@@ -51,30 +70,40 @@ namespace OpenRA.Mods.Common.Traits
 
 			dragSpeed = init.Contains<HuskSpeedInit>() ? init.Get<HuskSpeedInit, int>() : 0;
 			finalPosition = init.World.Map.CenterOfCell(TopLeft);
+
+			effectiveOwner = init.Contains<EffectiveOwnerInit>() ? init.Get<EffectiveOwnerInit, Player>() : self.Owner;
 		}
 
-		public void Created(Actor self)
+		void INotifyCreated.Created(Actor self)
 		{
 			var distance = (finalPosition - CenterPosition).Length;
 			if (dragSpeed > 0 && distance > 0)
 				self.QueueActivity(new Drag(self, CenterPosition, finalPosition, distance / dragSpeed));
 		}
 
-		public IEnumerable<Pair<CPos, SubCell>> OccupiedCells() { return new[] { Pair.New(TopLeft, SubCell.FullCell) }; }
+		public bool CanExistInCell(CPos cell)
+		{
+			if (!self.World.Map.Contains(cell))
+				return false;
+
+			if (!info.AllowedTerrain.Contains(self.World.Map.GetTerrainInfo(cell).Type))
+				return false;
+
+			return true;
+		}
+
+		public Pair<CPos, SubCell>[] OccupiedCells() { return new[] { Pair.New(TopLeft, SubCell.FullCell) }; }
 		public bool IsLeavingCell(CPos location, SubCell subCell = SubCell.Any) { return false; }
 		public SubCell GetValidSubCell(SubCell preferred = SubCell.Any) { return SubCell.FullCell; }
 		public SubCell GetAvailableSubCell(CPos cell, SubCell preferredSubCell = SubCell.Any, Actor ignoreActor = null, bool checkTransientActors = true)
 		{
-			if (!self.World.Map.Contains(cell))
-				return SubCell.Invalid;
-
-			if (!info.AllowedTerrain.Contains(self.World.Map.GetTerrainInfo(cell).Type))
+			if (!CanExistInCell(cell))
 				return SubCell.Invalid;
 
 			if (!checkTransientActors)
 				return SubCell.FullCell;
 
-			return self.World.ActorMap.GetUnitsAt(cell)
+			return self.World.ActorMap.GetActorsAt(cell)
 				.All(x => x == ignoreActor) ? SubCell.FullCell : SubCell.Invalid;
 		}
 
@@ -88,7 +117,7 @@ namespace OpenRA.Mods.Common.Traits
 		public void SetVisualPosition(Actor self, WPos pos)
 		{
 			CenterPosition = pos;
-			self.World.ScreenMap.Update(self);
+			self.World.ScreenMap.AddOrUpdate(self);
 		}
 
 		public void SetPosition(Actor self, WPos pos)
@@ -97,28 +126,28 @@ namespace OpenRA.Mods.Common.Traits
 			CenterPosition = pos;
 			TopLeft = self.World.Map.CellContaining(pos);
 			self.World.ActorMap.AddInfluence(self, this);
-			self.World.ActorMap.UpdatePosition(self, this);
-			self.World.ScreenMap.Update(self);
+
+			self.World.UpdateMaps(self, this);
 		}
 
-		public void AddedToWorld(Actor self)
+		void INotifyAddedToWorld.AddedToWorld(Actor self)
 		{
-			self.World.ActorMap.AddInfluence(self, this);
-			self.World.ActorMap.AddPosition(self, this);
-			self.World.ScreenMap.Add(self);
+			self.World.AddToMaps(self, this);
 		}
 
-		public void RemovedFromWorld(Actor self)
+		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
 		{
-			self.World.ActorMap.RemoveInfluence(self, this);
-			self.World.ActorMap.RemovePosition(self, this);
-			self.World.ScreenMap.Remove(self);
+			self.World.RemoveFromMaps(self, this);
 		}
 
-		public bool Disabled
+		void IDeathActorInitModifier.ModifyDeathActorInit(Actor self, TypeDictionary init)
 		{
-			get { return true; }
+			init.Add(new FacingInit(Facing));
 		}
+
+		// We return self.Owner if there's no effective owner
+		bool IEffectiveOwner.Disguised { get { return true; } }
+		Player IEffectiveOwner.Owner { get { return effectiveOwner; } }
 	}
 
 	public class HuskSpeedInit : IActorInit<int>

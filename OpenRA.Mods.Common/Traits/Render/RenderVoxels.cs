@@ -1,42 +1,45 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Traits;
 
-namespace OpenRA.Mods.Common.Traits
+namespace OpenRA.Mods.Common.Traits.Render
 {
-	public interface IRenderActorPreviewVoxelsInfo
+	public interface IRenderActorPreviewVoxelsInfo : ITraitInfo
 	{
-		IEnumerable<VoxelAnimation> RenderPreviewVoxels(
-			ActorPreviewInitializer init, RenderVoxelsInfo rv, string image, WRot orientation, int facings, PaletteReference p);
+		IEnumerable<ModelAnimation> RenderPreviewVoxels(
+			ActorPreviewInitializer init, RenderVoxelsInfo rv, string image, Func<WRot> orientation, int facings, PaletteReference p);
 	}
 
-	public class RenderVoxelsInfo : ITraitInfo, IRenderActorPreviewInfo, Requires<IBodyOrientationInfo>
+	public class RenderVoxelsInfo : ITraitInfo, IRenderActorPreviewInfo, Requires<BodyOrientationInfo>
 	{
 		[Desc("Defaults to the actor name.")]
 		public readonly string Image = null;
 
 		[Desc("Custom palette name")]
-		public readonly string Palette = null;
+		[PaletteReference] public readonly string Palette = null;
 
 		[Desc("Custom PlayerColorPalette: BaseName")]
-		public readonly string PlayerPalette = "player";
-		public readonly string NormalsPalette = "normals";
-		public readonly string ShadowPalette = "shadow";
+		[PaletteReference] public readonly string PlayerPalette = "player";
+		[PaletteReference] public readonly string NormalsPalette = "normals";
+		[PaletteReference] public readonly string ShadowPalette = "shadow";
 
 		[Desc("Change the image size.")]
-		public readonly float Scale = 10;
+		public readonly float Scale = 12;
 
 		public readonly WAngle LightPitch = WAngle.FromDegrees(50);
 		public readonly WAngle LightYaw = WAngle.FromDegrees(240);
@@ -47,43 +50,68 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual IEnumerable<IActorPreview> RenderPreview(ActorPreviewInitializer init)
 		{
-			var body = init.Actor.Traits.Get<BodyOrientationInfo>();
-			var race = init.Get<RaceInit, string>();
+			var body = init.Actor.TraitInfo<BodyOrientationInfo>();
+			var faction = init.Get<FactionInit, string>();
 			var ownerName = init.Get<OwnerInit>().PlayerName;
-			var sequenceProvider = init.World.Map.SequenceProvider;
+			var sequenceProvider = init.World.Map.Rules.Sequences;
 			var image = Image ?? init.Actor.Name;
 			var facings = body.QuantizedFacings == -1 ?
-				init.Actor.Traits.Get<IQuantizeBodyOrientationInfo>().QuantizedBodyFacings(init.Actor, sequenceProvider, race) :
+				init.Actor.TraitInfo<IQuantizeBodyOrientationInfo>().QuantizedBodyFacings(init.Actor, sequenceProvider, faction) :
 				body.QuantizedFacings;
 			var palette = init.WorldRenderer.Palette(Palette ?? PlayerPalette + ownerName);
 
-			var ifacing = init.Actor.Traits.GetOrDefault<IFacingInfo>();
-			var facing = ifacing != null ? init.Contains<FacingInit>() ? init.Get<FacingInit, int>() : ifacing.GetInitialFacing() : 0;
-			var orientation = WRot.FromFacing(facing);
-			var components = init.Actor.Traits.WithInterface<IRenderActorPreviewVoxelsInfo>()
-				.SelectMany(rvpi => rvpi.RenderPreviewVoxels(init, this, image, orientation, facings, palette))
+			var components = init.Actor.TraitInfos<IRenderActorPreviewVoxelsInfo>()
+				.SelectMany(rvpi => rvpi.RenderPreviewVoxels(init, this, image, init.GetOrientation(), facings, palette))
 				.ToArray();
 
-			yield return new VoxelPreview(components, WVec.Zero, 0, Scale, LightPitch,
+			yield return new ModelPreview(components, WVec.Zero, 0, Scale, LightPitch,
 				LightYaw, LightAmbientColor, LightDiffuseColor, body.CameraPitch,
 				palette, init.WorldRenderer.Palette(NormalsPalette), init.WorldRenderer.Palette(ShadowPalette));
 		}
 	}
 
-	public class RenderVoxels : IRender, INotifyOwnerChanged
+	public class RenderVoxels : IRender, ITick, INotifyOwnerChanged
 	{
-		readonly List<VoxelAnimation> components = new List<VoxelAnimation>();
-		Actor self;
-		RenderVoxelsInfo info;
-		IBodyOrientation body;
-		WRot camera;
-		WRot lightSource;
+		class AnimationWrapper
+		{
+			readonly ModelAnimation model;
+			bool cachedVisible;
+			WVec cachedOffset;
+
+			public AnimationWrapper(ModelAnimation model)
+			{
+				this.model = model;
+			}
+
+			public bool Tick()
+			{
+				// Return to the caller whether the renderable position or size has changed
+				var visible = model.IsVisible;
+				var offset = model.OffsetFunc != null ? model.OffsetFunc() : WVec.Zero;
+
+				var updated = visible != cachedVisible || offset != cachedOffset;
+				cachedVisible = visible;
+				cachedOffset = offset;
+
+				return updated;
+			}
+		}
+
+		public readonly RenderVoxelsInfo Info;
+
+		readonly List<ModelAnimation> components = new List<ModelAnimation>();
+		readonly Dictionary<ModelAnimation, AnimationWrapper> wrappers = new Dictionary<ModelAnimation, AnimationWrapper>();
+
+		readonly Actor self;
+		readonly BodyOrientation body;
+		readonly WRot camera;
+		readonly WRot lightSource;
 
 		public RenderVoxels(Actor self, RenderVoxelsInfo info)
 		{
 			this.self = self;
-			this.info = info;
-			body = self.Trait<IBodyOrientation>();
+			Info = info;
+			body = self.Trait<BodyOrientation>();
 			camera = new WRot(WAngle.Zero, body.CameraPitch - new WAngle(256), new WAngle(256));
 			lightSource = new WRot(WAngle.Zero, new WAngle(256) - info.LightPitch, info.LightYaw);
 		}
@@ -91,26 +119,53 @@ namespace OpenRA.Mods.Common.Traits
 		bool initializePalettes = true;
 		public void OnOwnerChanged(Actor self, Player oldOwner, Player newOwner) { initializePalettes = true; }
 
+		void ITick.Tick(Actor self)
+		{
+			var updated = false;
+			foreach (var w in wrappers.Values)
+				updated |= w.Tick();
+
+			if (updated)
+				self.World.ScreenMap.AddOrUpdate(self);
+		}
+
 		protected PaletteReference colorPalette, normalsPalette, shadowPalette;
-		public IEnumerable<IRenderable> Render(Actor self, WorldRenderer wr)
+		IEnumerable<IRenderable> IRender.Render(Actor self, WorldRenderer wr)
 		{
 			if (initializePalettes)
 			{
-				var paletteName = info.Palette ?? info.PlayerPalette + self.Owner.InternalName;
+				var paletteName = Info.Palette ?? Info.PlayerPalette + self.Owner.InternalName;
 				colorPalette = wr.Palette(paletteName);
-				normalsPalette = wr.Palette(info.NormalsPalette);
-				shadowPalette = wr.Palette(info.ShadowPalette);
+				normalsPalette = wr.Palette(Info.NormalsPalette);
+				shadowPalette = wr.Palette(Info.ShadowPalette);
 				initializePalettes = false;
 			}
 
-			yield return new VoxelRenderable(
-				components, self.CenterPosition, 0, camera, info.Scale,
-				lightSource, info.LightAmbientColor, info.LightDiffuseColor,
-				colorPalette, normalsPalette, shadowPalette);
+			return new IRenderable[] { new ModelRenderable(
+				components, self.CenterPosition, 0, camera, Info.Scale,
+				lightSource, Info.LightAmbientColor, Info.LightDiffuseColor,
+				colorPalette, normalsPalette, shadowPalette) };
 		}
 
-		public string Image { get { return info.Image ?? self.Info.Name; } }
-		public void Add(VoxelAnimation v) { components.Add(v); }
-		public void Remove(VoxelAnimation v) { components.Remove(v); }
+		IEnumerable<Rectangle> IRender.ScreenBounds(Actor self, WorldRenderer wr)
+		{
+			var pos = self.CenterPosition;
+			foreach (var c in components)
+				if (c.IsVisible)
+					yield return c.ScreenBounds(pos, wr, Info.Scale);
+		}
+
+		public string Image { get { return Info.Image ?? self.Info.Name; } }
+		public void Add(ModelAnimation m)
+		{
+			components.Add(m);
+			wrappers.Add(m, new AnimationWrapper(m));
+		}
+
+		public void Remove(ModelAnimation m)
+		{
+			components.Remove(m);
+			wrappers.Remove(m);
+		}
 	}
 }

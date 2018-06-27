@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -35,6 +36,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			var queues = allQueues.Where(q => q.Info.Group == Group).ToList();
 			var tabs = new List<ProductionTab>();
+			var largestUsedName = 0;
 
 			// Remove stale queues
 			foreach (var t in Tabs)
@@ -44,7 +46,10 @@ namespace OpenRA.Mods.Common.Widgets
 
 				tabs.Add(t);
 				queues.Remove(t.Queue);
+				largestUsedName = Math.Max(int.Parse(t.Name), largestUsedName);
 			}
+
+			NextQueueName = largestUsedName + 1;
 
 			// Add new queues
 			foreach (var queue in queues)
@@ -67,7 +72,11 @@ namespace OpenRA.Mods.Common.Widgets
 
 		public readonly int TabWidth = 30;
 		public readonly int ArrowWidth = 20;
-		public Dictionary<string, ProductionTabGroup> Groups;
+
+		public readonly HotkeyReference PreviousProductionTabKey = new HotkeyReference();
+		public readonly HotkeyReference NextProductionTabKey = new HotkeyReference();
+
+		public readonly Dictionary<string, ProductionTabGroup> Groups;
 
 		int contentWidth = 0;
 		float listOffset = 0;
@@ -83,7 +92,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			this.world = world;
 
-			Groups = world.Map.Rules.Actors.Values.SelectMany(a => a.Traits.WithInterface<ProductionQueueInfo>())
+			Groups = world.Map.Rules.Actors.Values.SelectMany(a => a.TraitInfos<ProductionQueueInfo>())
 				.Select(q => q.Group).Distinct().ToDictionary(g => g, g => new ProductionTabGroup() { Group = g });
 
 			// Only visible if the production palette has icons to display
@@ -198,7 +207,7 @@ namespace OpenRA.Mods.Common.Widgets
 		// Is added to world.ActorAdded by the SidebarLogic handler
 		public void ActorChanged(Actor a)
 		{
-			if (a.HasTrait<ProductionQueue>())
+			if (a.Info.HasTraitInfo<ProductionQueueInfo>())
 			{
 				var allQueues = a.World.ActorsWithTrait<ProductionQueue>()
 					.Where(p => p.Actor.Owner == p.Actor.World.LocalPlayer && p.Actor.IsInWorld && p.Trait.Enabled)
@@ -261,9 +270,9 @@ namespace OpenRA.Mods.Common.Widgets
 			if (leftPressed || rightPressed)
 			{
 				if ((leftPressed && !leftDisabled) || (rightPressed && !rightDisabled))
-					Sound.PlayNotification(world.Map.Rules, null, "Sounds", "ClickSound", null);
+					Game.Sound.PlayNotification(world.Map.Rules, null, "Sounds", "ClickSound", null);
 				else
-					Sound.PlayNotification(world.Map.Rules, null, "Sounds", "ClickDisabledSound", null);
+					Game.Sound.PlayNotification(world.Map.Rules, null, "Sounds", "ClickDisabledSound", null);
 			}
 
 			// Check production tabs
@@ -271,7 +280,7 @@ namespace OpenRA.Mods.Common.Widgets
 			if (offsetloc.X > 0 && offsetloc.X < contentWidth)
 			{
 				CurrentQueue = Groups[queueGroup].Tabs[offsetloc.X / (TabWidth - 1)].Queue;
-				Sound.PlayNotification(world.Map.Rules, null, "Sounds", "ClickSound", null);
+				Game.Sound.PlayNotification(world.Map.Rules, null, "Sounds", "ClickSound", null);
 			}
 
 			return true;
@@ -282,17 +291,16 @@ namespace OpenRA.Mods.Common.Widgets
 			if (e.Event != KeyInputEvent.Down)
 				return false;
 
-			var hotkey = Hotkey.FromKeyInput(e);
-
-			if (hotkey == Game.Settings.Keys.NextProductionTabKey)
+			if (PreviousProductionTabKey.IsActivatedBy(e))
 			{
-				Sound.PlayNotification(world.Map.Rules, null, "Sounds", "ClickSound", null);
-				return SelectNextTab(false);
-			}
-			else if (hotkey == Game.Settings.Keys.PreviousProductionTabKey)
-			{
-				Sound.PlayNotification(world.Map.Rules, null, "Sounds", "ClickSound", null);
+				Game.Sound.PlayNotification(world.Map.Rules, null, "Sounds", "ClickSound", null);
 				return SelectNextTab(true);
+			}
+
+			if (NextProductionTabKey.IsActivatedBy(e))
+			{
+				Game.Sound.PlayNotification(world.Map.Rules, null, "Sounds", "ClickSound", null);
+				return SelectNextTab(false);
 			}
 
 			return false;

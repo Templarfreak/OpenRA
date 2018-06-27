@@ -1,15 +1,17 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using Eluant;
 using OpenRA.Mods.Common.Activities;
+using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Scripting;
 using OpenRA.Traits;
@@ -71,6 +73,25 @@ namespace OpenRA.Mods.Common.Scripting
 		{
 			return Self.HasScriptProperty(name);
 		}
+
+		[Desc("Render a target flash on the actor. If set, 'asPlayer'",
+			"defines which player palette to use. Duration is in ticks.")]
+		public void Flash(int duration = 4, Player asPlayer = null)
+		{
+			Self.World.Add(new FlashTarget(Self, asPlayer, duration));
+		}
+
+		[Desc("The effective owner of the actor.")]
+		public Player EffectiveOwner
+		{
+			get
+			{
+				if (Self.EffectiveOwner == null || Self.EffectiveOwner.Owner == null)
+					return Self.Owner;
+
+				return Self.EffectiveOwner.Owner;
+			}
+		}
 	}
 
 	[ScriptPropertyGroup("General")]
@@ -78,12 +99,14 @@ namespace OpenRA.Mods.Common.Scripting
 	{
 		readonly IFacing facing;
 		readonly AutoTarget autotarget;
+		readonly ScriptTags scriptTags;
 
 		public GeneralProperties(ScriptContext context, Actor self)
 			: base(context, self)
 		{
 			facing = self.TraitOrDefault<IFacing>();
 			autotarget = self.TraitOrDefault<AutoTarget>();
+			scriptTags = self.TraitOrDefault<ScriptTags>();
 		}
 
 		[Desc("The actor position in cell coordinates.")]
@@ -158,8 +181,30 @@ namespace OpenRA.Mods.Common.Scripting
 				if (!Enum<UnitStance>.TryParse(value, true, out stance))
 					throw new LuaException("Unknown stance type '{0}'".F(value));
 
-				autotarget.Stance = stance;
+				autotarget.PredictedStance = stance;
+				autotarget.SetStance(Self, stance);
 			}
+		}
+
+		[Desc("Specifies whether or not the actor supports 'tags'.")]
+		public bool IsTaggable { get { return scriptTags != null; } }
+
+		[Desc("Add a tag to the actor. Returns true on success, false otherwise (for example the actor may already have the given tag).")]
+		public bool AddTag(string tag)
+		{
+			return IsTaggable && scriptTags.AddTag(tag);
+		}
+
+		[Desc("Remove a tag from the actor. Returns true on success, false otherwise (tag was not present).")]
+		public bool RemoveTag(string tag)
+		{
+			return IsTaggable && scriptTags.RemoveTag(tag);
+		}
+
+		[Desc("Specifies whether or not the actor has a particular tag.")]
+		public bool HasTag(string tag)
+		{
+			return IsTaggable && scriptTags.HasTag(tag);
 		}
 	}
 }

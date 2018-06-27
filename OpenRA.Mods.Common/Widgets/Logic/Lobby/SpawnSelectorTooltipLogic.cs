@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -14,12 +15,13 @@ using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	public class SpawnSelectorTooltipLogic
+	public class SpawnSelectorTooltipLogic : ChromeLogic
 	{
 		[ObjectCreator.UseCtor]
-		public SpawnSelectorTooltipLogic(Widget widget, TooltipContainerWidget tooltipContainer, MapPreviewWidget preview)
+		public SpawnSelectorTooltipLogic(Widget widget, TooltipContainerWidget tooltipContainer, MapPreviewWidget preview, bool showUnoccupiedSpawnpoints)
 		{
-			widget.IsVisible = () => preview.TooltipSpawnIndex != -1;
+			bool showTooltip = true;
+			widget.IsVisible = () => preview.TooltipSpawnIndex != -1 && showTooltip;
 			var label = widget.Get<LabelWidget>("LABEL");
 			var flag = widget.Get<ImageWidget>("FLAG");
 			var team = widget.Get<LabelWidget>("TEAM");
@@ -33,31 +35,38 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var cachedWidth = 0;
 			var labelText = "";
-			string playerCountry = null;
+			string playerFaction = null;
 			var playerTeam = -1;
 
 			tooltipContainer.BeforeRender = () =>
 			{
+				showTooltip = true;
 				var occupant = preview.SpawnOccupants().Values.FirstOrDefault(c => c.SpawnPoint == preview.TooltipSpawnIndex);
 
 				var teamWidth = 0;
 				if (occupant == null)
 				{
+					if (!showUnoccupiedSpawnpoints)
+					{
+						showTooltip = false;
+						return;
+					}
+
 					labelText = "Available spawn";
-					playerCountry = null;
+					playerFaction = null;
 					playerTeam = 0;
 					widget.Bounds.Height = singleHeight;
 				}
 				else
 				{
 					labelText = occupant.PlayerName;
-					playerCountry = occupant.Country;
+					playerFaction = occupant.Faction;
 					playerTeam = occupant.Team;
 					widget.Bounds.Height = playerTeam > 0 ? doubleHeight : singleHeight;
 					teamWidth = teamFont.Measure(team.GetText()).X;
 				}
 
-				label.Bounds.X = playerCountry != null ? flag.Bounds.Right + labelMargin : labelMargin;
+				label.Bounds.X = playerFaction != null ? flag.Bounds.Right + labelMargin : labelMargin;
 
 				var textWidth = ownerFont.Measure(labelText).X;
 				if (textWidth != cachedWidth)
@@ -71,9 +80,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			};
 
 			label.GetText = () => labelText;
-			flag.IsVisible = () => playerCountry != null;
+			flag.IsVisible = () => playerFaction != null;
 			flag.GetImageCollection = () => "flags";
-			flag.GetImageName = () => playerCountry;
+			flag.GetImageName = () => playerFaction;
 			team.GetText = () => "Team {0}".F(playerTeam);
 			team.IsVisible = () => playerTeam > 0;
 		}

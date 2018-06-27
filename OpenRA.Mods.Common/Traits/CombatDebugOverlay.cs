@@ -1,15 +1,17 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Drawing;
+using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Effects;
 using OpenRA.Traits;
@@ -22,85 +24,123 @@ namespace OpenRA.Mods.Common.Traits
 		public object Create(ActorInitializer init) { return new CombatDebugOverlay(init.Self); }
 	}
 
-	public class CombatDebugOverlay : IPostRender, INotifyDamage
+	public class CombatDebugOverlay : IRenderAboveWorld, INotifyDamage, INotifyCreated
 	{
-		readonly DeveloperMode devMode;
+		static readonly WVec TargetPosHLine = new WVec(0, 128, 0);
+		static readonly WVec TargetPosVLine = new WVec(128, 0, 0);
 
-		Lazy<AttackBase> attack;
-		Lazy<IBodyOrientation> coords;
-		Lazy<Health> health;
+		readonly DebugVisualizations debugVis;
+		readonly HealthInfo healthInfo;
+		readonly Lazy<BodyOrientation> coords;
+
+		HitShape[] shapes;
+		IBlocksProjectiles[] allBlockers;
 
 		public CombatDebugOverlay(Actor self)
 		{
-			attack = Exts.Lazy(() => self.TraitOrDefault<AttackBase>());
-			coords = Exts.Lazy(() => self.Trait<IBodyOrientation>());
-			health = Exts.Lazy(() => self.TraitOrDefault<Health>());
+			healthInfo = self.Info.TraitInfoOrDefault<HealthInfo>();
+			coords = Exts.Lazy(self.Trait<BodyOrientation>);
 
-			var localPlayer = self.World.LocalPlayer;
-			devMode = localPlayer != null ? localPlayer.PlayerActor.Trait<DeveloperMode>() : null;
+			debugVis = self.World.WorldActor.TraitOrDefault<DebugVisualizations>();
 		}
 
-		public void RenderAfterWorld(WorldRenderer wr, Actor self)
+		void INotifyCreated.Created(Actor self)
 		{
-			if (devMode == null || !devMode.ShowCombatGeometry)
+			shapes = self.TraitsImplementing<HitShape>().ToArray();
+			allBlockers = self.TraitsImplementing<IBlocksProjectiles>().ToArray();
+		}
+
+		void IRenderAboveWorld.RenderAboveWorld(Actor self, WorldRenderer wr)
+		{
+			if (debugVis == null || !debugVis.CombatGeometry)
 				return;
 
-			if (health.Value != null)
-				wr.DrawRangeCircle(self.CenterPosition, health.Value.Info.Radius, Color.Red);
+			var wcr = Game.Renderer.WorldRgbaColorRenderer;
+			var iz = 1 / wr.Viewport.Zoom;
 
-			// No armaments to draw
-			if (attack.Value == null)
-				return;
+			var blockers = allBlockers.Where(Exts.IsTraitEnabled).ToList();
+			if (blockers.Count > 0)
+			{
+				var hc = Color.Orange;
+				var height = new WVec(0, 0, blockers.Max(b => b.BlockingHeight.Length));
+				var ha = wr.Screen3DPosition(self.CenterPosition);
+				var hb = wr.Screen3DPosition(self.CenterPosition + height);
+				wcr.DrawLine(ha, hb, iz, hc);
+				TargetLineRenderable.DrawTargetMarker(wr, hc, ha);
+				TargetLineRenderable.DrawTargetMarker(wr, hc, hb);
+			}
 
-			var wlr = Game.Renderer.WorldLineRenderer;
+			var activeShapes = shapes.Where(Exts.IsTraitEnabled);
+			foreach (var s in activeShapes)
+				s.Info.Type.DrawCombatOverlay(wr, wcr, self);
+
+			var tc = Color.Lime;
+			var positions = Target.FromActor(self).Positions;
+			foreach (var p in positions)
+			{
+				var center = wr.Screen3DPosition(p);
+				TargetLineRenderable.DrawTargetMarker(wr, tc, center);
+				wcr.DrawLine(wr.Screen3DPosition(p - TargetPosHLine), wr.Screen3DPosition(p + TargetPosHLine), iz, tc);
+				wcr.DrawLine(wr.Screen3DPosition(p - TargetPosVLine), wr.Screen3DPosition(p + TargetPosVLine), iz, tc);
+			}
+
+			foreach (var attack in self.TraitsImplementing<AttackBase>().Where(x => !x.IsTraitDisabled))
+				DrawArmaments(self, attack, wr, wcr, iz);
+		}
+
+		void DrawArmaments(Actor self, AttackBase attack, WorldRenderer wr, RgbaColorRenderer wcr, float iz)
+		{
 			var c = Color.White;
 
 			// Fire ports on garrisonable structures
-			var garrison = attack.Value as AttackGarrisoned;
+			var garrison = attack as AttackGarrisoned;
 			if (garrison != null)
 			{
 				var bodyOrientation = coords.Value.QuantizeOrientation(self, self.Orientation);
-				foreach (var p in garrison.Ports)
+				foreach (var p in garrison.Info.Ports)
 				{
 					var pos = self.CenterPosition + coords.Value.LocalToWorld(p.Offset.Rotate(bodyOrientation));
 					var da = coords.Value.LocalToWorld(new WVec(224, 0, 0).Rotate(WRot.FromYaw(p.Yaw + p.Cone)).Rotate(bodyOrientation));
 					var db = coords.Value.LocalToWorld(new WVec(224, 0, 0).Rotate(WRot.FromYaw(p.Yaw - p.Cone)).Rotate(bodyOrientation));
 
-					var o = wr.ScreenPosition(pos);
-					var a = wr.ScreenPosition(pos + da * 224 / da.Length);
-					var b = wr.ScreenPosition(pos + db * 224 / db.Length);
-					wlr.DrawLine(o, a, c, c);
-					wlr.DrawLine(o, b, c, c);
+					var o = wr.Screen3DPosition(pos);
+					var a = wr.Screen3DPosition(pos + da * 224 / da.Length);
+					var b = wr.Screen3DPosition(pos + db * 224 / db.Length);
+					wcr.DrawLine(o, a, iz, c);
+					wcr.DrawLine(o, b, iz, c);
 				}
 
 				return;
 			}
 
-			foreach (var a in attack.Value.Armaments)
+			foreach (var a in attack.Armaments)
 			{
+				if (a.IsTraitDisabled)
+					continue;
+
 				foreach (var b in a.Barrels)
 				{
 					var muzzle = self.CenterPosition + a.MuzzleOffset(self, b);
 					var dirOffset = new WVec(0, -224, 0).Rotate(a.MuzzleOrientation(self, b));
 
-					var sm = wr.ScreenPosition(muzzle);
-					var sd = wr.ScreenPosition(muzzle + dirOffset);
-					wlr.DrawLine(sm, sd, c, c);
-					wr.DrawTargetMarker(c, sm);
+					var sm = wr.Screen3DPosition(muzzle);
+					var sd = wr.Screen3DPosition(muzzle + dirOffset);
+					wcr.DrawLine(sm, sd, iz, c);
+					TargetLineRenderable.DrawTargetMarker(wr, c, sm);
 				}
 			}
 		}
 
-		public void Damaged(Actor self, AttackInfo e)
+		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
-			if (devMode == null || !devMode.ShowCombatGeometry || e.Damage == 0)
+			if (debugVis == null || !debugVis.CombatGeometry || e.Damage.Value == 0)
 				return;
 
-			var health = self.TraitOrDefault<Health>();
-			if (health == null)
+			if (healthInfo == null)
 				return;
 
-			var damageText = "{0} ({1}%)".F(-e.Damage, e.Damage * 100 / health.MaxHP);
+			var maxHP = healthInfo.HP > 0 ? healthInfo.HP : 1;
+			var damageText = "{0} ({1}%)".F(-e.Damage.Value, e.Damage.Value * 100 / maxHP);
 
 			self.World.AddFrameEndTask(w => w.Add(new FloatingText(self.CenterPosition, e.Attacker.Owner.Color.RGB, damageText, 30)));
 		}

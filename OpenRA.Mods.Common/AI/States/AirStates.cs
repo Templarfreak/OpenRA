@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -12,13 +13,14 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.AI
 {
 	abstract class AirStateBase : StateBase
 	{
-		static readonly string[] AirTargetTypes = new[] { "Air" };
+		static readonly BitSet<TargetableType> AirTargetTypes = new BitSet<TargetableType>("Air");
 
 		protected const int MissileUnitMultiplier = 3;
 
@@ -30,11 +32,15 @@ namespace OpenRA.Mods.Common.AI
 			var missileUnitsCount = 0;
 			foreach (var unit in units)
 			{
-				if (unit != null && unit.HasTrait<AttackBase>() && !unit.HasTrait<Aircraft>()
-					&& !unit.IsDisabled())
+				if (unit == null || unit.Info.HasTraitInfo<AircraftInfo>())
+					continue;
+
+				foreach (var ab in unit.TraitsImplementing<AttackBase>())
 				{
-					var arms = unit.TraitsImplementing<Armament>();
-					foreach (var a in arms)
+					if (ab.IsTraitDisabled || ab.IsTraitPaused)
+						continue;
+
+					foreach (var a in ab.Armaments)
 					{
 						if (a.Weapon.IsValidTarget(AirTargetTypes))
 						{
@@ -58,13 +64,14 @@ namespace OpenRA.Mods.Common.AI
 		protected static CPos? FindSafePlace(Squad owner, out Actor detectedEnemyTarget, bool needTarget)
 		{
 			var map = owner.World.Map;
+			var dangerRadius = owner.Bot.Info.DangerScanRadius;
 			detectedEnemyTarget = null;
-			var x = (map.MapSize.X % DangerRadius) == 0 ? map.MapSize.X : map.MapSize.X + DangerRadius;
-			var y = (map.MapSize.Y % DangerRadius) == 0 ? map.MapSize.Y : map.MapSize.Y + DangerRadius;
+			var x = (map.MapSize.X % dangerRadius) == 0 ? map.MapSize.X : map.MapSize.X + dangerRadius;
+			var y = (map.MapSize.Y % dangerRadius) == 0 ? map.MapSize.Y : map.MapSize.Y + dangerRadius;
 
-			for (var i = 0; i < x; i += DangerRadius * 2)
+			for (var i = 0; i < x; i += dangerRadius * 2)
 			{
-				for (var j = 0; j < y; j += DangerRadius * 2)
+				for (var j = 0; j < y; j += dangerRadius * 2)
 				{
 					var pos = new CPos(i, j);
 					if (NearToPosSafely(owner, map.CenterOfCell(pos), out detectedEnemyTarget))
@@ -89,7 +96,8 @@ namespace OpenRA.Mods.Common.AI
 		protected static bool NearToPosSafely(Squad owner, WPos loc, out Actor detectedEnemyTarget)
 		{
 			detectedEnemyTarget = null;
-			var unitsAroundPos = owner.World.FindActorsInCircle(loc, WRange.FromCells(DangerRadius))
+			var dangerRadius = owner.Bot.Info.DangerScanRadius;
+			var unitsAroundPos = owner.World.FindActorsInCircle(loc, WDist.FromCells(dangerRadius))
 				.Where(unit => owner.Bot.Player.Stances[unit.Owner] == Stance.Enemy).ToList();
 
 			if (!unitsAroundPos.Any())
@@ -119,15 +127,15 @@ namespace OpenRA.Mods.Common.AI
 		protected static bool ReloadsAutomatically(Actor a)
 		{
 			var ammoPools = a.TraitsImplementing<AmmoPool>();
-			return ammoPools.All(x => x.Info.SelfReloads);
+			return ammoPools.All(x => x.AutoReloads);
 		}
 
 		protected static bool IsRearm(Actor a)
 		{
-			var activity = a.GetCurrentActivity();
-			if (activity == null)
+			if (a.IsIdle)
 				return false;
 
+			var activity = a.CurrentActivity;
 			var type = activity.GetType();
 			if (type == typeof(Rearm) || type == typeof(ResupplyAircraft))
 				return true;
@@ -185,7 +193,7 @@ namespace OpenRA.Mods.Common.AI
 			if (!owner.IsValid)
 				return;
 
-			if (!owner.TargetIsValid)
+			if (!owner.IsTargetValid)
 			{
 				var a = owner.Units.Random(owner.Random);
 				var closestEnemy = owner.Bot.FindClosestEnemy(a.CenterPosition);
@@ -211,20 +219,18 @@ namespace OpenRA.Mods.Common.AI
 
 				if (!ReloadsAutomatically(a))
 				{
-					if (!HasAmmo(a))
-					{
-						if (IsRearm(a))
-							continue;
-						owner.World.IssueOrder(new Order("ReturnToBase", a, false));
-						continue;
-					}
-
 					if (IsRearm(a))
 						continue;
+
+					if (!HasAmmo(a))
+					{
+						owner.Bot.QueueOrder(new Order("ReturnToBase", a, false));
+						continue;
+					}
 				}
 
-				if (owner.TargetActor.HasTrait<ITargetable>() && CanAttackTarget(a, owner.TargetActor))
-					owner.World.IssueOrder(new Order("Attack", a, false) { TargetActor = owner.TargetActor });
+				if (CanAttackTarget(a, owner.TargetActor))
+					owner.Bot.QueueOrder(new Order("Attack", a, Target.FromActor(owner.TargetActor), false));
 			}
 		}
 
@@ -247,11 +253,11 @@ namespace OpenRA.Mods.Common.AI
 					if (IsRearm(a))
 						continue;
 
-					owner.World.IssueOrder(new Order("ReturnToBase", a, false));
+					owner.Bot.QueueOrder(new Order("ReturnToBase", a, false));
 					continue;
 				}
 
-				owner.World.IssueOrder(new Order("Move", a, false) { TargetLocation = RandomBuildingLocation(owner) });
+				owner.Bot.QueueOrder(new Order("Move", a, Target.FromCell(owner.World, RandomBuildingLocation(owner)), false));
 			}
 
 			owner.FuzzyStateMachine.ChangeState(owner, new AirIdleState(), true);

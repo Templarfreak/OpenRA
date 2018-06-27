@@ -1,16 +1,17 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.IO;
-using OpenRA.FileFormats;
+using OpenRA.Mods.Common.FileFormats;
 using OpenRA.Mods.Common.Widgets;
 using OpenRA.Widgets;
 
@@ -37,23 +38,23 @@ namespace OpenRA.Mods.Common.Scripting
 			w.SetPauseState(true);
 
 			// Mute world sounds
-			var oldModifier = Sound.SoundVolumeModifier;
+			var oldModifier = Game.Sound.SoundVolumeModifier;
 
 			// TODO: this also modifies vqa audio
-			// Sound.SoundVolumeModifier = 0f;
+			// Game.Sound.SoundVolumeModifier = 0f;
 
 			// Stop music while fmv plays
-			var music = Sound.MusicPlaying;
+			var music = Game.Sound.MusicPlaying;
 			if (music)
-				Sound.PauseMusic();
+				Game.Sound.PauseMusic();
 
 			player.PlayThen(() =>
 			{
 				if (music)
-					Sound.PlayMusic();
+					Game.Sound.PlayMusic();
 
 				Ui.CloseWindow();
-				Sound.SoundVolumeModifier = oldModifier;
+				Game.Sound.SoundVolumeModifier = oldModifier;
 				w.SetPauseState(false);
 				onComplete();
 			});

@@ -1,23 +1,22 @@
 #region Copyright & License Information
 /*
-* Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
-* This file is part of OpenRA, which is free software. It is made
-* available to you under the terms of the GNU General Public License
-* as published by the Free Software Foundation. For more information,
-* see COPYING.
-*/
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * This file is part of OpenRA, which is free software. It is made
+ * available to you under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
+ */
 #endregion
 
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using OpenRA.Graphics;
-using OpenRA.Primitives;
 
 namespace OpenRA.Graphics
 {
-	public class HardwareCursor : ICursor
+	public sealed class HardwareCursor : ICursor
 	{
 		readonly Dictionary<string, IHardwareCursor[]> hardwareCursors = new Dictionary<string, IHardwareCursor[]>();
 		readonly CursorProvider cursorProvider;
@@ -81,7 +80,7 @@ namespace OpenRA.Graphics
 				}
 			}
 
-			return Game.Renderer.Device.CreateHardwareCursor(name, new Size(dataWidth, dataHeight), data, hotspot);
+			return Game.Renderer.Window.CreateHardwareCursor(name, new Size(dataWidth, dataHeight), data, hotspot);
 		}
 
 		public void SetCursor(string cursorName)
@@ -114,13 +113,13 @@ namespace OpenRA.Graphics
 		void Update()
 		{
 			if (cursor == null)
-				Game.Renderer.Device.SetHardwareCursor(null);
+				Game.Renderer.Window.SetHardwareCursor(null);
 			else
 			{
 				if (frame >= cursor.Length)
 					frame = frame % cursor.Length;
 
-				Game.Renderer.Device.SetHardwareCursor(hardwareCursors[cursor.Name][frame]);
+				Game.Renderer.Window.SetHardwareCursor(hardwareCursors[cursor.Name][frame]);
 			}
 		}
 

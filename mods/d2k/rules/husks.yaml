@@ -1,68 +1,78 @@
 mcv.husk:
-	Inherits: ^Husk
+	Inherits: ^VehicleHusk
 	Health:
-		HP: 175
+		HP: 1750
 	Tooltip:
-		Name: Destroyed Mobile Construction Vehicle
+		Name: Mobile Construction Vehicle (Destroyed)
 
 harvester.husk:
-	Inherits: ^Husk
+	Inherits: ^VehicleHusk
 	Health:
-		HP: 150
+		HP: 1500
 	Tooltip:
-		Name: Destroyed Spice Harvester
+		Name: Spice Harvester (Destroyed)
 	TransformOnCapture:
 		IntoActor: harvester
 
-siegetank.husk:
-	Inherits: ^Husk
+siege_tank.husk:
+	Inherits: ^VehicleHusk
 	Tooltip:
+		Name: Siege Tank (Destroyed)
 	ThrowsParticle@turret:
 		Anim: turret
 	TransformOnCapture:
-		IntoActor: siegetank
+		IntoActor: siege_tank
 
-missiletank.husk:
-	Inherits: ^Husk
-	RenderUnit:
+missile_tank.husk:
+	Inherits: ^VehicleHusk
+	Tooltip:
+		Name: Missile Tank (Destroyed)
 	TransformOnCapture:
-		IntoActor: missiletank
+		IntoActor: missile_tank
 
-sonictank.husk:
-	Inherits: ^Husk
+sonic_tank.husk:
+	Inherits: ^VehicleHusk
+	Tooltip:
+		Name: Sonic Tank (Destroyed)
 	TransformOnCapture:
-		IntoActor: sonictank
+		IntoActor: sonic_tank
 
-devast.husk:
-	Inherits: ^Husk
+devastator.husk:
+	Inherits: ^VehicleHusk
 	Health:
-		HP: 125
+		HP: 1250
+	Tooltip:
+		Name: Devastator (Destroyed)
 	TransformOnCapture:
-		IntoActor: devast
+		IntoActor: devastator
 
-deviatortank.husk:
-	Inherits: ^Husk
+deviator.husk:
+	Inherits: ^VehicleHusk
+	Tooltip:
+		Name: Deviator (Destroyed)
 	TransformOnCapture:
-		IntoActor: deviatortank
+		IntoActor: deviator
 
-^combat.husk:
-	Inherits: ^Husk
+^combat_tank.husk:
+	Inherits: ^VehicleHusk
 	Health:
-		HP: 100
+		HP: 1000
+	Tooltip:
+		Name: Combat Tank (Destroyed)
 	ThrowsParticle@turret:
 		Anim: turret
 
-combata.husk:
-	Inherits: ^combat.husk
+combat_tank_a.husk:
+	Inherits: ^combat_tank.husk
 	TransformOnCapture:
-		IntoActor: combata
+		IntoActor: combat_tank_a
 
-combath.husk:
-	Inherits: ^combat.husk
+combat_tank_h.husk:
+	Inherits: ^combat_tank.husk
 	TransformOnCapture:
-		IntoActor: combath
+		IntoActor: combat_tank_h
 
-combato.husk:
-	Inherits: ^combat.husk
+combat_tank_o.husk:
+	Inherits: ^combat_tank.husk
 	TransformOnCapture:
-		IntoActor: combato
+		IntoActor: combat_tank_o

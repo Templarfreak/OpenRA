@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -48,12 +49,15 @@ namespace OpenRA
 			return info;
 		}
 
-		public MiniYaml Save()
+		public MiniYaml Save(Func<object, bool> initFilter = null)
 		{
 			var ret = new MiniYaml(Type);
 			foreach (var init in InitDict)
 			{
 				if (init is ISuppressInitExport)
+					continue;
+
+				if (initFilter != null && !initFilter(init))
 					continue;
 
 				var initName = init.GetType().Name;

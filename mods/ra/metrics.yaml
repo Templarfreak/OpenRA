@@ -1,34 +1,18 @@
 # General dumping-ground for UI element sizes, etc.
 
 Metrics:
-	ButtonDepth: 1
-	ButtonFont: Regular
-	ButtonTextColor: 255,255,255
-	ButtonTextColorDisabled: 128,128,128
-	ButtonTextContrast: false
-	ButtonTextContrastColor: 0,0,0
-	CheckboxPressedState: false
-	HotkeyFont: Regular
-	HotkeyColor: 255,255,255
-	HotkeyColorDisabled: 128,128,128
-	TextfieldFont: Regular
-	TextfieldColor: 255,255,255
-	TextfieldColorDisabled: 128,128,128
-	TextfieldColorInvalid: 255,192,192
-	TextFont: Regular
-	TextColor: 255,255,255
-	TextContrast: false
-	TextContrastColor: 0,0,0
+	ColorPickerActorType: fact.colorpicker
 	ColorPickerRemapIndices: 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95
-	ColorPickerActorType: ^fact.colorpicker
-	SpawnFont: TinyBold
-	SpawnColor: 255,255,255
-	SpawnContrastColor: 0,0,0
-	SpawnLabelOffset: 0,1
-	RaceSuffix-allies: allies
-	RaceSuffix-england: allies
-	RaceSuffix-france: allies
-	RaceSuffix-germany: allies
-	RaceSuffix-soviet: soviet
-	RaceSuffix-russia: soviet
-	RaceSuffix-ukraine: soviet
+	FactionSuffix-allies: allies
+	FactionSuffix-england: allies
+	FactionSuffix-france: allies
+	FactionSuffix-germany: allies
+	FactionSuffix-spain: allies
+	FactionSuffix-greece: allies
+	FactionSuffix-turkey: allies
+	FactionSuffix-russia: soviet
+	FactionSuffix-soviet: soviet
+	FactionSuffix-ukraine: soviet
+	IncompatibleProtectedGameColor: B22222
+	IncompatibleVersionColor: D3D3D3
+	TextfieldColorHighlight: 562020

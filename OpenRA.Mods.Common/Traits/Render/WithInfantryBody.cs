@@ -1,79 +1,90 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Traits;
 
-namespace OpenRA.Mods.Common.Traits
+namespace OpenRA.Mods.Common.Traits.Render
 {
-	public class WithInfantryBodyInfo : ITraitInfo, IQuantizeBodyOrientationInfo, IRenderActorPreviewSpritesInfo, Requires<IMoveInfo>, Requires<RenderSpritesInfo>
+	public class WithInfantryBodyInfo : ConditionalTraitInfo, IRenderActorPreviewSpritesInfo, Requires<IMoveInfo>, Requires<RenderSpritesInfo>
 	{
-		public readonly int MinIdleWaitTicks = 30;
-		public readonly int MaxIdleWaitTicks = 110;
-		public readonly string MoveSequence = "run";
-		public readonly string AttackSequence = "shoot";
-		public readonly string[] IdleSequences = { };
-		public readonly string[] StandSequences = { "stand" };
+		public readonly int MinIdleDelay = 30;
+		public readonly int MaxIdleDelay = 110;
 
-		public virtual object Create(ActorInitializer init) { return new WithInfantryBody(init, this); }
+		[SequenceReference] public readonly string MoveSequence = "run";
+		[SequenceReference] public readonly string DefaultAttackSequence = null;
+
+		// TODO: [SequenceReference] isn't smart enough to use Dictionaries.
+		[Desc("Attack sequence to use for each armament.")]
+		public readonly Dictionary<string, string> AttackSequences = new Dictionary<string, string>();
+		[SequenceReference] public readonly string[] IdleSequences = { };
+		[SequenceReference] public readonly string[] StandSequences = { "stand" };
+
+		public override object Create(ActorInitializer init) { return new WithInfantryBody(init, this); }
 
 		public IEnumerable<IActorPreview> RenderPreviewSprites(ActorPreviewInitializer init, RenderSpritesInfo rs, string image, int facings, PaletteReference p)
 		{
-			var facing = 0;
-			var ifacing = init.Actor.Traits.GetOrDefault<IFacingInfo>();
-			if (ifacing != null)
-				facing = init.Contains<FacingInit>() ? init.Get<FacingInit, int>() : ifacing.GetInitialFacing();
-
-			var anim = new Animation(init.World, image, () => facing);
+			var anim = new Animation(init.World, image, init.GetFacing());
 			anim.PlayRepeating(RenderSprites.NormalizeSequence(anim, init.GetDamageState(), StandSequences.First()));
-			yield return new SpriteActorPreview(anim, WVec.Zero, 0, p, rs.Scale);
-		}
-
-		public int QuantizedBodyFacings(ActorInfo ai, SequenceProvider sequenceProvider, string race)
-		{
-			var rsi = ai.Traits.Get<RenderSpritesInfo>();
-			return sequenceProvider.GetSequence(rsi.GetImage(ai, sequenceProvider, race), StandSequences.First()).Facings;
+			yield return new SpriteActorPreview(anim, () => WVec.Zero, () => 0, p, rs.Scale);
 		}
 	}
 
-	public class WithInfantryBody : ITick, INotifyAttack, INotifyIdle
+	public class WithInfantryBody : ConditionalTrait<WithInfantryBodyInfo>, ITick, INotifyAttack, INotifyIdle
 	{
-		readonly WithInfantryBodyInfo info;
 		readonly IMove move;
 		protected readonly Animation DefaultAnimation;
 
-		bool dirty = false;
+		bool dirty;
 		string idleSequence;
 		int idleDelay;
 		AnimationState state;
-
 		IRenderInfantrySequenceModifier rsm;
+
 		bool IsModifyingSequence { get { return rsm != null && rsm.IsModifyingSequence; } }
 		bool wasModifying;
 
 		public WithInfantryBody(ActorInitializer init, WithInfantryBodyInfo info)
+			: base(info)
 		{
-			this.info = info;
 			var self = init.Self;
 			var rs = self.Trait<RenderSprites>();
 
 			DefaultAnimation = new Animation(init.World, rs.GetImage(self), RenderSprites.MakeFacingFunc(self));
-			rs.Add(DefaultAnimation);
+			rs.Add(new AnimationWithOffset(DefaultAnimation, null, () => IsTraitDisabled));
+			PlayStandAnimation(self);
 
-			DefaultAnimation.PlayFetchIndex(NormalizeInfantrySequence(init.Self, info.StandSequences.Random(Game.CosmeticRandom)), () => 0);
 			state = AnimationState.Waiting;
 			move = init.Self.Trait<IMove>();
-			rsm = init.Self.TraitOrDefault<IRenderInfantrySequenceModifier>();
+		}
+
+		public void PlayStandAnimation(Actor self)
+		{
+			var sequence = DefaultAnimation.GetRandomExistingSequence(Info.StandSequences, Game.CosmeticRandom);
+			if (sequence != null)
+			{
+				var normalized = NormalizeInfantrySequence(self, sequence);
+				DefaultAnimation.PlayRepeating(normalized);
+			}
+		}
+
+		protected override void Created(Actor self)
+		{
+			rsm = self.TraitOrDefault<IRenderInfantrySequenceModifier>();
+
+			base.Created(self);
 		}
 
 		protected virtual string NormalizeInfantrySequence(Actor self, string baseSequence)
@@ -91,19 +102,32 @@ namespace OpenRA.Mods.Common.Traits
 			return !IsModifyingSequence;
 		}
 
-		public void Attacking(Actor self, Target target)
+		public void Attacking(Actor self, Target target, Armament a)
 		{
-			state = AnimationState.Attacking;
-			if (DefaultAnimation.HasSequence(NormalizeInfantrySequence(self, info.AttackSequence)))
-				DefaultAnimation.PlayThen(NormalizeInfantrySequence(self, info.AttackSequence), () => state = AnimationState.Idle);
+			string sequence;
+			if (!Info.AttackSequences.TryGetValue(a.Info.Name, out sequence))
+				sequence = Info.DefaultAttackSequence;
+
+			if (!string.IsNullOrEmpty(sequence) && DefaultAnimation.HasSequence(NormalizeInfantrySequence(self, sequence)))
+			{
+				state = AnimationState.Attacking;
+				DefaultAnimation.PlayThen(NormalizeInfantrySequence(self, sequence), () => state = AnimationState.Idle);
+			}
 		}
 
-		public void Attacking(Actor self, Target target, Armament a, Barrel barrel)
+		void INotifyAttack.PreparingAttack(Actor self, Target target, Armament a, Barrel barrel)
 		{
-			Attacking(self, target);
+			Attacking(self, target, a);
 		}
 
-		public virtual void Tick(Actor self)
+		void INotifyAttack.Attacking(Actor self, Target target, Armament a, Barrel barrel) { }
+
+		void ITick.Tick(Actor self)
+		{
+			Tick(self);
+		}
+
+		protected virtual void Tick(Actor self)
 		{
 			if (rsm != null)
 			{
@@ -113,31 +137,32 @@ namespace OpenRA.Mods.Common.Traits
 				wasModifying = rsm.IsModifyingSequence;
 			}
 
-			if ((state == AnimationState.Moving || dirty) && !move.IsMoving)
-			{
-				state = AnimationState.Waiting;
-				DefaultAnimation.PlayFetchIndex(NormalizeInfantrySequence(self, info.StandSequences.Random(Game.CosmeticRandom)), () => 0);
-			}
-			else if ((state != AnimationState.Moving || dirty) && move.IsMoving)
+			if ((state != AnimationState.Moving || dirty) && move.IsMoving)
 			{
 				state = AnimationState.Moving;
-				DefaultAnimation.PlayRepeating(NormalizeInfantrySequence(self, info.MoveSequence));
+				DefaultAnimation.PlayRepeating(NormalizeInfantrySequence(self, Info.MoveSequence));
+			}
+			else if (((state == AnimationState.Moving || dirty) && !move.IsMoving)
+				|| ((state == AnimationState.Idle || state == AnimationState.IdleAnimating) && !self.IsIdle))
+			{
+				state = AnimationState.Waiting;
+				PlayStandAnimation(self);
 			}
 
 			dirty = false;
 		}
 
-		public void TickIdle(Actor self)
+		void INotifyIdle.TickIdle(Actor self)
 		{
-			if (state != AnimationState.Idle && state != AnimationState.IdleAnimating)
+			if (state != AnimationState.Idle && state != AnimationState.IdleAnimating && state != AnimationState.Attacking)
 			{
-				DefaultAnimation.PlayFetchIndex(NormalizeInfantrySequence(self, info.StandSequences.Random(Game.CosmeticRandom)), () => 0);
+				PlayStandAnimation(self);
 				state = AnimationState.Idle;
 
-				if (info.IdleSequences.Length > 0)
+				if (Info.IdleSequences.Length > 0)
 				{
-					idleSequence = info.IdleSequences.Random(self.World.SharedRandom);
-					idleDelay = self.World.SharedRandom.Next(info.MinIdleWaitTicks, info.MaxIdleWaitTicks);
+					idleSequence = Info.IdleSequences.Random(self.World.SharedRandom);
+					idleDelay = self.World.SharedRandom.Next(Info.MinIdleDelay, Info.MaxIdleDelay);
 				}
 			}
 			else if (AllowIdleAnimation(self))
@@ -149,14 +174,14 @@ namespace OpenRA.Mods.Common.Traits
 						state = AnimationState.IdleAnimating;
 						DefaultAnimation.PlayThen(idleSequence, () =>
 						{
-							DefaultAnimation.PlayRepeating(NormalizeInfantrySequence(self, info.StandSequences.Random(Game.CosmeticRandom)));
+							PlayStandAnimation(self);
 							state = AnimationState.Waiting;
 						});
 					}
 				}
 				else
 				{
-					DefaultAnimation.PlayRepeating(NormalizeInfantrySequence(self, info.StandSequences.Random(Game.CosmeticRandom)));
+					PlayStandAnimation(self);
 					state = AnimationState.Waiting;
 				}
 			}

@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -27,14 +28,14 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override Activity Tick(Actor self)
 		{
-			self.CancelActivity();
-
-			var reservation = aircraft.Reservation;
-			if (reservation != null)
+			// Refuse to take off if it would land immediately again.
+			if (aircraft.ForceLanding)
 			{
-				reservation.Dispose();
-				reservation = null;
+				Cancel(self);
+				return NextActivity;
 			}
+
+			aircraft.UnReserve();
 
 			var host = aircraft.GetActorBelow();
 			var hasHost = host != null;
@@ -43,7 +44,10 @@ namespace OpenRA.Mods.Common.Activities
 			var destination = rp != null ? rp.Location :
 				(hasHost ? self.World.Map.CellContaining(host.CenterPosition) : self.Location);
 
-			return new AttackMoveActivity(self, move.MoveTo(destination, 1));
+			if (NextInQueue == null)
+				return new AttackMoveActivity(self, move.MoveTo(destination, 1));
+			else
+				return NextInQueue;
 		}
 	}
 }

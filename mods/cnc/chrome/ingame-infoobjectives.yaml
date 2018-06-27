@@ -21,6 +21,7 @@ Container@MISSION_OBJECTIVES:
 			Y: 50
 			Width: 482
 			Height: 310
+			TopBottomSpacing: 15
 			ItemSpacing: 15
 			Children:
 				Container@OBJECTIVE_TEMPLATE:
@@ -39,4 +40,4 @@ Container@MISSION_OBJECTIVES:
 							Width: PARENT_RIGHT - 100
 							Height: PARENT_BOTTOM
 							Disabled: True
-							TextColorDisabled: 255,255,255
+							TextColorDisabled: FFFFFF

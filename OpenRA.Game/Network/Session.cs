@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -59,9 +60,13 @@ namespace OpenRA.Network
 
 				return session;
 			}
-			catch (InvalidOperationException e)
+			catch (YamlException)
 			{
-				throw new InvalidOperationException("Session deserialized invalid MiniYaml:\n{0}".F(data), e);
+				throw new YamlException("Session deserialized invalid MiniYaml:\n{0}".F(data));
+			}
+			catch (InvalidOperationException)
+			{
+				throw new YamlException("Session deserialized invalid MiniYaml:\n{0}".F(data));
 			}
 		}
 
@@ -85,9 +90,14 @@ namespace OpenRA.Network
 			return Slots.FirstOrDefault(s => !s.Value.Closed && ClientInSlot(s.Key) == null && s.Value.AllowBots).Key;
 		}
 
-		public bool IsSinglePlayer
+		public IEnumerable<Client> NonBotClients
 		{
-			get { return Clients.Count(c => c.Bot == null) == 1; }
+			get { return Clients.Where(c => c.Bot == null); }
+		}
+
+		public IEnumerable<Client> NonBotPlayers
+		{
+			get { return Clients.Where(c => c.Bot == null && c.Slot != null); }
 		}
 
 		public enum ClientState { NotReady, Invalid, Ready, Disconnected = 1000 }
@@ -102,13 +112,13 @@ namespace OpenRA.Network
 			public int Index;
 			public HSLColor PreferredColor; // Color that the client normally uses from settings.yaml.
 			public HSLColor Color; // Actual color that the client is using. Usually the same as PreferredColor but can be different on maps with locked colors.
-			public string Race;
+			public string Faction;
 			public int SpawnPoint;
 			public string Name;
 			public string IpAddress;
 			public ClientState State = ClientState.Invalid;
 			public int Team;
-			public string Slot;	// slot ID, or null for observer
+			public string Slot;	// Slot ID, or null for observer
 			public string Bot; // Bot type, null for real clients
 			public int BotControllerClientIndex; // who added the bot to the slot
 			public bool IsAdmin;
@@ -118,7 +128,7 @@ namespace OpenRA.Network
 
 			public MiniYamlNode Serialize()
 			{
-				return new MiniYamlNode("Client@{0}".F(this.Index), FieldSaver.Save(this));
+				return new MiniYamlNode("Client@{0}".F(Index), FieldSaver.Save(this));
 			}
 		}
 
@@ -130,9 +140,9 @@ namespace OpenRA.Network
 		public class ClientPing
 		{
 			public int Index;
-			public int Latency = -1;
-			public int LatencyJitter = -1;
-			public int[] LatencyHistory = { };
+			public long Latency = -1;
+			public long LatencyJitter = -1;
+			public long[] LatencyHistory = { };
 
 			public static ClientPing Deserialize(MiniYaml data)
 			{
@@ -141,17 +151,17 @@ namespace OpenRA.Network
 
 			public MiniYamlNode Serialize()
 			{
-				return new MiniYamlNode("ClientPing@{0}".F(this.Index), FieldSaver.Save(this));
+				return new MiniYamlNode("ClientPing@{0}".F(Index), FieldSaver.Save(this));
 			}
 		}
 
 		public class Slot
 		{
-			public string PlayerReference;	// playerReference to bind against.
-			public bool Closed;	// host has explicitly closed this slot.
+			public string PlayerReference;	// PlayerReference to bind against.
+			public bool Closed;	// Host has explicitly closed this slot.
 
 			public bool AllowBots;
-			public bool LockRace;
+			public bool LockFaction;
 			public bool LockColor;
 			public bool LockTeam;
 			public bool LockSpawn;
@@ -164,41 +174,70 @@ namespace OpenRA.Network
 
 			public MiniYamlNode Serialize()
 			{
-				return new MiniYamlNode("Slot@{0}".F(this.PlayerReference), FieldSaver.Save(this));
+				return new MiniYamlNode("Slot@{0}".F(PlayerReference), FieldSaver.Save(this));
 			}
+		}
+
+		public class LobbyOptionState
+		{
+			public string Value;
+			public string PreferredValue;
+
+			public bool IsLocked;
+			public bool IsEnabled { get { return Value == "True"; } }
 		}
 
 		public class Global
 		{
 			public string ServerName;
 			public string Map;
+			public int Timestep = 40;
 			public int OrderLatency = 3; // net tick frames (x 120 = ms)
 			public int RandomSeed = 0;
-			public bool FragileAlliances = false; // Allow diplomatic stance changes after game start.
-			public bool AllowCheats = false;
 			public bool AllowSpectators = true;
-			public bool Dedicated;
-			public string Difficulty;
-			public bool Crates = true;
-			public bool Creeps = true;
-			public bool Shroud = true;
-			public bool Fog = true;
-			public bool AllyBuildRadius = true;
-			public int StartingCash = 5000;
-			public string TechLevel = "none";
-			public string StartingUnitsClass = "none";
-			public bool ShortGame = true;
 			public bool AllowVersionMismatch;
 			public string GameUid;
+			public bool EnableSingleplayer;
+
+			[FieldLoader.Ignore]
+			public Dictionary<string, LobbyOptionState> LobbyOptions = new Dictionary<string, LobbyOptionState>();
 
 			public static Global Deserialize(MiniYaml data)
 			{
-				return FieldLoader.Load<Global>(data);
+				var gs = FieldLoader.Load<Global>(data);
+
+				var optionsNode = data.Nodes.FirstOrDefault(n => n.Key == "Options");
+				if (optionsNode != null)
+					foreach (var n in optionsNode.Value.Nodes)
+						gs.LobbyOptions[n.Key] = FieldLoader.Load<LobbyOptionState>(n.Value);
+
+				return gs;
 			}
 
 			public MiniYamlNode Serialize()
 			{
-				return new MiniYamlNode("GlobalSettings", FieldSaver.Save(this));
+				var data = new MiniYamlNode("GlobalSettings", FieldSaver.Save(this));
+				var options = LobbyOptions.Select(kv => new MiniYamlNode(kv.Key, FieldSaver.Save(kv.Value))).ToList();
+				data.Value.Nodes.Add(new MiniYamlNode("Options", new MiniYaml(null, options)));
+				return data;
+			}
+
+			public bool OptionOrDefault(string id, bool def)
+			{
+				LobbyOptionState option;
+				if (LobbyOptions.TryGetValue(id, out option))
+					return option.IsEnabled;
+
+				return def;
+			}
+
+			public string OptionOrDefault(string id, string def)
+			{
+				LobbyOptionState option;
+				if (LobbyOptions.TryGetValue(id, out option))
+					return option.Value;
+
+				return def;
 			}
 		}
 

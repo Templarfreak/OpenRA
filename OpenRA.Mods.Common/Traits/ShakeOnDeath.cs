@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -14,7 +15,8 @@ namespace OpenRA.Mods.Common.Traits
 {
 	public class ShakeOnDeathInfo : ITraitInfo
 	{
-		public readonly int Intensity = 10;
+		public readonly int Duration = 10;
+		public readonly int Intensity = 1;
 		public object Create(ActorInitializer init) { return new ShakeOnDeath(this); }
 	}
 
@@ -27,9 +29,9 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 		}
 
-		public void Killed(Actor self, AttackInfo e)
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
-			self.World.WorldActor.Trait<ScreenShaker>().AddEffect(info.Intensity, self.CenterPosition, 1);
+			self.World.WorldActor.Trait<ScreenShaker>().AddEffect(info.Duration, self.CenterPosition, info.Intensity);
 		}
 	}
 }

@@ -1,3 +1,11 @@
+--[[
+   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   This file is part of OpenRA, which is free software. It is made
+   available to you under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of
+   the License, or (at your option) any later version. For more
+   information, see COPYING.
+]]
 ProductionUnits = { "e1", "e1", "e2" }
 ProductionBuildings = { USSRBarracks1, USSRBarracks2, USSRBarracks3 }
 FirstUSSRBase = { USSRFlameTower1, USSRFlameTower2, USSRFlameTower3, USSRBarracks1, PGuard1, PGuard2, PGuard3, PGuard4, PGuard5 }
@@ -14,20 +22,25 @@ BeachTriggerArea = { CPos.New(111, 36), CPos.New(112, 36), CPos.New(112, 37), CP
 ParadropTriggerArea = { CPos.New(81, 66), CPos.New(82, 66), CPos.New(83, 66), CPos.New(84, 66), CPos.New(85, 66), CPos.New(86, 66), CPos.New(87, 66), CPos.New(93, 64), CPos.New(94, 64), CPos.New(94, 63), CPos.New(95, 63), CPos.New(95, 62), CPos.New(96, 62), CPos.New(96, 61), CPos.New(97, 61), CPos.New(97, 60), CPos.New(98, 60), CPos.New(99, 60), CPos.New(100, 60), CPos.New(101, 60), CPos.New(102, 60), CPos.New(103, 60) }
 ReinforcementsTriggerArea = { CPos.New(57, 46), CPos.New(58, 46), CPos.New(66, 35), CPos.New(65, 35), CPos.New(65, 36), CPos.New(64, 36), CPos.New(64, 37), CPos.New(64, 38), CPos.New(64, 39), CPos.New(64, 40), CPos.New(64, 41), CPos.New(63, 41), CPos.New(63, 42), CPos.New(63, 43), CPos.New(62, 43), CPos.New(62, 44) }
 Barracks3TriggerArea = { CPos.New(69, 50), CPos.New(69, 51), CPos.New(69, 52), CPos.New(69, 53), CPos.New(69, 54), CPos.New(61, 45), CPos.New(62, 45), CPos.New(62, 46), CPos.New(62, 47), CPos.New(62, 48), CPos.New(63, 48), CPos.New(57, 46), CPos.New(58, 46) }
-JeepTriggerArea = { CPos.New(75, 76),  CPos.New(76, 76),  CPos.New(77, 76),  CPos.New(78, 76),  CPos.New(79, 76),  CPos.New(80, 76),  CPos.New(81, 76),  CPos.New(82, 76), CPos.New(91, 78), CPos.New(92, 78), CPos.New(93, 78), CPos.New(95, 84), CPos.New(96, 84), CPos.New(97, 84), CPos.New(98, 84), CPos.New(99, 84), CPos.New(100, 84) }
+JeepTriggerArea = { CPos.New(75, 76), CPos.New(76, 76), CPos.New(77, 76), CPos.New(78, 76), CPos.New(79, 76), CPos.New(80, 76), CPos.New(81, 76), CPos.New(82, 76), CPos.New(91, 78), CPos.New(92, 78), CPos.New(93, 78), CPos.New(95, 84), CPos.New(96, 84), CPos.New(97, 84), CPos.New(98, 84), CPos.New(99, 84), CPos.New(100, 84) }
 JeepBarrels = { JeepBarrel1, JeepBarrel2, JeepBarrel3, JeepBarrel4 }
 GuardTanks = { Heavy1, Heavy2, Heavy3 }
 CheckpointGuards = { USSRCheckpointGuard1, USSRCheckpointGuard2 }
 CheckpointGuardWaypoints = { CheckpointGuardWaypoint1, CheckpointGuardWaypoint2 }
 
-if Map.Difficulty == "Easy" then
+if Map.LobbyOption("difficulty") == "easy" then
 	TanyaType = "e7"
 else
 	TanyaType = "e7.noautotarget"
-	ChangeStance = true
 end
 
-IdleHunt = function(actor) Trigger.OnIdle(actor, actor.Hunt) end
+IdleHunt = function(actor)
+	Trigger.OnIdle(actor, function(a)
+		if a.IsInWorld then
+			a.Hunt()
+		end
+	end)
+end
 
 Tick = function()
 	if TeleportJeepCamera and Jeep.IsInWorld then
@@ -57,8 +70,7 @@ end
 SetupAlliedUnits = function()
 	Tanya = Actor.Create(TanyaType, true, { Owner = player, Location = TanyaWaypoint.Location, Facing = 128 })
 
-	if ChangeStance then
-		Tanya.Stance = "HoldFire"
+	if TanyaType == "e7.noautotarget" then
 		Trigger.AfterDelay(DateTime.Seconds(2), function()
 			Media.DisplayMessage("According to the rules of engagement I need your explicit orders to fire, Commander!", "Tanya")
 		end)
@@ -236,8 +248,10 @@ InitTriggers = function()
 			AlertFirstBase()
 		end)
 	end)
-	Trigger.OnAllRemovedFromWorld(FirstUSSRBase, function() -- The camera can remain when one building is captured
-		if baseCamera then baseCamera.Destroy() end
+	Trigger.OnAllRemovedFromWorld(FirstUSSRBase, function()
+		if baseCamera then
+			baseCamera.Destroy()
+		end
 	end)
 
 	Trigger.OnDamaged(USSRBarracks3, function()
@@ -284,7 +298,7 @@ InitTriggers = function()
 					USSRTruk.Move(BaseCameraWaypoint.Location)
 				end
 			end)
-			Trigger.OnEnteredProximityTrigger(BaseCameraWaypoint.CenterPosition, WRange.New(7 * 1024), function(a, id)
+			Trigger.OnEnteredProximityTrigger(BaseCameraWaypoint.CenterPosition, WDist.New(7 * 1024), function(a, id)
 				if a.Type == "truk" and not baseCamera then
 					Trigger.RemoveProximityTrigger(id)
 					baseCamera = Actor.Create("camera", true, { Owner = player, Location = BaseCameraWaypoint.Location })
@@ -341,14 +355,26 @@ InitTriggers = function()
 		end
 	end)
 
+	-- The engineers need to leave the enemy base to count as 'freed'
+	Trigger.OnExitedProximityTrigger(BaseCameraWaypoint.CenterPosition, WDist.New(7 * 1024), function(a, id)
+		if a.Type == "hacke6" and not EngisFreed then
+			EngisFreed = true
+			Trigger.RemoveProximityTrigger(id)
+		end
+	end)
+
 	Trigger.AfterDelay(0, function()
-		local bridges = Map.ActorsInBox(Map.TopLeft, Map.BottomRight, function(self) return self.Type == "bridge1" or self.Type == "bridge2" end)
+		local bridges = Utils.Where(Map.ActorsInWorld, function(actor) return actor.Type == "bridge1" or actor.Type == "bridge2" end)
 		ExplodingBridge = bridges[1]
 
 		Trigger.OnAllKilled(bridges, function()
 			player.MarkCompletedObjective(KillBridges)
 			player.MarkCompletedObjective(TanyaSurvive)
-			player.MarkCompletedObjective(FreePrisoners)
+
+			-- The medic is freed once his guard is dead
+			if MediFreed and MediGuard.IsDead and EngisFreed then
+				player.MarkCompletedObjective(FreePrisoners)
+			end
 		end)
 	end)
 end

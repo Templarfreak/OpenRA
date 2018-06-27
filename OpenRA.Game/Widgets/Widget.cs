@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -19,9 +20,9 @@ namespace OpenRA.Widgets
 {
 	public static class Ui
 	{
-		public static Widget Root = new RootWidget();
+		public static Widget Root = new ContainerWidget();
 
-		public static int LastTickTime = Game.RunTime;
+		public static long LastTickTime = Game.RunTime;
 
 		static readonly Stack<Widget> WindowList = new Stack<Widget>();
 
@@ -32,9 +33,23 @@ namespace OpenRA.Widgets
 		public static void CloseWindow()
 		{
 			if (WindowList.Count > 0)
-				Root.RemoveChild(WindowList.Pop());
+			{
+				var hidden = WindowList.Pop();
+				Root.RemoveChild(hidden);
+				if (hidden.LogicObjects != null)
+					foreach (var l in hidden.LogicObjects)
+						l.BecameHidden();
+			}
+
 			if (WindowList.Count > 0)
-				Root.AddChild(WindowList.Peek());
+			{
+				var restore = WindowList.Peek();
+				Root.AddChild(restore);
+
+				if (restore.LogicObjects != null)
+					foreach (var l in restore.LogicObjects)
+						l.BecameVisible();
+			}
 		}
 
 		public static Widget OpenWindow(string id)
@@ -46,7 +61,7 @@ namespace OpenRA.Widgets
 		{
 			var window = Game.ModData.WidgetLoader.LoadWidget(args, Root, id);
 			if (WindowList.Count > 0)
-				Root.RemoveChild(WindowList.Peek());
+				Root.HideChild(WindowList.Peek());
 			WindowList.Push(window);
 			return window;
 		}
@@ -93,7 +108,7 @@ namespace OpenRA.Widgets
 			if (mi.Event == MouseInputEvent.Move)
 			{
 				Viewport.LastMousePos = mi.Location;
-				Viewport.TicksSinceLastMove = 0;
+				Viewport.LastMoveRunTime = Game.RunTime;
 			}
 
 			if (wasMouseOver != MouseOverWidget)
@@ -108,6 +123,9 @@ namespace OpenRA.Widgets
 			return handled;
 		}
 
+		/// <summary>Possibly handle keyboard input (if this widget has keyboard focus)</summary>
+		/// <returns><c>true</c>, if keyboard input was handled, <c>false</c> if the input should bubble to the parent widget</returns>
+		/// <param name="e">Key input data</param>
 		public static bool HandleKeyPress(KeyInput e)
 		{
 			if (KeyboardFocusWidget != null)
@@ -131,6 +149,22 @@ namespace OpenRA.Widgets
 			while (WindowList.Count > 0)
 				CloseWindow();
 		}
+
+		public static void ResetTooltips()
+		{
+			// Issue a no-op mouse move to force any tooltips to be recalculated
+			HandleInput(new MouseInput(MouseInputEvent.Move, MouseButton.None, 0,
+				Viewport.LastMousePos, Modifiers.None, 0));
+		}
+	}
+
+	public class ChromeLogic : IDisposable
+	{
+		public void Dispose() { Dispose(true); GC.SuppressFinalize(this); }
+		public virtual void Tick() { }
+		public virtual void BecameHidden() { }
+		public virtual void BecameVisible() { }
+		protected virtual void Dispose(bool disposing) { }
 	}
 
 	public abstract class Widget
@@ -144,7 +178,7 @@ namespace OpenRA.Widgets
 		public string Width = "0";
 		public string Height = "0";
 		public string[] Logic = { };
-		public object[] LogicObjects { get; private set; }
+		public ChromeLogic[] LogicObjects { get; private set; }
 		public bool Visible = true;
 		public bool IgnoreMouseOver;
 		public bool IgnoreChildMouseOver;
@@ -237,7 +271,7 @@ namespace OpenRA.Widgets
 
 			args["widget"] = this;
 
-			LogicObjects = Logic.Select(l => Game.ModData.ObjectCreator.CreateObject<object>(l, args))
+			LogicObjects = Logic.Select(l => Game.ModData.ObjectCreator.CreateObject<ChromeLogic>(l, args))
 				.ToArray();
 
 			args.Remove("widget");
@@ -247,10 +281,18 @@ namespace OpenRA.Widgets
 
 		public virtual Rectangle GetEventBounds()
 		{
+			// PERF: Avoid LINQ.
 			var bounds = EventBounds;
 			foreach (var child in Children)
+			{
 				if (child.IsVisible())
-					bounds = Rectangle.Union(bounds, child.GetEventBounds());
+				{
+					var childBounds = child.GetEventBounds();
+					if (childBounds != Rectangle.Empty)
+						bounds = Rectangle.Union(bounds, childBounds);
+				}
+			}
+
 			return bounds;
 		}
 
@@ -330,6 +372,10 @@ namespace OpenRA.Widgets
 
 		public virtual void MouseEntered() { }
 		public virtual void MouseExited() { }
+
+		/// <summary>Possibly handles mouse input (click, drag, scroll, etc).</summary>
+		/// <returns><c>true</c>, if mouse input was handled, <c>false</c> if the input should bubble to the parent widget</returns>
+		/// <param name="mi">Mouse input data</param>
 		public virtual bool HandleMouseInput(MouseInput mi) { return false; }
 
 		public bool HandleMouseInputOuter(MouseInput mi)
@@ -423,6 +469,10 @@ namespace OpenRA.Widgets
 				Tick();
 				foreach (var child in Children)
 					child.TickOuter();
+
+				if (LogicObjects != null)
+					foreach (var l in LogicObjects)
+						l.Tick();
 			}
 		}
 
@@ -441,10 +491,30 @@ namespace OpenRA.Widgets
 			}
 		}
 
+		public virtual void HideChild(Widget child)
+		{
+			if (child != null)
+			{
+				Children.Remove(child);
+				child.Hidden();
+			}
+		}
+
 		public virtual void RemoveChildren()
 		{
 			while (Children.Count > 0)
 				RemoveChild(Children[Children.Count - 1]);
+		}
+
+		public virtual void Hidden()
+		{
+			// Using the forced versions because the widgets
+			// have been removed
+			ForceYieldKeyboardFocus();
+			ForceYieldMouseFocus();
+
+			foreach (var c in Children.OfType<Widget>().Reverse())
+				c.Hidden();
 		}
 
 		public virtual void Removed()
@@ -456,11 +526,15 @@ namespace OpenRA.Widgets
 
 			foreach (var c in Children.OfType<Widget>().Reverse())
 				c.Removed();
+
+			if (LogicObjects != null)
+				foreach (var l in LogicObjects)
+					l.Dispose();
 		}
 
 		public Widget GetOrNull(string id)
 		{
-			if (this.Id == id)
+			if (Id == id)
 				return this;
 
 			foreach (var child in Children)
@@ -493,6 +567,8 @@ namespace OpenRA.Widgets
 
 	public class ContainerWidget : Widget
 	{
+		public readonly bool ClickThrough = true;
+
 		public ContainerWidget() { IgnoreMouseOver = true; }
 		public ContainerWidget(ContainerWidget other)
 			: base(other) { IgnoreMouseOver = true; }
@@ -501,6 +577,11 @@ namespace OpenRA.Widgets
 		public override Widget Clone() { return new ContainerWidget(this); }
 		public Func<KeyInput, bool> OnKeyPress = _ => false;
 		public override bool HandleKeyPress(KeyInput e) { return OnKeyPress(e); }
+
+		public override bool HandleMouseInput(MouseInput mi)
+		{
+			return !ClickThrough && EventBounds.Contains(mi.Location);
+		}
 	}
 
 	public class WidgetArgs : Dictionary<string, object>

@@ -1,15 +1,13 @@
-﻿#region Copyright & License Information
+#region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
-
-using System;
-using System.Collections.Generic;
 
 namespace OpenRA.Mods.Common.Pathfinder
 {
@@ -55,24 +53,6 @@ namespace OpenRA.Mods.Common.Pathfinder
 			PreviousPos = previousPos;
 			Status = status;
 			EstimatedTotal = estimatedTotal;
-		}
-	}
-
-	/// <summary>
-	/// Compares two nodes according to their estimations
-	/// </summary>
-	public class PositionComparer : IComparer<CPos>
-	{
-		readonly IGraph<CellInfo> graph;
-
-		public PositionComparer(IGraph<CellInfo> graph)
-		{
-			this.graph = graph;
-		}
-
-		public int Compare(CPos x, CPos y)
-		{
-			return Math.Sign(graph[x].EstimatedTotal - graph[y].EstimatedTotal);
 		}
 	}
 }

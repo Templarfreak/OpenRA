@@ -1,118 +1,59 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System.Collections.Generic;
-using System.Linq;
-using OpenRA.Graphics;
-using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	class BridgeLayerInfo : ITraitInfo
+	interface IBridgeSegment
 	{
-		[ActorReference]
-		public readonly string[] Bridges = { "bridge1", "bridge2" };
+		void Repair(Actor repairer);
+		void Demolish(Actor saboteur);
 
-		public object Create(ActorInitializer init) { return new BridgeLayer(init.Self, this); }
+		string Type { get; }
+		DamageState DamageState { get; }
+		CVec[] NeighbourOffsets { get; }
+		bool Valid { get; }
+		CPos Location { get; }
 	}
 
-	class BridgeLayer : IWorldLoaded
+	class BridgeLayerInfo : ITraitInfo
 	{
-		readonly BridgeLayerInfo info;
-		readonly World world;
-		Dictionary<ushort, Pair<string, int>> bridgeTypes = new Dictionary<ushort, Pair<string, int>>();
-		CellLayer<Bridge> bridges;
+		public object Create(ActorInitializer init) { return new BridgeLayer(init.World); }
+	}
 
-		public BridgeLayer(Actor self, BridgeLayerInfo info)
+	class BridgeLayer
+	{
+		readonly CellLayer<Actor> bridges;
+
+		public BridgeLayer(World world)
 		{
-			this.info = info;
-			this.world = self.World;
+			bridges = new CellLayer<Actor>(world.Map);
 		}
 
-		public void WorldLoaded(World w, WorldRenderer wr)
+		public Actor this[CPos cell] { get { return bridges[cell]; } }
+
+		public void Add(Actor b)
 		{
-			bridges = new CellLayer<Bridge>(w.Map);
-
-			// Build a list of templates that should be overlayed with bridges
-			foreach (var bridge in info.Bridges)
-			{
-				var bi = w.Map.Rules.Actors[bridge].Traits.Get<BridgeInfo>();
-				foreach (var template in bi.Templates)
-					bridgeTypes.Add(template.First, Pair.New(bridge, template.Second));
-			}
-
-			// Loop through the map looking for templates to overlay
-			for (var i = w.Map.Bounds.Left; i < w.Map.Bounds.Right; i++)
-			{
-				for (var j = w.Map.Bounds.Top; j < w.Map.Bounds.Bottom; j++)
-				{
-					var cell = new CPos(i, j);
-					if (bridgeTypes.ContainsKey(w.Map.MapTiles.Value[cell].Type))
-						ConvertBridgeToActor(w, cell);
-				}
-			}
-
-			// Link adjacent (long)-bridges so that artwork is updated correctly
-			foreach (var b in w.Actors.SelectMany(a => a.TraitsImplementing<Bridge>()))
-				b.LinkNeighbouringBridges(w, this);
+			var buildingInfo = b.Info.TraitInfo<BuildingInfo>();
+			foreach (var c in buildingInfo.PathableTiles(b.Location))
+				bridges[c] = b;
 		}
 
-		void ConvertBridgeToActor(World w, CPos cell)
+		public void Remove(Actor b)
 		{
-			// This cell already has a bridge overlaying it from a previous iteration
-			if (bridges[cell] != null)
-				return;
-
-			// Correlate the tile "image" aka subtile with its position to find the template origin
-			var tile = w.Map.MapTiles.Value[cell].Type;
-			var index = w.Map.MapTiles.Value[cell].Index;
-			var template = w.TileSet.Templates[tile];
-			var ni = cell.X - index % template.Size.X;
-			var nj = cell.Y - index / template.Size.X;
-
-			// Create a new actor for this bridge and keep track of which subtiles this bridge includes
-			var bridge = w.CreateActor(bridgeTypes[tile].First, new TypeDictionary
-			{
-				new LocationInit(new CPos(ni, nj)),
-				new OwnerInit(w.WorldActor.Owner),
-				new HealthInit(bridgeTypes[tile].Second),
-			}).Trait<Bridge>();
-
-			var subTiles = new Dictionary<CPos, byte>();
-
-			// For each subtile in the template
-			for (byte ind = 0; ind < template.Size.X * template.Size.Y; ind++)
-			{
-				// Where do we expect to find the subtile
-				var subtile = new CPos(ni + ind % template.Size.X, nj + ind / template.Size.X);
-
-				// This isn't the bridge you're looking for
-				if (!w.Map.Contains(subtile) || w.Map.MapTiles.Value[subtile].Type != tile ||
-					w.Map.MapTiles.Value[subtile].Index != ind)
-					continue;
-
-				subTiles.Add(subtile, ind);
-				bridges[subtile] = bridge;
-			}
-
-			bridge.Create(tile, subTiles);
-		}
-
-		// Used to check for neighbouring bridges
-		public Bridge GetBridge(CPos cell)
-		{
-			if (!world.Map.Contains(cell))
-				return null;
-
-			return bridges[cell];
+			var buildingInfo = b.Info.TraitInfo<BuildingInfo>();
+			foreach (var c in buildingInfo.PathableTiles(b.Location))
+				if (bridges[c] == b)
+					bridges[c] = null;
 		}
 	}
 }

@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -19,7 +20,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int Levels = 1;
 
 		[Desc("The range to search for extra collectors in.", "Extra collectors will also be granted the crate action.")]
-		public readonly WRange Range = new WRange(3);
+		public readonly WDist Range = new WDist(3);
 
 		[Desc("The maximum number of extra collectors to grant the crate action to.")]
 		public readonly int MaxExtraCollectors = 4;
@@ -49,11 +50,11 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var inRange = self.World.FindActorsInCircle(self.CenterPosition, info.Range).Where(a =>
 			{
-				// Don't upgrade the same unit twice
+				// Don't touch the same unit twice
 				if (a == collector)
 					return false;
 
-				// Only upgrade the collecting player's units
+				// Only affect the collecting player's units
 				// TODO: Also apply to allied units?
 				if (a.Owner != collector.Owner)
 					return false;
@@ -73,7 +74,7 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					var gainsExperience = recipient.TraitOrDefault<GainsExperience>();
 					if (gainsExperience != null)
-						gainsExperience.GiveLevels(((LevelUpCrateActionInfo)info).Levels);
+						gainsExperience.GiveLevels(info.Levels);
 				});
 			}
 

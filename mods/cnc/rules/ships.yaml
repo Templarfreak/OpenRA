@@ -1,34 +1,51 @@
 BOAT:
 	Inherits: ^Ship
+	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@AUTOTARGET: ^AutoTargetAll
 	Valued:
 		Cost: 300
 	Tooltip:
 		Name: Gunboat
 	Health:
-		HP: 700
+		HP: 70000
 	Armor:
 		Type: Heavy
-	Mobile:
-		InitialFacing: 64
-		ROT: 4
+	TDGunboat:
 		Speed: 28
-		OnRails: true
 	RevealsShroud:
 		Range: 7c0
+		Type: CenterPosition
 	Turreted:
-		ROT: 7
+		TurnSpeed: 5
 		Offset: 0,896,171
 	Armament:
 		Weapon: BoatMissile
 		LocalOffset: 85,-85,0, 85,85,0
-	AttackTurreted:
-	RenderGunboat:
+	AttackTDGunboatTurreted:
+	-QuantizeFacingsFromSequence:
+	BodyOrientation:
+		QuantizedFacings: 2
+	WithGunboatBody:
+		Sequence: left # Just a work-around to avoid crash
 	Selectable:
 		Bounds: 42,24
+		DecorationBounds: 42,24
 	AutoTarget:
 		AllowMovement: false
-	WithSmoke:
 	RejectsOrders:
+	SelectionDecorations:
+	GrantConditionOnDamageState@HEAVY:
+		Condition: heavy-damage
+		ValidDamageStates: Heavy
+	GrantConditionOnDamageState@CRITICAL:
+		Condition: critical-damage
+		ValidDamageStates: Critical
+	SpeedMultiplier@HEAVYDAMAGE:
+		RequiresCondition: heavy-damage
+		Modifier: 75
+	SpeedMultiplier@CRITICALDAMAGE:
+		RequiresCondition: critical-damage
+		Modifier: 50
 
 LST:
 	Inherits: ^Ship
@@ -37,30 +54,22 @@ LST:
 	Tooltip:
 		Name: Landing Craft
 	Buildable:
-		Queue: Vehicle
+		Queue: Vehicle.GDI
 		BuildPaletteOrder: 1000
 		Prerequisites: ~disabled
 	Mobile:
-		Crushes: crate
-		TerrainSpeeds:
-			Clear: 100
-			Rough: 100
-			Road: 100
-			Water: 100
-			Tiberium: 100
-			BlueTiberium: 100
-			Beach: 100
-			River: 100
+		Locomotor: lcraft
 		InitialFacing: 0
-		ROT: 4
+		TurnSpeed: 4
 		Speed: 142
+		RequiresCondition: !notmobile
 	Health:
-		HP: 400
+		HP: 40000
 	Armor:
 		Type: Heavy
 	RevealsShroud:
 		Range: 7c0
-	RenderUnit:
+	WithFacingSpriteBody:
 	WithRoof:
 	WithCargo:
 		DisplayTypes: Infantry, Vehicle
@@ -70,4 +79,4 @@ LST:
 		MaxWeight: 5
 		PipCount: 5
 		PassengerFacing: 0
-
+		LoadingCondition: notmobile

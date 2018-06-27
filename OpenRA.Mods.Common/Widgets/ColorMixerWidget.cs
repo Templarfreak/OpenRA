@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -18,8 +19,9 @@ namespace OpenRA.Mods.Common.Widgets
 {
 	public class ColorMixerWidget : Widget
 	{
-		public float[] SRange = { 0.0f, 1.0f };
-		public float[] VRange = { 0.2f, 1.0f };
+		public float STrim = 0.025f;
+		public float VTrim = 0.025f;
+
 		public event Action OnChange = () => { };
 
 		public float H { get; private set; }
@@ -31,9 +33,13 @@ namespace OpenRA.Mods.Common.Widgets
 		bool isMoving;
 
 		bool update;
-		object syncWorker = new object();
+		readonly object syncWorker = new object();
+		readonly object bufferSync = new object();
 		Thread workerThread;
 		bool workerAlive;
+
+		float[] sRange = { 0.0f, 1.0f };
+		float[] vRange = { 0.0f, 1.0f };
 
 		public ColorMixerWidget() { }
 		public ColorMixerWidget(ColorMixerWidget other)
@@ -43,20 +49,43 @@ namespace OpenRA.Mods.Common.Widgets
 			H = other.H;
 			S = other.S;
 			V = other.V;
+
+			sRange = (float[])other.sRange.Clone();
+			vRange = (float[])other.vRange.Clone();
+
+			STrim = other.STrim;
+			VTrim = other.VTrim;
+		}
+
+		public void SetPaletteRange(float sMin, float sMax, float vMin, float vMax)
+		{
+			sRange[0] = sMin + STrim;
+			sRange[1] = sMax - STrim;
+			vRange[0] = vMin + VTrim;
+			vRange[1] = vMax - VTrim;
+
+			var rect = new Rectangle((int)(255 * sRange[0]), (int)(255 * (1 - vRange[1])), (int)(255 * (sRange[1] - sRange[0])) + 1, (int)(255 * (vRange[1] - vRange[0])) + 1);
+			mixerSprite = new Sprite(mixerSprite.Sheet, rect, TextureChannel.RGBA);
 		}
 
 		public override void Initialize(WidgetArgs args)
 		{
 			base.Initialize(args);
 
+			sRange[0] += STrim;
+			sRange[1] -= STrim;
+			vRange[0] += VTrim;
+			vRange[1] -= VTrim;
+
 			// Bitmap data is generated in a background thread and then flipped
 			front = new byte[4 * 256 * 256];
 			back = new byte[4 * 256 * 256];
 
-			var rect = new Rectangle((int)(255 * SRange[0]), (int)(255 * (1 - VRange[1])), (int)(255 * (SRange[1] - SRange[0])) + 1, (int)(255 * (VRange[1] - VRange[0])) + 1);
-			var mixerSheet = new Sheet(new Size(256, 256));
+			var rect = new Rectangle((int)(255 * sRange[0]), (int)(255 * (1 - vRange[1])), (int)(255 * (sRange[1] - sRange[0])) + 1, (int)(255 * (vRange[1] - vRange[0])) + 1);
+			var mixerSheet = new Sheet(SheetType.BGRA, new Size(256, 256));
 			mixerSheet.GetTexture().SetData(front, 256, 256);
-			mixerSprite = new Sprite(mixerSheet, rect, TextureChannel.Alpha);
+			mixerSprite = new Sprite(mixerSheet, rect, TextureChannel.RGBA);
+			GenerateBitmap();
 		}
 
 		void GenerateBitmap()
@@ -97,33 +126,30 @@ namespace OpenRA.Mods.Common.Widgets
 					hue = H;
 				}
 
-				lock (back)
+				unsafe
 				{
-					unsafe
+					// Generate palette in HSV
+					fixed (byte* cc = &back[0])
 					{
-						// Generate palette in HSV
-						fixed (byte* cc = &back[0])
-						{
-							var c = (int*)cc;
-							for (var v = 0; v < 256; v++)
-								for (var s = 0; s < 256; s++)
-									*(c + (v * 256) + s) = HSLColor.FromHSV(hue, s / 255f, (255 - v) / 255f).RGB.ToArgb();
-						}
+						var c = (int*)cc;
+						for (var v = 0; v < 256; v++)
+							for (var s = 0; s < 256; s++)
+								*(c + (v * 256) + s) = HSLColor.FromHSV(hue, s / 255f, (255 - v) / 255f).RGB.ToArgb();
 					}
+				}
 
-					lock (front)
-					{
-						var swap = front;
-						front = back;
-						back = swap;
-					}
+				lock (bufferSync)
+				{
+					var swap = front;
+					front = back;
+					back = swap;
 				}
 			}
 		}
 
 		public override void Draw()
 		{
-			if (Monitor.TryEnter(front))
+			if (Monitor.TryEnter(bufferSync))
 			{
 				try
 				{
@@ -131,7 +157,7 @@ namespace OpenRA.Mods.Common.Widgets
 				}
 				finally
 				{
-					Monitor.Exit(front);
+					Monitor.Exit(bufferSync);
 				}
 			}
 
@@ -146,17 +172,17 @@ namespace OpenRA.Mods.Common.Widgets
 		void SetValueFromPx(int2 xy)
 		{
 			var rb = RenderBounds;
-			var s = SRange[0] + xy.X * (SRange[1] - SRange[0]) / rb.Width;
-			var v = SRange[1] - xy.Y * (VRange[1] - VRange[0]) / rb.Height;
-			S = s.Clamp(SRange[0], SRange[1]);
-			V = v.Clamp(VRange[0], VRange[1]);
+			var s = sRange[0] + xy.X * (sRange[1] - sRange[0]) / rb.Width;
+			var v = sRange[1] - xy.Y * (vRange[1] - vRange[0]) / rb.Height;
+			S = s.Clamp(sRange[0], sRange[1]);
+			V = v.Clamp(vRange[0], vRange[1]);
 		}
 
 		int2 PxFromValue()
 		{
 			var rb = RenderBounds;
-			var x = RenderBounds.Width * (S - SRange[0]) / (SRange[1] - SRange[0]);
-			var y = RenderBounds.Height * (1 - (V - VRange[0]) / (VRange[1] - VRange[0]));
+			var x = RenderBounds.Width * (S - sRange[0]) / (sRange[1] - sRange[0]);
+			var y = RenderBounds.Height * (1 - (V - vRange[0]) / (vRange[1] - vRange[0]));
 			return new int2((int)x.Clamp(0, rb.Width), (int)y.Clamp(0, rb.Height));
 		}
 
@@ -220,8 +246,8 @@ namespace OpenRA.Mods.Common.Widgets
 					GenerateBitmap();
 				}
 
-				S = s.Clamp(SRange[0], SRange[1]);
-				V = v.Clamp(VRange[0], VRange[1]);
+				S = s.Clamp(sRange[0], sRange[1]);
+				V = v.Clamp(vRange[0], vRange[1]);
 				OnChange();
 			}
 		}

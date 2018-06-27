@@ -1,3 +1,11 @@
+--[[
+   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   This file is part of OpenRA, which is free software. It is made
+   available to you under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of
+   the License, or (at your option) any later version. For more
+   information, see COPYING.
+]]
 nodInBaseTeam = { RushBuggy, RushRifle1, RushRifle2, RushRifle3 }
 MobileConstructionVehicle = { "mcv" }
 EngineerReinforcements = { "e6", "e6", "e6" }
@@ -78,9 +86,9 @@ WorldLoaded = function()
 		Media.PlaySpeechNotification(player, "Lose")
 	end)
 
-	nodObjective = enemy.AddPrimaryObjective("Destroy all GDI troops")
-	gdiObjective1 = player.AddPrimaryObjective("Eliminate all Nod forces in the area")
-	gdiObjective2 = player.AddSecondaryObjective("Capture the Tiberium Refinery")
+	nodObjective = enemy.AddPrimaryObjective("Destroy all GDI troops.")
+	gdiObjective1 = player.AddPrimaryObjective("Eliminate all Nod forces in the area.")
+	gdiObjective2 = player.AddSecondaryObjective("Capture the Tiberium refinery.")
 
 	Trigger.OnCapture(NodRefinery, function() player.MarkCompletedObjective(gdiObjective2) end)
 	Trigger.OnKilled(NodRefinery, function() player.MarkFailedObjective(gdiObjective2) end)

@@ -11,10 +11,11 @@ apc:
 
 art2:
 	idle:
-
-gaarty:
 	turret: art2tur
 	barrel: art2barl
+
+jugg:
+	barrel: djuggbar
 
 subtank:
 	idle:
@@ -33,8 +34,6 @@ bike:
 
 ttnk:
 	idle:
-
-gatick:
 	turret: ttnktur
 	barrel: ttnkbarl
 
@@ -94,6 +93,7 @@ repair:
 
 weed:
 	idle:
+	unload:
 
 bus:
 	idle:
@@ -105,6 +105,15 @@ car:
 	idle:
 
 wini:
+	idle:
+
+locomotive:
+	idle: monoeng
+
+traincar:
+	idle: monocar
+
+cargocar:
 	idle:
 
 sonic:

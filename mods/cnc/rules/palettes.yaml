@@ -1,9 +1,53 @@
 ^Palettes:
-	PaletteFromCurrentTileset@terrain:
+	PaletteFromFile@terrain-desert:
 		Name: terrain
+		Tileset: DESERT
+		Filename: desert.pal
 		ShadowIndex: 4
-	PaletteFromCurrentTileset@static:
+	PaletteFromFile@terrain-winter:
+		Name: terrain
+		Tileset: WINTER
+		Filename: winter.pal
+		ShadowIndex: 4
+	PaletteFromFile@terrain-snow:
+		Name: terrain
+		Tileset: SNOW
+		Filename: snow.pal
+		ShadowIndex: 4
+	PaletteFromFile@terrain-temperat:
+		Name: terrain
+		Tileset: TEMPERAT
+		Filename: temperat.pal
+		ShadowIndex: 4
+	PaletteFromFile@terrain-jungle:
+		Name: terrain
+		Tileset: JUNGLE
+		Filename: jungle.pal
+		ShadowIndex: 4
+	PaletteFromFile@staticterrain-desert:
 		Name: staticterrain
+		Tileset: DESERT
+		Filename: desert.pal
+		ShadowIndex: 4
+	PaletteFromFile@staticterrain-winter:
+		Name: staticterrain
+		Tileset: WINTER
+		Filename: winter.pal
+		ShadowIndex: 4
+	PaletteFromFile@staticterrain-snow:
+		Name: staticterrain
+		Tileset: SNOW
+		Filename: snow.pal
+		ShadowIndex: 4
+	PaletteFromFile@staticterrain-temperat:
+		Name: staticterrain
+		Tileset: TEMPERAT
+		Filename: temperat.pal
+		ShadowIndex: 4
+	PaletteFromFile@staticterrain-jungle:
+		Name: staticterrain
+		Tileset: JUNGLE
+		Filename: jungle.pal
 		ShadowIndex: 4
 	PaletteFromFile@chrome:
 		Name: chrome
@@ -54,14 +98,14 @@
 		B: 0
 		A: 180
 	ShroudPalette@shroud:
-		Type: Shroud
+		Name: shroud
 	ShroudPalette@fog:
 		Name: fog
 		Fog: true
 	FixedColorPalette@BlueTiberium:
 		Base: terrain
 		Name: bluetiberium
-		Color: 152, 255, 196
+		Color: 89BAFF
 		RemapIndex: 176, 178, 180, 182, 184, 186, 189, 191, 177, 179, 181, 183, 185, 187, 188, 190
 	PlayerColorPalette:
 		BasePalette: terrain
@@ -70,7 +114,7 @@
 	MenuPaletteEffect:
 		MenuEffect: Desaturated
 	CloakPaletteEffect:
-	NukePaletteEffect:
-	WaterPaletteRotation:
-		ExcludePalettes: effect
-
+	FlashPaletteEffect:
+	RotationPaletteEffect@water:
+		ExcludePalettes: effect, chrome
+		RotationBase: 32

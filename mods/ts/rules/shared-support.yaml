@@ -1,64 +1,55 @@
-GADPSA:
-	Inherits: ^Building
-	Valued:
-		Cost: 950
-	-AcceptsSupplies:
-	Tooltip:
-		Name: Deployed Sensor Array
-	-GivesBuildableArea:
-	Health:
-		HP: 600
-	Armor:
-		Type: Wood
-	RevealsShroud:
-		Range: 8c0
-	Transforms:
-		IntoActor: lpst
-		Facing: 159
-		TransformSounds: place2.aud
-		NoTransformSounds:
-	RenderDetectionCircle:
-	DetectCloaked:
-		Range: 6
-	-WithDeathAnimation:
-
 NAPULS:
-	Inherits: ^Building
+	Inherits: ^Defense
+	Inherits@IDISABLE: ^DisableOnLowPowerOrPowerDown
+	Inherits@SHAPE: ^2x2Shape
 	Valued:
 		Cost: 1000
 	Tooltip:
-		Name: EMP Cannon
-		Description: Disables vehicles.\nRequires power to operate.\n  Strong vs Vehicles\n  Weak vs Infantry, Aircraft
+		Name: E.M. Pulse Cannon
 	Buildable:
 		Queue: Defense
-		BuildPaletteOrder: 90
-		Prerequisites: radar
+		BuildPaletteOrder: 110
+		Prerequisites: radar, ~techlevel.superweapons
+		Description: Disables mechanical units in an area.\nRequires power to operate.
 	Building:
 		Footprint: xx xx
 		Dimensions: 2,2
 	Selectable:
 		Bounds: 78, 54, 0, -12
-	RequiresPower:
-	DisabledOverlay:
-	-GivesBuildableArea:
+		DecorationBounds: 78, 54, 0, -12
 	Health:
-		HP: 500
+		HP: 50000
 	Armor:
 		Type: Heavy
 	RevealsShroud:
 		Range: 8c0
 	Turreted:
-		ROT: 10
-		InitialFacing: 300
+		TurnSpeed: 10
+		InitialFacing: 224
 	AttackTurreted:
+		RequiresCondition: !empdisable && !disabled
 	Armament:
 		Weapon: EMPulseCannon
-	AutoTarget:
-	RenderRangeCircle:
-	RenderDetectionCircle:
-	DetectCloaked:
-		Range: 5
-	WithTurret:
+		LocalOffset: 212,0,1768
+		LocalYaw: 0,100
+	WithSpriteTurret:
 		Sequence: turret
 	Power:
 		Amount: -150
+	SelectionDecorations:
+	RenderSprites:
+		Image: napuls.gdi
+		FactionImages:
+			gdi: napuls.gdi
+			nod: napuls.nod
+	ProvidesPrerequisite@gdi:
+		ResetOnOwnerChange: true
+	AttackOrderPower:
+		PauseOnCondition: empdisable || disabled
+		Cursor: emp
+		Icon: emp
+		ChargeInterval: 3375
+		Description: E.M. Pulse
+		LongDesc: Fires a pulse blast which disables\nall mechanical units in the area.
+		EndChargeSpeechNotification: EmPulseCannonReady
+		SelectTargetSpeechNotification: SelectTarget

@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -20,6 +21,7 @@ namespace OpenRA.Mods.Common.Traits
 	class ShroudPaletteInfo : ITraitInfo
 	{
 		[Desc("Internal palette name")]
+		[FieldLoader.Require, PaletteDefinition]
 		public readonly string Name = "shroud";
 
 		[Desc("Palette type")]
@@ -42,8 +44,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		static readonly Color[] Fog = new[]
 		{
-			Color.Transparent, Color.Green,
-			Color.Blue, Color.Yellow,
+			Color.FromArgb(0, 0, 0, 0),
+			Color.Green, Color.Blue, Color.Yellow,
 			Color.FromArgb(128, 0, 0, 0),
 			Color.FromArgb(96, 0, 0, 0),
 			Color.FromArgb(64, 0, 0, 0),
@@ -52,8 +54,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		static readonly Color[] Shroud = new[]
 		{
-			Color.Transparent, Color.Green,
-			Color.Blue, Color.Yellow,
+			Color.FromArgb(0, 0, 0, 0),
+			Color.Green, Color.Blue, Color.Yellow,
 			Color.Black,
 			Color.FromArgb(160, 0, 0, 0),
 			Color.FromArgb(128, 0, 0, 0),

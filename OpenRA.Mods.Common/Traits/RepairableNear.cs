@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -19,13 +20,14 @@ namespace OpenRA.Mods.Common.Traits
 {
 	class RepairableNearInfo : ITraitInfo, Requires<HealthInfo>, Requires<IMoveInfo>
 	{
-		[ActorReference] public readonly string[] Buildings = { "spen", "syrd" };
-		public readonly int CloseEnough = 4;	/* cells */
+		[ActorReference] public readonly HashSet<string> Buildings = new HashSet<string> { "spen", "syrd" };
+		public readonly WDist CloseEnough = WDist.FromCells(4);
+		[VoiceReference] public readonly string Voice = "Action";
 
 		public object Create(ActorInitializer init) { return new RepairableNear(init.Self, this); }
 	}
 
-	class RepairableNear : IIssueOrder, IResolveOrder
+	class RepairableNear : IIssueOrder, IResolveOrder, IOrderVoice
 	{
 		readonly Actor self;
 		readonly RepairableNearInfo info;
@@ -42,7 +44,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			get
 			{
-				yield return new EnterAlliedActorTargeter<Building>("RepairNear", 5,
+				yield return new EnterAlliedActorTargeter<BuildingInfo>("RepairNear", 5,
 					target => CanRepairAt(target), _ => ShouldRepair());
 			}
 		}
@@ -50,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 		public Order IssueOrder(Actor self, IOrderTargeter order, Target target, bool queued)
 		{
 			if (order.OrderID == "RepairNear")
-				return new Order(order.OrderID, self, queued) { TargetActor = target.Actor };
+				return new Order(order.OrderID, self, target, queued);
 
 			return null;
 		}
@@ -65,18 +67,40 @@ namespace OpenRA.Mods.Common.Traits
 			return self.GetDamageState() > DamageState.Undamaged;
 		}
 
+		public string VoicePhraseForOrder(Actor self, Order order)
+		{
+			return order.OrderString == "RepairNear" && ShouldRepair() ? info.Voice : null;
+		}
+
 		public void ResolveOrder(Actor self, Order order)
 		{
-			if (order.OrderString == "RepairNear" && CanRepairAt(order.TargetActor) && ShouldRepair())
-			{
-				var target = Target.FromOrder(self.World, order);
+			// RepairNear orders are only valid for own/allied actors,
+			// which are guaranteed to never be frozen.
+			if (order.OrderString != "RepairNear" || order.Target.Type != TargetType.Actor)
+				return;
 
+			if (!CanRepairAt(order.Target.Actor) || !ShouldRepair())
+				return;
+
+			if (!order.Queued)
 				self.CancelActivity();
-				self.QueueActivity(movement.MoveWithinRange(target, new WRange(1024 * info.CloseEnough)));
-				self.QueueActivity(new Repair(order.TargetActor));
 
-				self.SetTargetLine(target, Color.Green, false);
-			}
+			self.QueueActivity(movement.MoveWithinRange(order.Target, info.CloseEnough));
+			self.QueueActivity(new Repair(self, order.Target.Actor, info.CloseEnough));
+
+			self.SetTargetLine(order.Target, Color.Green, false);
+		}
+
+		public Actor FindRepairBuilding(Actor self)
+		{
+			var repairBuilding = self.World.ActorsWithTrait<RepairsUnits>()
+				.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld
+					&& a.Actor.Owner.IsAlliedWith(self.Owner) &&
+					info.Buildings.Contains(a.Actor.Info.Name))
+				.OrderBy(p => (self.Location - p.Actor.Location).LengthSquared);
+
+			// Worst case FirstOrDefault() will return a TraitPair<null, null>, which is OK.
+			return repairBuilding.FirstOrDefault().Actor;
 		}
 	}
 }

@@ -1,14 +1,14 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System;
 using Eluant;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Scripting;
@@ -17,14 +17,16 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Scripting
 {
 	[ScriptPropertyGroup("MissionObjectives")]
-	public class MissionObjectiveProperties : ScriptPlayerProperties
+	public class MissionObjectiveProperties : ScriptPlayerProperties, Requires<MissionObjectivesInfo>
 	{
 		readonly MissionObjectives mo;
+		readonly bool shortGame;
 
 		public MissionObjectiveProperties(ScriptContext context, Player player)
 			: base(context, player)
 		{
 			mo = player.PlayerActor.Trait<MissionObjectives>();
+			shortGame = player.World.WorldActor.Trait<MapOptions>().ShortGame;
 		}
 
 		[ScriptActorPropertyActivity]
@@ -108,11 +110,11 @@ namespace OpenRA.Mods.Common.Scripting
 		}
 
 		[ScriptActorPropertyActivity]
-		[Desc("Returns true if this player has lost all units/actors that have" +
+		[Desc("Returns true if this player has lost all units/actors that have " +
 			"the MustBeDestroyed trait (according to the short game option).")]
 		public bool HasNoRequiredUnits()
 		{
-			return Player.HasNoRequiredUnits();
+			return Player.HasNoRequiredUnits(shortGame);
 		}
 	}
 }

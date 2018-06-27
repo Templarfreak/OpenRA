@@ -1,82 +1,108 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 
 namespace OpenRA.FileSystem
 {
-	public class Folder : IFolder
+	public sealed class Folder : IReadWritePackage
 	{
 		readonly string path;
-		readonly int priority;
 
-		// Create a new folder package
-		public Folder(string path, int priority, Dictionary<string, byte[]> contents)
+		public Folder(string path)
 		{
 			this.path = path;
-			this.priority = priority;
-			if (Directory.Exists(path))
-				Directory.Delete(path, true);
-
-			Write(contents);
-		}
-
-		public Folder(string path, int priority)
-		{
-			this.path = path;
-			this.priority = priority;
 			if (!Directory.Exists(path))
 				Directory.CreateDirectory(path);
 		}
 
-		public Stream GetContent(string filename)
+		public string Name { get { return path; } }
+
+		public IEnumerable<string> Contents
+		{
+			get
+			{
+				foreach (var filename in Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly))
+					yield return Path.GetFileName(filename);
+				foreach (var filename in Directory.GetDirectories(path))
+					yield return Path.GetFileName(filename);
+			}
+		}
+
+		public Stream GetStream(string filename)
 		{
 			try { return File.OpenRead(Path.Combine(path, filename)); }
 			catch { return null; }
 		}
 
-		public IEnumerable<uint> ClassicHashes()
+		public bool Contains(string filename)
 		{
-			foreach (var filename in Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly))
-				yield return PackageEntry.HashFilename(Path.GetFileName(filename), PackageHashType.Classic);
+			var combined = Path.Combine(path, filename);
+			return combined.StartsWith(path, StringComparison.Ordinal) && File.Exists(combined);
 		}
 
-		public IEnumerable<uint> CrcHashes()
+		public IReadOnlyPackage OpenPackage(string filename, FileSystem context)
 		{
-			yield break;
+			var resolvedPath = Platform.ResolvePath(Path.Combine(Name, filename));
+			if (Directory.Exists(resolvedPath))
+				return new Folder(resolvedPath);
+
+			// Zip files loaded from Folders (and *only* from Folders) can be read-write
+			IReadWritePackage readWritePackage;
+			if (ZipFileLoader.TryParseReadWritePackage(resolvedPath, out readWritePackage))
+				return readWritePackage;
+
+			// Other package types can be loaded normally
+			IReadOnlyPackage package;
+			var s = GetStream(filename);
+			if (s == null)
+				return null;
+
+			if (context.TryParsePackage(s, filename, out package))
+				return package;
+
+			s.Dispose();
+			return null;
 		}
 
-		public IEnumerable<string> AllFileNames()
+		public void Update(string filename, byte[] contents)
 		{
-			foreach (var filename in Directory.GetFiles(path, "*", SearchOption.TopDirectoryOnly))
-				yield return Path.GetFileName(filename);
+			// HACK: ZipFiles can't be loaded as read-write from a stream, so we are
+			// forced to bypass the parent package and load them with their full path
+			// in FileSystem.OpenPackage.  Their internal name therefore contains the
+			// full parent path too.  We need to be careful to not add a second path
+			// prefix to these hacked packages.
+			var filePath = filename.StartsWith(path) ? filename : Path.Combine(path, filename);
+
+			Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+			using (var s = File.Create(filePath))
+				s.Write(contents, 0, contents.Length);
 		}
 
-		public bool Exists(string filename)
+		public void Delete(string filename)
 		{
-			return File.Exists(Path.Combine(path, filename));
+			// HACK: ZipFiles can't be loaded as read-write from a stream, so we are
+			// forced to bypass the parent package and load them with their full path
+			// in FileSystem.OpenPackage.  Their internal name therefore contains the
+			// full parent path too.  We need to be careful to not add a second path
+			// prefix to these hacked packages.
+			var filePath = filename.StartsWith(path) ? filename : Path.Combine(path, filename);
+			if (Directory.Exists(filePath))
+				Directory.Delete(filePath, true);
+			else if (File.Exists(filePath))
+				File.Delete(filePath);
 		}
 
-		public int Priority { get { return priority; } }
-		public string Name { get { return path; } }
-
-		public void Write(Dictionary<string, byte[]> contents)
-		{
-			if (!Directory.Exists(path))
-				Directory.CreateDirectory(path);
-
-			foreach (var file in contents)
-				using (var dataStream = File.Create(Path.Combine(path, file.Key)))
-				using (var writer = new BinaryWriter(dataStream))
-					writer.Write(file.Value);
-		}
+		public void Dispose() { }
 	}
 }

@@ -2,107 +2,34 @@
 # OpenRA master packaging script
 
 if [ $# -ne "2" ]; then
-    echo "Usage: `basename $0` version outputdir"
+    echo "Usage: ${0##*/} version outputdir."
     exit 1
 fi
 
-# Resolve the absolute source path from the location of this script
-SRCDIR=$(readlink -f $(dirname $0)/../)
-BUILTDIR="${SRCDIR}/packaging/built"
-TAG=$1
-OUTPUTDIR=$(readlink -f $2)
+export GIT_TAG="$1"
+export BUILD_OUTPUT_DIR="$2"
 
-# Build the code and push the files into a clean dir
-cd "$SRCDIR"
-mkdir packaging/built
-mkdir packaging/built/mods
-make package
+# Set the working dir to the location of this script using bash parameter expansion
+cd "${0%/*}"
 
-# Remove the mdb files that are created during `make`
-find . -path "*.mdb" -delete
+#build packages using a subshell so directory changes do not persist beyond the function
+function build_package() (
+    function on_build() {
+        echo "$1 package build failed." 1>&2
+    }
+    #trap function executes on any error in the following commands
+    trap "on_build $1" ERR
+    set -e
+    echo "Building $1 package(s)."
+    cd "$1"
+    ./buildpackage.sh "${GIT_TAG}" "${BUILD_OUTPUT_DIR}"
+)
 
-test -e Changelog.md && rm Changelog.md
-curl -s -L -O https://raw.githubusercontent.com/wiki/OpenRA/OpenRA/Changelog.md
-
-curl -s -L -O http://daringfireball.net/projects/downloads/Markdown_1.0.1.zip
-unzip -qq Markdown_1.0.1.zip
-rm -rf Markdown_1.0.1.zip
-./Markdown_1.0.1/Markdown.pl Changelog.md > CHANGELOG.html
-./Markdown_1.0.1/Markdown.pl README.md > README.html
-./Markdown_1.0.1/Markdown.pl CONTRIBUTING.md > CONTRIBUTING.html
-./Markdown_1.0.1/Markdown.pl DOCUMENTATION.md > DOCUMENTATION.html
-./Markdown_1.0.1/Markdown.pl Lua-API.md > Lua-API.html
-rm -rf Markdown_1.0.1
-
-# List of files that are packaged on all platforms
-FILES=('OpenRA.Game.exe' 'OpenRA.Editor.exe' 'OpenRA.Utility.exe' \
-'OpenRA.Renderer.Sdl2.dll' 'OpenRA.Renderer.Null.dll' \
- 'lua' 'glsl' 'mods/common' 'mods/ra' 'mods/cnc' 'mods/d2k' 'mods/modchooser' \
-'AUTHORS' 'COPYING' 'README.html' 'CONTRIBUTING.html' 'DOCUMENTATION.html' 'CHANGELOG.html' \
-'global mix database.dat' 'GeoLite2-Country.mmdb')
-
-echo "Copying files..."
-for i in "${FILES[@]}"; do
-    cp -R "${i}" "packaging/built/${i}" || exit 3
-done
-
-# SharpZipLib for zip file support
-cp thirdparty/download/ICSharpCode.SharpZipLib.dll packaging/built
-
-# FuzzyLogicLibrary for improved AI
-cp thirdparty/download/FuzzyLogicLibrary.dll packaging/built
-
-# SharpFont for FreeType support
-cp thirdparty/download/SharpFont* packaging/built
-
-# SDL2-CS
-cp thirdparty/download/SDL2-CS* packaging/built
-cp thirdparty/SDL2-CS* packaging/built
-
-# Mono.NAT for UPnP support
-cp thirdparty/download/Mono.Nat.dll packaging/built
-
-# Eluant (Lua integration)
-cp thirdparty/download/Eluant* packaging/built
-
-# GeoIP database access
-cp thirdparty/download/MaxMind.Db.dll packaging/built
-cp thirdparty/download/MaxMind.GeoIP2.dll packaging/built
-cp thirdparty/download/Newtonsoft.Json.dll packaging/built
-cp thirdparty/download/RestSharp.dll packaging/built
-
-# Copy game icon for windows package
-cp OpenRA.Game/OpenRA.ico packaging/built
-
-# Copy the Windows crash monitor
-cp OpenRA.exe packaging/built
-
-cd packaging
-echo "Creating packages..."
-
-pushd windows >/dev/null
-./buildpackage.sh "$TAG" "$BUILTDIR" "$SRCDIR" "$OUTPUTDIR"
-if [ $? -ne 0 ]; then
-    echo "Windows package build failed."
-fi
-popd >/dev/null
-
-pushd osx >/dev/null
-echo "Zipping OS X package"
-./buildpackage.sh "$TAG" "$BUILTDIR" "$OUTPUTDIR"
-if [ $? -ne 0 ]; then
-    echo "OS X package build failed."
-fi
-popd >/dev/null
-
-pushd linux >/dev/null
-echo "Building Linux packages"
-./buildpackage.sh "$TAG" "$BUILTDIR" "$OUTPUTDIR"
-if [ $? -ne 0 ]; then
-    echo "Linux package build failed."
-fi
-popd >/dev/null
+#exit on any non-zero exited (failed) command
+set -e
+build_package windows
+build_package osx
+build_package linux
+build_package source
 
 echo "Package build done."
-
-rm -rf $BUILTDIR

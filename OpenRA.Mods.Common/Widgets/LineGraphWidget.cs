@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -39,6 +40,8 @@ namespace OpenRA.Mods.Common.Widgets
 		public bool DisplayFirstYAxisValue = false;
 		public string LabelFont;
 		public string AxisFont;
+		public Color BackgroundColorDark = ChromeMetrics.Get<Color>("TextContrastColorDark");
+		public Color BackgroundColorLight = ChromeMetrics.Get<Color>("TextContrastColorLight");
 
 		public LineGraphWidget()
 		{
@@ -78,6 +81,8 @@ namespace OpenRA.Mods.Common.Widgets
 			DisplayFirstYAxisValue = other.DisplayFirstYAxisValue;
 			LabelFont = other.LabelFont;
 			AxisFont = other.AxisFont;
+			BackgroundColorDark = other.BackgroundColorDark;
+			BackgroundColorLight = other.BackgroundColorLight;
 		}
 
 		public override void Draw()
@@ -87,6 +92,7 @@ namespace OpenRA.Mods.Common.Widgets
 				|| GetAxisFont == null || GetAxisFont() == null)
 				return;
 
+			var cr = Game.Renderer.RgbaColorRenderer;
 			var rect = RenderBounds;
 			var origin = new float2(rect.Left, rect.Bottom);
 
@@ -118,31 +124,30 @@ namespace OpenRA.Mods.Common.Widgets
 				if (points.Any())
 				{
 					points = points.Reverse().Take(xAxisSize).Reverse();
-					var scaledData = points.Select(d => d * scale);
-					var x = 0;
-					scaledData.Aggregate((a, b) =>
-					{
-						Game.Renderer.LineRenderer.DrawLine(
-							origin + new float2(x, -a),
-							origin + new float2(x + xStep, -b),
-							color, color);
-						x += xStep;
-						return b;
-					});
+					var lastX = 0;
+					var lastPoint = 0f;
+					cr.DrawLine(
+						points.Select((point, x) =>
+						{
+							lastX = x;
+							lastPoint = point;
+							return origin + new float3(x * xStep, -point * scale, 0);
+						}), 1, color);
 
-					var value = points.Last();
-					if (value != 0)
-						tiny.DrawText(GetValueFormat().F(value), origin + new float2(x, -value * scale - 2), color);
+					if (lastPoint != 0f)
+						tiny.DrawTextWithShadow(GetValueFormat().F(lastPoint), origin + new float2(lastX * xStep, -lastPoint * scale - 2),
+							color, BackgroundColorDark, BackgroundColorLight, 1);
 				}
 
-				tiny.DrawText(key, new float2(rect.Left, rect.Top) + new float2(5, 10 * keyOffset + 3), color);
+				tiny.DrawTextWithShadow(key, new float2(rect.Left, rect.Top) + new float2(5, 10 * keyOffset + 3),
+					color, BackgroundColorDark, BackgroundColorLight, 1);
 				keyOffset++;
 			}
 
 			// TODO: make this stuff not draw outside of the RenderBounds
 			for (int n = pointStart, x = 0; n <= pointEnd; n++, x += xStep)
 			{
-				Game.Renderer.LineRenderer.DrawLine(origin + new float2(x, 0), origin + new float2(x, -5), Color.White, Color.White);
+				cr.DrawLine(origin + new float2(x, 0), origin + new float2(x, -5), 1, Color.White);
 				tiny.DrawText(GetXAxisValueFormat().F(n), origin + new float2(x, 2), Color.White);
 			}
 
@@ -151,16 +156,16 @@ namespace OpenRA.Mods.Common.Widgets
 			for (var y = GetDisplayFirstYAxisValue() ? 0 : yStep; y <= height; y += yStep)
 			{
 				var yValue = y / scale;
-				Game.Renderer.LineRenderer.DrawLine(origin + new float2(width - 5, -y), origin + new float2(width, -y), Color.White, Color.White);
+				cr.DrawLine(origin + new float2(width - 5, -y), origin + new float2(width, -y), 1, Color.White);
 				tiny.DrawText(GetYAxisValueFormat().F(yValue), origin + new float2(width + 2, -y), Color.White);
 			}
 
 			bold.DrawText(GetYAxisLabel(), origin + new float2(width + 40, -(height / 2)), Color.White);
 
-			Game.Renderer.LineRenderer.DrawLine(origin, origin + new float2(width, 0), Color.White, Color.White);
-			Game.Renderer.LineRenderer.DrawLine(origin, origin + new float2(0, -height), Color.White, Color.White);
-			Game.Renderer.LineRenderer.DrawLine(origin + new float2(width, 0), origin + new float2(width, -height), Color.White, Color.White);
-			Game.Renderer.LineRenderer.DrawLine(origin + new float2(0, -height), origin + new float2(width, -height), Color.White, Color.White);
+			cr.DrawLine(origin, origin + new float2(width, 0), 1, Color.White);
+			cr.DrawLine(origin, origin + new float2(0, -height), 1, Color.White);
+			cr.DrawLine(origin + new float2(width, 0), origin + new float2(width, -height), 1, Color.White);
+			cr.DrawLine(origin + new float2(0, -height), origin + new float2(width, -height), 1, Color.White);
 		}
 
 		public override Widget Clone()

@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -15,6 +16,7 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Allow a non-standard sell/repair value to avoid buy-sell exploits.")]
 	public class CustomSellValueInfo : TraitInfo<CustomSellValue>
 	{
+		[FieldLoader.Require]
 		public readonly int Value = 0;
 	}
 
@@ -24,10 +26,10 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public static int GetSellValue(this Actor a)
 		{
-			var csv = a.Info.Traits.GetOrDefault<CustomSellValueInfo>();
+			var csv = a.Info.TraitInfoOrDefault<CustomSellValueInfo>();
 			if (csv != null) return csv.Value;
 
-			var valued = a.Info.Traits.GetOrDefault<ValuedInfo>();
+			var valued = a.Info.TraitInfoOrDefault<ValuedInfo>();
 			if (valued != null) return valued.Cost;
 
 			return 0;

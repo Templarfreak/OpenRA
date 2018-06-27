@@ -1,16 +1,17 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Effects;
+using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
@@ -25,20 +26,20 @@ namespace OpenRA.Mods.Common.Activities
 		readonly int flashesDelay;
 		readonly int flashInterval;
 		readonly int flashDuration;
+		readonly INotifyDemolition[] notifiers;
 
-		readonly Cloak cloak;
-
-		public Demolish(Actor self, Actor target, int delay, int flashes, int flashesDelay, int flashInterval, int flashDuration)
-			: base(self, target)
+		public Demolish(Actor self, Actor target, EnterBehaviour enterBehaviour, int delay,
+			int flashes, int flashesDelay, int flashInterval, int flashDuration)
+			: base(self, target, enterBehaviour)
 		{
 			this.target = target;
 			demolishables = target.TraitsImplementing<IDemolishable>().ToArray();
+			notifiers = self.TraitsImplementing<INotifyDemolition>().ToArray();
 			this.delay = delay;
 			this.flashes = flashes;
 			this.flashesDelay = flashesDelay;
 			this.flashInterval = flashInterval;
 			this.flashDuration = flashDuration;
-			cloak = self.TraitOrDefault<Cloak>();
 		}
 
 		protected override bool CanReserve(Actor self)
@@ -53,8 +54,8 @@ namespace OpenRA.Mods.Common.Activities
 				if (target.IsDead)
 					return;
 
-				if (cloak != null && cloak.Info.UncloakOnDemolish)
-					cloak.Uncloak();
+				foreach (var ind in notifiers)
+					ind.Demolishing(self);
 
 				for (var f = 0; f < flashes; f++)
 					w.Add(new DelayedAction(flashesDelay + f * flashInterval, () =>

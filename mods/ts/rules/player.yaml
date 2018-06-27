@@ -1,36 +1,56 @@
+^BasePlayer:
+	AlwaysVisible:
+	Shroud:
+
+EditorPlayer:
+	Inherits: ^BasePlayer
+
 Player:
+	Inherits: ^BasePlayer
 	TechTree:
+	GrantConditionOnPrerequisiteManager:
 	ClassicProductionQueue@Building:
 		Type: Building
-		BuildSpeed: .4
+		BuildDurationModifier: 120
 		LowPowerSlowdown: 3
 		QueuedAudio: Building
 		ReadyAudio: ConstructionComplete
+		BlockedAudio:
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
 	ClassicProductionQueue@Defense:
 		Type: Defense
-		BuildSpeed: .4
+		BuildDurationModifier: 120
 		LowPowerSlowdown: 3
 		QueuedAudio: Building
 		ReadyAudio: ConstructionComplete
+		BlockedAudio:
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
 	ClassicProductionQueue@Vehicle:
 		Type: Vehicle
-		BuildSpeed: .4
+		BuildDurationModifier: 120
 		LowPowerSlowdown: 3
+		BlockedAudio:
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
 	ClassicProductionQueue@Infantry:
 		Type: Infantry
-		BuildSpeed: .4
+		BuildDurationModifier: 120
 		LowPowerSlowdown: 3
+		BlockedAudio:
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
 	ClassicProductionQueue@Air:
 		Type: Air
-		BuildSpeed: .4
+		BuildDurationModifier: 120
 		LowPowerSlowdown: 3
+		BlockedAudio:
+		LimitedAudio: BuildingInProgress
 		SpeedUp: True
 	PlaceBuilding:
-		Palette: ra
+		Palette: placebuilding
+		LineBuildSegmentPalette: placelinesegment
 	SupportPowerManager:
 	ScriptTriggers:
 	MissionObjectives:
@@ -38,13 +58,40 @@ Player:
 	PowerManager:
 	AllyRepair:
 	PlayerResources:
-	ActorGroupProxy:
+		InsufficientFundsNotification: InsufficientFunds
 	DeveloperMode:
-	GpsWatcher:
+		CheckboxEnabled: true
+		CheckboxDisplayOrder: 8
 	Shroud:
+		FogCheckboxDisplayOrder: 3
+	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
+		ID: factundeploy
+		Label: Redeployable MCVs
+		Description: Allow undeploying Construction Yard.
+		Enabled: True
+		DisplayOrder: 7
+		Prerequisites: global-factundeploy
 	FrozenActorLayer:
 	BaseAttackNotifier:
+		AllyNotification: OurAllyIsUnderAttack
 	HarvesterAttackNotifier:
 	PlayerStatistics:
-	PlaceBeacon:
-
+	PlaceSimpleBeacon:
+	ProvidesTechPrerequisite@low:
+		Name: Low
+		Prerequisites: techlevel.low
+		Id: low
+	ProvidesTechPrerequisite@medium:
+		Name: Medium
+		Prerequisites: techlevel.low, techlevel.medium
+		Id: medium
+	ProvidesTechPrerequisite@nosuper:
+		Name: No Powers
+		Prerequisites: techlevel.low, techlevel.medium, techlevel.high
+		Id: nopowers
+	ProvidesTechPrerequisite@all:
+		Name: Unrestricted
+		Prerequisites: techlevel.low, techlevel.medium, techlevel.high, techlevel.superweapons
+		Id: unrestricted
+	ResourceStorageWarning:
+	PlayerExperience:

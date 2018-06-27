@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -14,7 +15,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class ProvidesPrerequisiteInfo : ITraitInfo
+	public class ProvidesPrerequisiteInfo : ConditionalTraitInfo, ITechTreePrerequisiteInfo
 	{
 		[Desc("The prerequisite type that this provides. If left empty it defaults to the actor's name.")]
 		public readonly string Prerequisite = null;
@@ -23,31 +24,30 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string[] RequiresPrerequisites = { };
 
 		[Desc("Only grant this prerequisite for certain factions.")]
-		public readonly string[] Race = { };
+		public readonly HashSet<string> Factions = new HashSet<string>();
 
 		[Desc("Should it recheck everything when it is captured?")]
 		public readonly bool ResetOnOwnerChange = false;
-		public object Create(ActorInitializer init) { return new ProvidesPrerequisite(init, this); }
+		public override object Create(ActorInitializer init) { return new ProvidesPrerequisite(init, this); }
 	}
 
-	public class ProvidesPrerequisite : ITechTreePrerequisite, INotifyOwnerChanged
+	public class ProvidesPrerequisite : ConditionalTrait<ProvidesPrerequisiteInfo>, ITechTreePrerequisite, INotifyOwnerChanged, INotifyCreated
 	{
-		readonly ProvidesPrerequisiteInfo info;
 		readonly string prerequisite;
 
-		bool enabled = true;
+		bool enabled;
+		TechTree techTree;
+		string faction;
 
 		public ProvidesPrerequisite(ActorInitializer init, ProvidesPrerequisiteInfo info)
+			: base(info)
 		{
-			this.info = info;
 			prerequisite = info.Prerequisite;
 
 			if (string.IsNullOrEmpty(prerequisite))
 				prerequisite = init.Self.Info.Name;
 
-			var race = init.Contains<RaceInit>() ? init.Get<RaceInit, string>() : init.Self.Owner.Country.Race;
-
-			Update(init.Self.Owner, race);
+			faction = init.Contains<FactionInit>() ? init.Get<FactionInit, string>() : init.Self.Owner.Faction.InternalName;
 		}
 
 		public IEnumerable<string> ProvidesPrerequisites
@@ -61,21 +61,54 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		public void OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
+		protected override void Created(Actor self)
 		{
-			if (info.ResetOnOwnerChange)
-				Update(newOwner, newOwner.Country.Race);
+			// Special case handling is required for the Player actor.
+			// Created is called before Player.PlayerActor is assigned,
+			// so we must query other player traits from self, knowing that
+			// it refers to the same actor as self.Owner.PlayerActor
+			var playerActor = self.Info.Name == "player" ? self : self.Owner.PlayerActor;
+
+			techTree = playerActor.Trait<TechTree>();
+
+			Update();
+
+			base.Created(self);
 		}
 
-		void Update(Player owner, string race)
+		public void OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
-			enabled = true;
+			techTree = newOwner.PlayerActor.Trait<TechTree>();
 
-			if (info.Race.Any())
-				enabled = info.Race.Contains(race);
+			if (Info.ResetOnOwnerChange)
+				faction = newOwner.Faction.InternalName;
 
-			if (info.RequiresPrerequisites.Any() && enabled)
-				enabled = owner.PlayerActor.Trait<TechTree>().HasPrerequisites(info.RequiresPrerequisites);
+			Update();
+		}
+
+		void Update()
+		{
+			enabled = !IsTraitDisabled;
+			if (IsTraitDisabled)
+				return;
+
+			if (Info.Factions.Any())
+				enabled = Info.Factions.Contains(faction);
+
+			if (Info.RequiresPrerequisites.Any() && enabled)
+				enabled = techTree.HasPrerequisites(Info.RequiresPrerequisites);
+		}
+
+		protected override void TraitEnabled(Actor self)
+		{
+			Update();
+			techTree.ActorChanged(self);
+		}
+
+		protected override void TraitDisabled(Actor self)
+		{
+			Update();
+			techTree.ActorChanged(self);
 		}
 	}
 }

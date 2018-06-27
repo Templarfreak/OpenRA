@@ -2,7 +2,7 @@ sidebar-allies: chrome.png
 	background-top: 0,167,238,290
 	background-iconrow: 0,457,238,47
 	background-bottom: 0,504,238,8
-	background-supportoverlay: 184,118,64,48
+	background-supportoverlay: 0,75,64,48
 
 sidebar-button-allies: chrome.png
 	background: 59,31,22,22
@@ -85,11 +85,28 @@ sidebar-button-allies-highlighted-disabled: chrome.png
 	corner-bl: 168,25,3,3
 	corner-br: 193,25,3,3
 
+command-button-allies: chrome.png
+	background: 59,31,22,22
+command-button-allies-hover: chrome.png
+	background: 59,3,22,22
+command-button-allies-pressed: chrome.png
+	background: 59,31,22,22
+command-button-allies-highlighted: chrome.png
+	background: 87,31,22,22
+command-button-allies-highlighted-hover: chrome.png
+	background: 87,3,22,22
+command-button-allies-highlighted-pressed: chrome.png
+	background: 87,31,22,22
+command-button-allies-disabled: chrome.png
+	background: 59,31,22,22
+command-button-allies-highlighted-disabled: chrome.png
+	background: 87,31,22,22
+
 sidebar-soviet: chrome.png
 	background-top: 274,167,238,290
 	background-iconrow: 274,457,238,47
 	background-bottom: 274,504,238,8
-	background-supportoverlay: 249,118,64,48
+	background-supportoverlay: 64,75,64,48
 
 sidebar-button-soviet: chrome.png
 	background: 3,31,22,22
@@ -172,11 +189,29 @@ sidebar-button-soviet-highlighted-disabled: chrome.png
 	corner-bl: 168,25,3,3
 	corner-br: 193,25,3,3
 
+command-button-soviet: chrome.png
+	background: 3,31,22,22
+command-button-soviet-hover: chrome.png
+	background: 3,3,22,22
+command-button-soviet-pressed: chrome.png
+	background: 3,31,22,22
+command-button-soviet-highlighted: chrome.png
+	background: 31,31,22,22
+command-button-soviet-highlighted-hover: chrome.png
+	background: 31,3,22,22
+command-button-soviet-highlighted-pressed: chrome.png
+	background: 31,31,22,22
+command-button-soviet-disabled: chrome.png
+	background: 3,31,22,22
+command-button-soviet-highlighted-disabled: chrome.png
+	background: 31,31,22,22
+
 sidebar-bits: chrome.png
 	production-tooltip-time: 416, 80, 16, 16
 	production-tooltip-power: 432, 80, 16, 16
 	production-tooltip-cost: 448, 80, 16, 16
-	production-iconoverlay: 314,118,238,48
+	production-iconoverlay: 128,75,238,48
+	commandbar-background: 0,123,434,44
 
 power-icons: chrome.png
 	power-normal: 350,0,12,18
@@ -227,6 +262,38 @@ order-icons: chrome.png
 	stats: 368,48,16,16
 	stats-disabled: 368,64,16,16
 	stats-active: 368,80,16,16
+
+command-icons: chrome.png
+	attack-move: 512,0,24,24
+	attack-move-disabled: 512,24,24,24
+	force-move: 536,0,24,24
+	force-move-disabled: 536,24,24,24
+	force-attack: 560,0,24,24
+	force-attack-disabled: 560,24,24,24
+	guard: 584,0,24,24
+	guard-disabled: 584,24,24,24
+	deploy: 608,0,24,24
+	deploy-disabled: 608,24,24,24
+	scatter: 632,0,24,24
+	scatter-disabled: 632,24,24,24
+	stop: 656,0,24,24
+	stop-disabled: 656,24,24,24
+	queue-orders: 680,0,24,24
+	queue-orders-disabled: 680,24,24,24
+
+stance-icons: chrome.png
+	attack-anything: 512,48,16,16
+	attack-anything-disabled: 528,48,16,16
+	attack-anything-active: 544,48,16,16
+	defend: 560,48,16,16
+	defend-disabled: 576,48,16,16
+	defend-active: 592,48,16,16
+	return-fire: 608,48,16,16
+	return-fire-disabled: 624,48,16,16
+	return-fire-active: 640,48,16,16
+	hold-fire: 656,48,16,16
+	hold-fire-disabled: 672,48,16,16
+	hold-fire-active: 688,48,16,16
 
 sidebar-observer: chrome.png
 	background: 512,167,238,287
@@ -455,18 +522,35 @@ dialog5: dialog.png
 	corner-bl: 579,446,1,1
 	corner-br: 643,446,1,1
 
-lobby-bits: spawnpoints.png
-	spawn-unclaimed: 37,5,22,22
-	spawn-claimed: 5,5,22,22
-	admin: 64,5,7,5
-	colorpicker: 5,5,22,22
-	huepicker: 71,0,7,15
+lobby-bits: buttons.png
+	spawn-unclaimed: 159,5,23,22
+	spawn-claimed: 127,5,23,22
+	admin: 187,5,7,5
+	colorpicker: 127,5,23,22
+	huepicker: 194,0,7,15
+	protected: 202,0,10,13
+	protected-disabled: 213,0,10,13
 
-strategic: strategic.png
-	unowned: 0,0,32,32
-	critical_unowned: 0,32,32,32
-	enemy_owned: 32,32,32,32
-	player_owned: 96,0,32,32
+reload-icon: chrome.png
+	enabled: 512,80,16,16
+	disabled-0: 512,64,16,16
+	disabled-1: 528,64,16,16
+	disabled-2: 544,64,16,16
+	disabled-3: 560,64,16,16
+	disabled-4: 576,64,16,16
+	disabled-5: 592,64,16,16
+	disabled-6: 608,64,16,16
+	disabled-7: 624,64,16,16
+	disabled-8: 640,64,16,16
+	disabled-9: 656,64,16,16
+	disabled-10: 672,64,16,16
+	disabled-11: 688,64,16,16
+
+strategic: buttons.png
+	unowned: 127,5,23,22
+	critical_unowned: 127,27,23,22
+	enemy_owned: 159,27,23,22
+	player_owned: 159,49,23,22
 
 flags: buttons.png
 	soviet: 0,112,30,15
@@ -487,14 +571,14 @@ flags: buttons.png
 	turkey: 0,157,30,15
 	greece: 30,157,30,15
 
-music: musicplayer.png
-	pause: 0,0,25,25
-	stop: 28,0,25,25
-	play: 56,0,25,25
-	next: 84,0,25,25
-	prev: 112,0,25,25
-	fastforward: 140,0,25,25
-	slowmo: 168,0,25,25
+music: buttons.png
+	pause: 0,193,25,25
+	stop: 25,193,25,25
+	play: 55,193,25,25
+	next: 82,193,25,25
+	prev: 110,193,25,25
+	fastforward: 131,193,25,25
+	slowmo: 159,193,25,25
 
 scrollbar: buttons.png
 	down_arrow: 116,140,16,16
@@ -954,7 +1038,6 @@ logos: loadscreen.png
 	logo: 0,0,256,256
 
 mainmenu-border: dialog.png
-	background: 688,427,40,40
 	border-r: 728,427,40,40
 	border-l: 648,427,40,40
 	border-b: 688,467,40,40
@@ -963,3 +1046,7 @@ mainmenu-border: dialog.png
 	corner-tr: 728,387,40,40
 	corner-bl: 648,467,40,40
 	corner-br: 728,467,40,40
+
+dropdown: dialog.png
+    separator: 512,1,1,19
+    observer-separator: 768,256,1,19

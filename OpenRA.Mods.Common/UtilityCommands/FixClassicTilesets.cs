@@ -1,36 +1,37 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using OpenRA.FileSystem;
 using OpenRA.Graphics;
-using OpenRA.Traits;
-using StyleCop;
 
 namespace OpenRA.Mods.Common.UtilityCommands
 {
 	class FixClassicTilesets : IUtilityCommand
 	{
-		public string Name { get { return "--fix-classic-tilesets"; } }
+		string IUtilityCommand.Name { get { return "--fix-classic-tilesets"; } }
+
+		bool IUtilityCommand.ValidateArguments(string[] args)
+		{
+			return args.Length >= 2;
+		}
 
 		[Desc("EXTENSIONS", "Fixes missing template tile definitions and adds filename extensions.")]
-		public void Run(ModData modData, string[] args)
+		void IUtilityCommand.Run(Utility utility, string[] args)
 		{
 			// HACK: The engine code assumes that Game.modData is set.
-			Game.ModData = modData;
-			GlobalFileSystem.LoadFromManifest(Game.ModData.Manifest);
+			var modData = Game.ModData = utility.ModData;
 
 			var imageField = typeof(TerrainTemplateInfo).GetField("Image");
 			var pickAnyField = typeof(TerrainTemplateInfo).GetField("PickAny");
@@ -42,10 +43,10 @@ namespace OpenRA.Mods.Common.UtilityCommands
 			var single = new int2(1, 1);
 			var exts = new[] { "" }.Concat(args[1].Split(','));
 
-			foreach (var t in Game.ModData.Manifest.TileSets)
+			foreach (var t in modData.Manifest.TileSets)
 			{
-				var ts = new TileSet(Game.ModData, t);
-				var frameCache = new FrameCache(Game.ModData.SpriteLoaders);
+				var ts = new TileSet(modData.DefaultFileSystem, t);
+				var frameCache = new FrameCache(modData.DefaultFileSystem, modData.SpriteLoaders);
 
 				Console.WriteLine("Tileset: " + ts.Name);
 				foreach (var template in ts.Templates.Values)
@@ -54,7 +55,9 @@ namespace OpenRA.Mods.Common.UtilityCommands
 					foreach (var ext in exts)
 					{
 						Stream s;
-						if (!GlobalFileSystem.TryOpen(template.Images[0] + ext, out s))
+						if (modData.DefaultFileSystem.TryOpen(template.Images[0] + ext, out s))
+							s.Dispose();
+						else
 							continue;
 
 						// Rewrite the template image (normally readonly) using reflection
@@ -91,8 +94,6 @@ namespace OpenRA.Mods.Common.UtilityCommands
 
 						if (template.TilesCount > 1 && template.Size == single)
 							pickAnyField.SetValue(template, true);
-
-						s.Dispose();
 					}
 				}
 

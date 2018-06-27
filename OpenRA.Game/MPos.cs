@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -38,15 +39,15 @@ namespace OpenRA
 
 		public CPos ToCPos(Map map)
 		{
-			return ToCPos(map.TileShape);
+			return ToCPos(map.Grid.Type);
 		}
 
-		public CPos ToCPos(TileShape shape)
+		public CPos ToCPos(MapGridType gridType)
 		{
-			if (shape == TileShape.Rectangle)
+			if (gridType == MapGridType.Rectangular)
 				return new CPos(U, V);
 
-			// Convert from rectangular map position to diamond cell position
+			// Convert from rectangular map position to RectangularIsometric cell position
 			//  - The staggered rows make this fiddly (hint: draw a diagram!)
 			// (a) Consider the relationships:
 			//  - +1u (even -> odd) adds (1, -1) to (x, y)
@@ -60,5 +61,35 @@ namespace OpenRA
 			var x = V - y;
 			return new CPos(x, y);
 		}
+	}
+
+	/// <summary>
+	/// Projected map position
+	/// </summary>
+	public struct PPos : IEquatable<PPos>
+	{
+		public readonly int U, V;
+
+		public PPos(int u, int v) { U = u; V = v; }
+		public static readonly PPos Zero = new PPos(0, 0);
+
+		public static bool operator ==(PPos me, PPos other) { return me.U == other.U && me.V == other.V; }
+		public static bool operator !=(PPos me, PPos other) { return !(me == other); }
+
+		public static explicit operator MPos(PPos puv) { return new MPos(puv.U, puv.V); }
+		public static explicit operator PPos(MPos uv) { return new PPos(uv.U, uv.V); }
+
+		public PPos Clamp(Rectangle r)
+		{
+			return new PPos(Math.Min(r.Right, Math.Max(U, r.Left)),
+				Math.Min(r.Bottom, Math.Max(V, r.Top)));
+		}
+
+		public override int GetHashCode() { return U.GetHashCode() ^ V.GetHashCode(); }
+
+		public bool Equals(PPos other) { return other == this; }
+		public override bool Equals(object obj) { return obj is PPos && Equals((PPos)obj); }
+
+		public override string ToString() { return U + "," + V; }
 	}
 }

@@ -1,23 +1,41 @@
 mpspawn:
+	Interactable:
+	EditorOnlyTooltip:
+		Name: (multiplayer player starting point)
+	AlwaysVisible:
 	Immobile:
 		OccupiesSpace: false
-	RenderEditorOnly:
+	RenderSpritesEditorOnly:
+	WithSpriteBody:
 	BodyOrientation:
+		QuantizedFacings: 1
+	EditorTilesetFilter:
+		Categories: System
 
 waypoint:
+	Interactable:
+	EditorOnlyTooltip:
+		Name: (waypoint for scripted behavior)
+	AlwaysVisible:
 	Immobile:
 		OccupiesSpace: false
-	RenderEditorOnly:
+	RenderSpritesEditorOnly:
+	WithSpriteBody:
 	BodyOrientation:
+		QuantizedFacings: 1
+	EditorTilesetFilter:
+		Categories: System
 
-^mmch.colorpicker:
+mmch.colorpicker:
 	Inherits: MMCH
 	Mobile:
 		InitialFacing: 160
 	Turreted:
 		InitialFacing: 160
-	WithInfantryBody:
-		StandSequences: run
+	WithFacingSpriteBody:
+		Sequence: walk
+	-Buildable:
+	-EditorTilesetFilter:
 	RenderVoxels:
 		Image: mmch
 		Palette: colorpicker
@@ -26,17 +44,23 @@ waypoint:
 		Palette: colorpicker
 
 CAMERA:
+	Interactable:
+	EditorOnlyTooltip:
+		Name: (reveals area to owner)
+	AlwaysVisible:
+	RenderSpritesEditorOnly:
+	WithSpriteBody:
+	BodyOrientation:
+		QuantizedFacings: 1
 	Immobile:
 		OccupiesSpace: false
-	Health:
-		HP: 1000
 	RevealsShroud:
 		Range: 10c0
-	ProximityCaptor:
-		Types: Camera
-	BodyOrientation:
+		Type: CenterPosition
 	DetectCloaked:
-		Range: 10
+		Range: 10c0
+	EditorTilesetFilter:
+		Categories: System
 
 CRATE:
 	Inherits: ^Crate
@@ -58,28 +82,30 @@ CRATE:
 		SelectionShares: 1
 		Effect: reveal-map
 	GiveMcvCrateAction:
-		SelectionShares: 2
+		SelectionShares: 0
 		NoBaseSelectionShares: 100
 		Units: mcv
-	GrantUpgradeCrateAction@cloak:
+	GrantExternalConditionCrateAction@cloak:
 		SelectionShares: 5
 		Effect: stealth
-		Upgrades: cloakgenerator
+		Condition: crate-cloak
 		Notification: cloak5.aud
-	GrantUpgradeCrateAction@firepower:
+	GrantExternalConditionCrateAction@firepower:
 		SelectionShares: 5
 		Effect: firepower
-		Upgrades: firepower
+		Condition: crate-firepower
 		Notification: 00-i070.aud
-	GrantUpgradeCrateAction@armor:
+	GrantExternalConditionCrateAction@armor:
 		SelectionShares: 5
 		Effect: armor
-		Upgrades: damage
+		Condition: crate-damage
 		Notification: 00-i068.aud
-	GrantUpgradeCrateAction@speed:
+	GrantExternalConditionCrateAction@speed:
 		SelectionShares: 5
-		Upgrades: speed
+		Condition: crate-speed
 		Notification: 00-i080.aud
+	EditorTilesetFilter:
+		Categories: System
 
 SROCK01:
 	Inherits: ^Rock
@@ -111,3 +137,113 @@ TROCK04:
 TROCK05:
 	Inherits: ^Rock
 
+CRAT01:
+	Inherits: ^Box
+
+CRAT02:
+	Inherits: ^Box
+
+CRAT03:
+	Inherits: ^Box
+
+CRAT04:
+	Inherits: ^Box
+
+CRAT0A:
+	Inherits: ^Box
+
+CRAT0B:
+	Inherits: ^Box
+
+CRAT0C:
+	Inherits: ^Box
+
+DRUM01:
+	Inherits: ^Drum
+
+DRUM02:
+	Inherits: ^Drum
+
+PALET01:
+	Inherits: ^Palette
+
+PALET02:
+	Inherits: ^Palette
+
+PALET03:
+	Inherits: ^Palette
+
+PALET04:
+	Inherits: ^Palette
+
+TRACKS01:
+	Inherits: ^Railway
+
+TRACKS02:
+	Inherits: ^Railway
+
+TRACKS03:
+	Inherits: ^Railway
+
+TRACKS04:
+	Inherits: ^Railway
+
+TRACKS05:
+	Inherits: ^Railway
+
+TRACKS06:
+	Inherits: ^Railway
+
+TRACKS07:
+	Inherits: ^Railway
+
+TRACKS08:
+	Inherits: ^Railway
+
+TRACKS09:
+	Inherits: ^Railway
+
+TRACKS10:
+	Inherits: ^Railway
+
+TRACKS11:
+	Inherits: ^Railway
+
+TRACKS12:
+	Inherits: ^Railway
+
+TRACKS13:
+	Inherits: ^Railway
+
+TRACKS14:
+	Inherits: ^Railway
+
+TRACKS15:
+	Inherits: ^Railway
+
+TRACKS16:
+	Inherits: ^Railway
+
+TUNTOP01:
+	Inherits: ^Tunnel
+	TunnelEntrance:
+		RallyPoint: -3, 1
+		Sensor: 0, 1
+
+TUNTOP02:
+	Inherits: ^Tunnel
+	TunnelEntrance:
+		RallyPoint: 1, -3
+		Sensor: 1, 0
+
+TUNTOP03:
+	Inherits: ^Tunnel
+	TunnelEntrance:
+		RallyPoint: 3, 1
+		Sensor: 0, 1
+
+TUNTOP04:
+	Inherits: ^Tunnel
+	TunnelEntrance:
+		RallyPoint: 1, 3
+		Sensor: 1, 0

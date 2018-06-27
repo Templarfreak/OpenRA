@@ -1,18 +1,18 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
 using System.Drawing;
-using OpenRA.FileFormats;
-using OpenRA.FileSystem;
 using OpenRA.Graphics;
+using OpenRA.Mods.Common.FileFormats;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -38,19 +38,11 @@ namespace OpenRA.Mods.Common.Widgets
 
 		Action onComplete;
 
-		readonly World world;
-
-		[ObjectCreator.UseCtor]
-		public VqaPlayerWidget(World world)
-		{
-			this.world = world;
-		}
-
 		public void Load(string filename)
 		{
 			if (filename == cachedVideo)
 				return;
-			var video = new VqaReader(GlobalFileSystem.Open(filename));
+			var video = new VqaReader(Game.ModData.DefaultFileSystem.Open(filename));
 
 			cachedVideo = filename;
 			Open(video);
@@ -62,14 +54,14 @@ namespace OpenRA.Mods.Common.Widgets
 
 			stopped = true;
 			paused = true;
-			Sound.StopVideo();
+			Game.Sound.StopVideo();
 			onComplete = () => { };
 
 			invLength = video.Framerate * 1f / video.Frames;
 
 			var size = Math.Max(video.Width, video.Height);
 			var textureSize = Exts.NextPowerOf2(size);
-			var videoSheet = new Sheet(new Size(textureSize, textureSize));
+			var videoSheet = new Sheet(SheetType.BGRA, new Size(textureSize, textureSize));
 
 			videoSheet.GetTexture().ScaleFilter = TextureScaleFilter.Linear;
 			videoSheet.GetTexture().SetData(video.FrameData);
@@ -80,14 +72,14 @@ namespace OpenRA.Mods.Common.Widgets
 					0,
 					video.Width,
 					video.Height),
-				TextureChannel.Alpha);
+				TextureChannel.RGBA);
 
 			var scale = Math.Min((float)RenderBounds.Width / video.Width, (float)RenderBounds.Height / video.Height * AspectRatio);
 			videoOrigin = new float2(
 				RenderBounds.X + (RenderBounds.Width - scale * video.Width) / 2,
 				RenderBounds.Y + (RenderBounds.Height - scale * video.Height * AspectRatio) / 2);
 
-			// Round size to integer pixels. Round up to be consistent with the scale calcuation.
+			// Round size to integer pixels. Round up to be consistent with the scale calculation.
 			videoSize = new float2((int)Math.Ceiling(video.Width * scale), (int)Math.Ceiling(video.Height * AspectRatio * scale));
 
 			if (!DrawOverlay)
@@ -99,9 +91,9 @@ namespace OpenRA.Mods.Common.Widgets
 			for (var y = 0; y < scaledHeight; y += 2)
 				overlay[y, 0] = black;
 
-			var overlaySheet = new Sheet(new Size(1, Exts.NextPowerOf2(scaledHeight)));
+			var overlaySheet = new Sheet(SheetType.BGRA, new Size(1, Exts.NextPowerOf2(scaledHeight)));
 			overlaySheet.GetTexture().SetData(overlay);
-			overlaySprite = new Sprite(overlaySheet, new Rectangle(0, 0, 1, scaledHeight), TextureChannel.Alpha);
+			overlaySprite = new Sprite(overlaySheet, new Rectangle(0, 0, 1, scaledHeight), TextureChannel.RGBA);
 		}
 
 		public override void Draw()
@@ -113,7 +105,7 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				var nextFrame = 0;
 				if (video.HasAudio)
-					nextFrame = (int)float2.Lerp(0, video.Frames, Sound.VideoSeekPosition * invLength);
+					nextFrame = (int)float2.Lerp(0, video.Frames, Game.Sound.VideoSeekPosition * invLength);
 				else
 					nextFrame = video.CurrentFrame + 1;
 
@@ -176,9 +168,9 @@ namespace OpenRA.Mods.Common.Widgets
 
 			onComplete = after;
 			if (stopped)
-				Sound.PlayVideo(video.AudioData, video.AudioChannels, video.SampleBits, video.SampleRate);
+				Game.Sound.PlayVideo(video.AudioData, video.AudioChannels, video.SampleBits, video.SampleRate);
 			else
-				Sound.PlayVideo();
+				Game.Sound.PlayVideo();
 
 			stopped = paused = false;
 		}
@@ -189,7 +181,7 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 
 			paused = true;
-			Sound.PauseVideo();
+			Game.Sound.PauseVideo();
 		}
 
 		public void Stop()
@@ -199,10 +191,10 @@ namespace OpenRA.Mods.Common.Widgets
 
 			stopped = true;
 			paused = true;
-			Sound.StopVideo();
+			Game.Sound.StopVideo();
 			video.Reset();
 			videoSprite.Sheet.GetTexture().SetData(video.FrameData);
-			world.AddFrameEndTask(_ => onComplete());
+			Game.RunAfterTick(onComplete);
 		}
 
 		public void CloseVideo()

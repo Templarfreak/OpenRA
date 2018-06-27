@@ -1,82 +1,122 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
+using OpenRA.Network;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class CrateSpawnerInfo : ITraitInfo
+	public class CrateSpawnerInfo : ITraitInfo, ILobbyOptions
 	{
-		[Desc("Minimum number of crates")]
+		[Translate]
+		[Desc("Descriptive label for the crates checkbox in the lobby.")]
+		public readonly string CheckboxLabel = "Crates";
+
+		[Translate]
+		[Desc("Tooltip description for the crates checkbox in the lobby.")]
+		public readonly string CheckboxDescription = "Collect crates with units to recieve random bonuses or penalties";
+
+		[Desc("Default value of the crates checkbox in the lobby.")]
+		public readonly bool CheckboxEnabled = true;
+
+		[Desc("Prevent the crates state from being changed in the lobby.")]
+		public readonly bool CheckboxLocked = false;
+
+		[Desc("Whether to display the crates checkbox in the lobby.")]
+		public readonly bool CheckboxVisible = true;
+
+		[Desc("Display order for the crates checkbox in the lobby.")]
+		public readonly int CheckboxDisplayOrder = 0;
+
+		[Desc("Minimum number of crates.")]
 		public readonly int Minimum = 1;
 
-		[Desc("Maximum number of crates")]
+		[Desc("Maximum number of crates.")]
 		public readonly int Maximum = 255;
 
-		[Desc("Average time (seconds) between crate spawn")]
-		public readonly int SpawnInterval = 180;
+		[Desc("Average time (ticks) between crate spawn.")]
+		public readonly int SpawnInterval = 180 * 25;
+
+		[Desc("Delay (in ticks) before the first crate spawns.")]
+		public readonly int InitialSpawnDelay = 0;
 
 		[Desc("Which terrain types can we drop on?")]
-		public readonly string[] ValidGround = { "Clear", "Rough", "Road", "Ore", "Beach" };
+		public readonly HashSet<string> ValidGround = new HashSet<string> { "Clear", "Rough", "Road", "Ore", "Beach" };
 
 		[Desc("Which terrain types count as water?")]
-		public readonly string[] ValidWater = { "Water" };
+		public readonly HashSet<string> ValidWater = new HashSet<string> { "Water" };
 
-		[Desc("Chance of generating a water crate instead of a land crate")]
-		public readonly float WaterChance = .2f;
+		[Desc("Chance of generating a water crate instead of a land crate.")]
+		public readonly int WaterChance = 20;
 
 		[ActorReference]
-		[Desc("Crate actors to drop")]
+		[Desc("Crate actors to drop.")]
 		public readonly string[] CrateActors = { "crate" };
 
-		[Desc("Chance of each crate actor spawning")]
+		[Desc("Chance of each crate actor spawning.")]
 		public readonly int[] CrateActorShares = { 10 };
 
 		[ActorReference]
-		[Desc("If a DeliveryAircraft: is specified, then this actor will deliver crates")]
+		[Desc("If a DeliveryAircraft: is specified, then this actor will deliver crates.")]
 		public readonly string DeliveryAircraft = null;
 
 		[Desc("Number of facings that the delivery aircraft may approach from.")]
 		public readonly int QuantizedFacings = 32;
 
 		[Desc("Spawn and remove the plane this far outside the map.")]
-		public readonly WRange Cordon = new WRange(5120);
+		public readonly WDist Cordon = new WDist(5120);
 
-		public object Create(ActorInitializer init) { return new CrateSpawner(this, init.Self); }
-	}
-
-	public class CrateSpawner : ITick
-	{
-		int crates = 0;
-		int ticks = 0;
-		CrateSpawnerInfo info;
-		Actor self;
-
-		public CrateSpawner(CrateSpawnerInfo info, Actor self)
+		IEnumerable<LobbyOption> ILobbyOptions.LobbyOptions(Ruleset rules)
 		{
-			this.info = info;
-			this.self = self;
+			yield return new LobbyBooleanOption("crates", CheckboxLabel, CheckboxDescription, CheckboxVisible, CheckboxDisplayOrder, CheckboxEnabled, CheckboxLocked);
 		}
 
-		public void Tick(Actor self)
+		public object Create(ActorInitializer init) { return new CrateSpawner(init.Self, this); }
+	}
+
+	public class CrateSpawner : ITick, INotifyCreated
+	{
+		readonly Actor self;
+		readonly CrateSpawnerInfo info;
+		bool enabled;
+		int crates;
+		int ticks;
+
+		public CrateSpawner(Actor self, CrateSpawnerInfo info)
 		{
-			if (!self.World.LobbyInfo.GlobalSettings.Crates)
+			this.self = self;
+			this.info = info;
+
+			ticks = info.InitialSpawnDelay;
+		}
+
+		void INotifyCreated.Created(Actor self)
+		{
+			enabled = self.World.LobbyInfo.GlobalSettings
+				.OptionOrDefault("crates", info.CheckboxEnabled);
+		}
+
+		void ITick.Tick(Actor self)
+		{
+			if (!enabled)
 				return;
 
 			if (--ticks <= 0)
 			{
-				ticks = info.SpawnInterval * 25;
+				ticks = info.SpawnInterval;
 
 				var toSpawn = Math.Max(0, info.Minimum - crates)
 					+ (crates < info.Maximum ? 1 : 0);
@@ -88,9 +128,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		void SpawnCrate(Actor self)
 		{
-			var threshold = 100;
-			var inWater = self.World.SharedRandom.NextFloat() < info.WaterChance;
-			var pp = ChooseDropCell(self, inWater, threshold);
+			var inWater = self.World.SharedRandom.Next(100) < info.WaterChance;
+			var pp = ChooseDropCell(self, inWater, 100);
 
 			if (pp == null)
 				return;
@@ -103,17 +142,17 @@ namespace OpenRA.Mods.Common.Traits
 				if (info.DeliveryAircraft != null)
 				{
 					var crate = w.CreateActor(false, crateActor, new TypeDictionary { new OwnerInit(w.WorldActor.Owner) });
-					var dropFacing = Util.QuantizeFacing(self.World.SharedRandom.Next(256), info.QuantizedFacings) * (256 / info.QuantizedFacings);
+					var dropFacing = 256 * self.World.SharedRandom.Next(info.QuantizedFacings) / info.QuantizedFacings;
 					var delta = new WVec(0, -1024, 0).Rotate(WRot.FromFacing(dropFacing));
 
-					var altitude = self.World.Map.Rules.Actors[info.DeliveryAircraft].Traits.Get<PlaneInfo>().CruiseAltitude.Range;
+					var altitude = self.World.Map.Rules.Actors[info.DeliveryAircraft].TraitInfo<AircraftInfo>().CruiseAltitude.Length;
 					var target = self.World.Map.CenterOfCell(p) + new WVec(0, 0, altitude);
-					var startEdge = target - (self.World.Map.DistanceToEdge(target, -delta) + info.Cordon).Range * delta / 1024;
-					var finishEdge = target + (self.World.Map.DistanceToEdge(target, delta) + info.Cordon).Range * delta / 1024;
+					var startEdge = target - (self.World.Map.DistanceToEdge(target, -delta) + info.Cordon).Length * delta / 1024;
+					var finishEdge = target + (self.World.Map.DistanceToEdge(target, delta) + info.Cordon).Length * delta / 1024;
 
 					var plane = w.CreateActor(info.DeliveryAircraft, new TypeDictionary
 					{
-						new CenterPositionInit(startEdge + new WVec(0, 0, altitude)),
+						new CenterPositionInit(startEdge),
 						new OwnerInit(self.Owner),
 						new FacingInit(dropFacing),
 					});
@@ -144,7 +183,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Don't drop on any actors
 				if (self.World.WorldActor.Trait<BuildingInfluence>().GetBuildingAt(p) != null
-					|| self.World.ActorMap.GetUnitsAt(p).Any())
+					|| self.World.ActorMap.GetActorsAt(p).Any())
 					continue;
 
 				return p;

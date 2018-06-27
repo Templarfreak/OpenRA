@@ -1,15 +1,16 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Pathfinder;
@@ -22,12 +23,27 @@ namespace OpenRA.Mods.Common.Activities
 	{
 		static readonly List<CPos> NoPath = new List<CPos>();
 
-		readonly Mobile mobile;
+		protected readonly Mobile Mobile;
 		readonly IPathFinder pathFinder;
 		readonly DomainIndex domainIndex;
-		readonly uint movementClass;
 
-		protected Target Target { get; private set; }
+		Target target;
+		bool canHideUnderFog;
+		protected Target Target
+		{
+			get
+			{
+				return target;
+			}
+
+			private set
+			{
+				target = value;
+				if (target.Type == TargetType.Actor)
+					canHideUnderFog = target.Actor.Info.HasTraitInfo<HiddenUnderFogInfo>();
+			}
+		}
+
 		protected CPos targetPosition;
 		Activity inner;
 		bool repath;
@@ -36,10 +52,9 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			Target = target;
 
-			mobile = self.Trait<Mobile>();
+			Mobile = self.Trait<Mobile>();
 			pathFinder = self.World.WorldActor.Trait<IPathFinder>();
 			domainIndex = self.World.WorldActor.Trait<DomainIndex>();
-			movementClass = (uint)mobile.Info.GetMovementClass(self.World.TileSet);
 
 			if (target.IsValidFor(self))
 				targetPosition = self.World.Map.CellContaining(target.CenterPosition);
@@ -66,6 +81,17 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			var targetIsValid = Target.IsValidFor(self);
 
+			// Target moved under the fog. Move to its last known position.
+			if (Target.Type == TargetType.Actor && canHideUnderFog
+				&& !Target.Actor.CanBeViewedByPlayer(self.Owner))
+			{
+				if (inner != null)
+					inner.Cancel(self);
+
+				self.SetTargetLine(Target.FromCell(self.World, targetPosition), Color.Green);
+				return ActivityUtils.RunActivity(self, new AttackMoveActivity(self, Mobile.MoveTo(targetPosition, 0)));
+			}
+
 			// Inner move order has completed.
 			if (inner == null)
 			{
@@ -75,7 +101,7 @@ namespace OpenRA.Mods.Common.Activities
 					return NextActivity;
 
 				// Target has moved, and MoveAdjacentTo is still valid.
-				inner = mobile.MoveTo(() => CalculatePathToTarget(self));
+				inner = Mobile.MoveTo(() => CalculatePathToTarget(self));
 				repath = false;
 			}
 
@@ -102,7 +128,7 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			// Ticks the inner move activity to actually move the actor.
-			inner = Util.RunActivity(self, inner);
+			inner = ActivityUtils.RunActivity(self, inner);
 
 			return this;
 		}
@@ -114,16 +140,15 @@ namespace OpenRA.Mods.Common.Activities
 			var loc = self.Location;
 
 			foreach (var cell in targetCells)
-				if (domainIndex.IsPassable(loc, cell, movementClass) && mobile.CanEnterCell(cell))
+				if (domainIndex.IsPassable(loc, cell, Mobile.Info.LocomotorInfo) && Mobile.CanEnterCell(cell))
 					searchCells.Add(cell);
 
 			if (!searchCells.Any())
 				return NoPath;
 
-			var fromSrc = PathSearch.FromPoints(self.World, mobile.Info, self, searchCells, loc, true);
-			var fromDest = PathSearch.FromPoint(self.World, mobile.Info, self, loc, targetPosition, true).Reverse();
-
-			return pathFinder.FindBidiPath(fromSrc, fromDest);
+			using (var fromSrc = PathSearch.FromPoints(self.World, Mobile.Info.LocomotorInfo, self, searchCells, loc, true))
+			using (var fromDest = PathSearch.FromPoint(self.World, Mobile.Info.LocomotorInfo, self, loc, targetPosition, true).Reverse())
+				return pathFinder.FindBidiPath(fromSrc, fromDest);
 		}
 
 		public override IEnumerable<Target> GetTargets(Actor self)
@@ -134,12 +159,12 @@ namespace OpenRA.Mods.Common.Activities
 			return Target.None;
 		}
 
-		public override void Cancel(Actor self)
+		public override bool Cancel(Actor self, bool keepQueue = false)
 		{
-			if (inner != null)
-				inner.Cancel(self);
+			if (!IsCanceled && inner != null && !inner.Cancel(self))
+				return false;
 
-			base.Cancel(self);
+			return base.Cancel(self);
 		}
 	}
 }

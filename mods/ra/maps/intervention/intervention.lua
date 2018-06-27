@@ -1,3 +1,11 @@
+--[[
+   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   This file is part of OpenRA, which is free software. It is made
+   available to you under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of
+   the License, or (at your option) any later version. For more
+   information, see COPYING.
+]]
 BeachheadTrigger =
 {
 	CPos.New(120, 90), CPos.New(120, 89), CPos.New(120, 88), CPos.New(121, 88), CPos.New(122, 88), CPos.New(123, 88), CPos.New(124, 88),
@@ -9,9 +17,9 @@ BeachheadTrigger =
 	CPos.New(137, 104), CPos.New(137, 105), CPos.New(137, 106), CPos.New(136, 106), CPos.New(136, 107)
 }
 
-Difficulty = Map.Difficulty
+Difficulty = Map.LobbyOption("difficulty")
 
-if Difficulty == "Medium" then
+if Difficulty == "normal" then
 	BaseRaidInterval = DateTime.Minutes(3)
 	BaseFrontAttackInterval = DateTime.Minutes(3) + DateTime.Seconds(30)
 	BaseRearAttackInterval = DateTime.Minutes(8)
@@ -40,7 +48,6 @@ BaseRearAttackWpts = { GroundAttackWpt1.Location, BaseRearAttackWpt1.Location, B
 SovietHarvesters = { Harvester1, Harvester2, Harvester3 }
 HarvesterGuard = { HarvGuard1, HarvGuard2, HarvGuard3 }
 
-UBoats = { Uboat1, Uboat2, Uboat3, Uboat4, Uboat5, Uboat6 }
 UboatPatrolWpts1 = { UboatPatrolWpt1.Location, UboatPatrolWpt2.Location, UboatPatrolWpt3.Location, UboatPatrolWpt4.Location }
 UboatPatrolWpts2 = { UboatPatrolWpt4.Location, UboatPatrolWpt2.Location, UboatPatrolWpt1.Location }
 UBoatPatrolUnits = { "ss" }
@@ -60,7 +67,11 @@ ParadropSovietUnits = function()
 	local units = powerproxy.SendParatroopers(MCVDeployLocation.CenterPosition, false, 256 - 53)
 
 	Utils.Do(units, function(a)
-		Trigger.OnIdle(a, a.Hunt)
+		Trigger.OnIdle(a, function(actor)
+			if actor.IsInWorld then
+				actor.Hunt()
+			end
+		end)
 	end)
 
 	powerproxy.Destroy()
@@ -179,8 +190,6 @@ SetupWorld = function()
 		end)
 	end)
 
-	Utils.Do(UBoats, function(a) a.Stance = "Defend" end)
-
 	Utils.Do(Map.NamedActors, function(actor)
 		if actor.Owner == soviets and actor.HasProperty("StartBuildingRepairs") then
 			Trigger.OnDamaged(actor, function(building)
@@ -197,6 +206,31 @@ SetupWorld = function()
 	SubPen.IsPrimaryBuilding = true
 end
 
+SetupMissionText = function()
+	TextColorNormal = HSLColor.White
+	TextColorDamaged = HSLColor.Yellow
+	TextColorCritical = HSLColor.Red
+
+	CurrentColor = TextColorNormal
+	local villageHousesLeft = #Village
+	VillagePercentage = 100 - villageHousesLeft * 10
+
+	Utils.Do(Village, function(house)
+		Trigger.OnKilled(house, function()
+			villageHousesLeft = villageHousesLeft - 1
+			VillagePercentage = 100 - villageHousesLeft * 10
+
+			if VillagePercentage > 69 then
+				CurrentColor = TextColorCritical
+			elseif VillagePercentage > 49 then
+				CurrentColor = TextColorDamaged
+			else
+				CurrentColor = TextColorNormal
+			end
+		end)
+	end)
+end
+
 Tick = function()
 	if DateTime.GameTime > 2 then
 		if soviets.Resources > soviets.ResourceCapacity * 0.75 then
@@ -206,6 +240,8 @@ Tick = function()
 		if player.HasNoRequiredUnits() then
 			player.MarkFailedObjective(villageObjective)
 		end
+
+		UserInterface.SetMissionText(VillagePercentage .. "% of the village destroyed.", CurrentColor)
 	end
 end
 
@@ -286,6 +322,7 @@ WorldLoaded = function()
 	Trigger.OnAllKilled(Village, function() player.MarkFailedObjective(villageObjective) end)
 
 	SetupWorld()
+	SetupMissionText()
 
 	Trigger.AfterDelay(VillageRaidInterval, VillageRaid)
 

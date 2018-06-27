@@ -1,34 +1,46 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Traits;
+using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	public static class BuildingUtils
 	{
-		public static bool IsCellBuildable(this World world, CPos cell, BuildingInfo bi, Actor toIgnore = null)
+		public static bool IsCellBuildable(this World world, CPos cell, ActorInfo ai, BuildingInfo bi, Actor toIgnore = null)
 		{
 			if (!world.Map.Contains(cell))
 				return false;
 
-			if (world.WorldActor.Trait<BuildingInfluence>().GetBuildingAt(cell) != null)
+			var building = world.WorldActor.Trait<BuildingInfluence>().GetBuildingAt(cell);
+			if (building != null)
+			{
+				if (ai == null)
+					return false;
+
+				var replacementInfo = ai.TraitInfoOrDefault<ReplacementInfo>();
+				if (replacementInfo == null)
+					return false;
+
+				if (!building.TraitsImplementing<Replaceable>().Any(p => !p.IsTraitDisabled &&
+					p.Info.Types.Overlaps(replacementInfo.ReplaceableTypes)))
+					return false;
+			}
+			else if (!bi.AllowInvalidPlacement && world.ActorMap.GetActorsAt(cell).Any(a => a != toIgnore))
 				return false;
 
-			if (!bi.AllowInvalidPlacement && world.ActorMap.GetUnitsAt(cell).Any(a => a != toIgnore))
-				return false;
-
-			var tile = world.Map.MapTiles.Value[cell];
-			var tileInfo = world.TileSet.GetTileInfo(tile);
+			var tile = world.Map.Tiles[cell];
+			var tileInfo = world.Map.Rules.TileSet.GetTileInfo(tile);
 
 			// TODO: This is bandaiding over bogus tilesets.
 			if (tileInfo != null && tileInfo.RampType > 0)
@@ -37,29 +49,31 @@ namespace OpenRA.Mods.Common.Traits
 			return bi.TerrainTypes.Contains(world.Map.GetTerrainInfo(cell).Type);
 		}
 
-		public static bool CanPlaceBuilding(this World world, string name, BuildingInfo building, CPos topLeft, Actor toIgnore)
+		public static bool CanPlaceBuilding(this World world, CPos cell, ActorInfo ai, BuildingInfo bi, Actor toIgnore)
 		{
-			if (building.AllowInvalidPlacement)
+			if (bi.AllowInvalidPlacement)
 				return true;
 
-			var res = world.WorldActor.Trait<ResourceLayer>();
-			return FootprintUtils.Tiles(world.Map.Rules, name, building, topLeft).All(
-				t => world.Map.Contains(t) && res.GetResource(t) == null &&
-					world.IsCellBuildable(t, building, toIgnore));
+			var res = world.WorldActor.TraitOrDefault<ResourceLayer>();
+			return bi.Tiles(cell).All(
+				t => world.Map.Contains(t) && (res == null || res.GetResource(t) == null) &&
+					world.IsCellBuildable(t, ai, bi, toIgnore));
 		}
 
-		public static IEnumerable<CPos> GetLineBuildCells(World world, CPos location, string name, BuildingInfo bi)
+		public static IEnumerable<Pair<CPos, Actor>> GetLineBuildCells(World world, CPos cell, ActorInfo ai, BuildingInfo bi)
 		{
-			var lbi = world.Map.Rules.Actors[name].Traits.Get<LineBuildInfo>();
-			var topLeft = location;	// 1x1 assumption!
+			var lbi = ai.TraitInfo<LineBuildInfo>();
+			var topLeft = cell;	// 1x1 assumption!
 
-			if (world.IsCellBuildable(topLeft, bi))
-				yield return topLeft;
+			if (world.IsCellBuildable(topLeft, ai, bi))
+				yield return Pair.New<CPos, Actor>(topLeft, null);
 
 			// Start at place location, search outwards
 			// TODO: First make it work, then make it nice
 			var vecs = new[] { new CVec(1, 0), new CVec(0, 1), new CVec(-1, 0), new CVec(0, -1) };
 			int[] dirs = { 0, 0, 0, 0 };
+			Actor[] connectors = { null, null, null, null };
+
 			for (var d = 0; d < 4; d++)
 			{
 				for (var i = 1; i < lbi.Range; i++)
@@ -67,24 +81,22 @@ namespace OpenRA.Mods.Common.Traits
 					if (dirs[d] != 0)
 						continue;
 
-					var cell = topLeft + i * vecs[d];
-					if (world.IsCellBuildable(cell, bi))
+					var c = topLeft + i * vecs[d];
+					if (world.IsCellBuildable(c, ai, bi))
 						continue; // Cell is empty; continue search
 
 					// Cell contains an actor. Is it the type we want?
-					if (world.ActorsWithTrait<LineBuildNode>().Any(a =>
-					(a.Actor.Location == cell &&
-						a.Actor.Info.Traits.Get<LineBuildNodeInfo>()
-						.Types.Intersect(lbi.NodeTypes).Any())))
-						dirs[d] = i; // Cell contains actor of correct type
-					else
-						dirs[d] = -1; // Cell is blocked by another actor type
+					connectors[d] = world.ActorMap.GetActorsAt(c)
+						.FirstOrDefault(a => a.Info.TraitInfos<LineBuildNodeInfo>()
+							.Any(info => info.Types.Overlaps(lbi.NodeTypes) && info.Connections.Contains(vecs[d])));
+
+					dirs[d] = connectors[d] != null ? i : -1;
 				}
 
 				// Place intermediate-line sections
 				if (dirs[d] > 0)
 					for (var i = 1; i < dirs[d]; i++)
-						yield return topLeft + i * vecs[d];
+						yield return Pair.New(topLeft + i * vecs[d], connectors[d]);
 			}
 		}
 	}

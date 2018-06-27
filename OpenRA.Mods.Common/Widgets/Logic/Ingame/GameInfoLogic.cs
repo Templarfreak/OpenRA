@@ -1,23 +1,25 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
-using System;
 using System.Linq;
+using OpenRA.Mods.Common.Scripting;
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	public enum IngameInfoPanel { AutoSelect, Map, Objectives, Debug }
+	public enum IngameInfoPanel { AutoSelect, Map, Objectives, Debug, Chat }
 
-	class GameInfoLogic
+	class GameInfoLogic : ChromeLogic
 	{
 		[ObjectCreator.UseCtor]
 		public GameInfoLogic(Widget widget, World world, IngameInfoPanel activePanel)
@@ -28,32 +30,38 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			widget.IsVisible = () => activePanel != IngameInfoPanel.AutoSelect;
 
 			// Objectives/Stats tab
+			var scriptContext = world.WorldActor.TraitOrDefault<LuaScript>();
+			var hasError = scriptContext != null && scriptContext.FatalErrorOccurred;
 			var iop = world.WorldActor.TraitsImplementing<IObjectivesPanel>().FirstOrDefault();
-			if (lp != null && iop != null && iop.PanelName != null)
+			var hasObjectivesPanel = hasError || (iop != null && iop.PanelName != null);
+
+			if (hasObjectivesPanel)
 			{
 				numTabs++;
 				var objectivesTabButton = widget.Get<ButtonWidget>(string.Concat("BUTTON", numTabs.ToString()));
 				objectivesTabButton.GetText = () => "Objectives";
-				objectivesTabButton.IsVisible = () => lp != null && numTabs > 1;
+				objectivesTabButton.IsVisible = () => numTabs > 1 && !hasError;
 				objectivesTabButton.OnClick = () => activePanel = IngameInfoPanel.Objectives;
 				objectivesTabButton.IsHighlighted = () => activePanel == IngameInfoPanel.Objectives;
 
+				var panel = hasError ? "SCRIPT_ERROR_PANEL" : iop.PanelName;
 				var objectivesPanel = widget.Get<ContainerWidget>("OBJECTIVES_PANEL");
 				objectivesPanel.IsVisible = () => activePanel == IngameInfoPanel.Objectives;
 
-				Game.LoadWidget(world, iop.PanelName, objectivesPanel, new WidgetArgs());
+				Game.LoadWidget(world, panel, objectivesPanel, new WidgetArgs());
 
 				if (activePanel == IngameInfoPanel.AutoSelect)
 					activePanel = IngameInfoPanel.Objectives;
 			}
 
 			// Briefing tab
-			if (world.Map.CustomPreview != null)
+			var missionData = world.WorldActor.Info.TraitInfoOrDefault<MissionDataInfo>();
+			if (missionData != null && !string.IsNullOrEmpty(missionData.Briefing))
 			{
 				numTabs++;
 				var mapTabButton = widget.Get<ButtonWidget>(string.Concat("BUTTON", numTabs.ToString()));
 				mapTabButton.Text = "Briefing";
-				mapTabButton.IsVisible = () => numTabs > 1;
+				mapTabButton.IsVisible = () => numTabs > 1 && !hasError;
 				mapTabButton.OnClick = () => activePanel = IngameInfoPanel.Map;
 				mapTabButton.IsHighlighted = () => activePanel == IngameInfoPanel.Map;
 
@@ -67,12 +75,18 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			// Debug/Cheats tab
-			if (lp != null && world.LobbyInfo.GlobalSettings.AllowCheats)
+			// Can't use DeveloperMode.Enabled because there is a hardcoded hack to *always*
+			// enable developer mode for singleplayer games, but we only want to show the button
+			// if it has been explicitly enabled
+			var def = world.Map.Rules.Actors["player"].TraitInfo<DeveloperModeInfo>().CheckboxEnabled;
+			var developerEnabled = world.LobbyInfo.GlobalSettings.OptionOrDefault("cheats", def);
+			if (lp != null && developerEnabled)
 			{
 				numTabs++;
 				var debugTabButton = widget.Get<ButtonWidget>(string.Concat("BUTTON", numTabs.ToString()));
 				debugTabButton.Text = "Debug";
-				debugTabButton.IsVisible = () => lp != null && world.LobbyInfo.GlobalSettings.AllowCheats && numTabs > 1;
+				debugTabButton.IsVisible = () => numTabs > 1 && !hasError;
+				debugTabButton.IsDisabled = () => world.IsGameOver;
 				debugTabButton.OnClick = () => activePanel = IngameInfoPanel.Debug;
 				debugTabButton.IsHighlighted = () => activePanel == IngameInfoPanel.Debug;
 
@@ -85,16 +99,43 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					activePanel = IngameInfoPanel.Debug;
 			}
 
+			if (world.LobbyInfo.NonBotClients.Count() > 1)
+			{
+				numTabs++;
+				var chatPanelContainer = widget.Get<ContainerWidget>("CHAT_PANEL");
+				var chatTabButton = widget.Get<ButtonWidget>(string.Concat("BUTTON", numTabs.ToString()));
+				chatTabButton.Text = "Chat";
+				chatTabButton.IsVisible = () => numTabs > 1 && !hasError;
+				chatTabButton.IsHighlighted = () => activePanel == IngameInfoPanel.Chat;
+				chatTabButton.OnClick = () =>
+				{
+					activePanel = IngameInfoPanel.Chat;
+					chatPanelContainer.Get<TextFieldWidget>("CHAT_TEXTFIELD").TakeKeyboardFocus();
+				};
+
+				chatPanelContainer.IsVisible = () => activePanel == IngameInfoPanel.Chat;
+
+				Game.LoadWidget(world, "CHAT_CONTAINER", chatPanelContainer, new WidgetArgs() { { "isMenuChat", true } });
+
+				if (activePanel == IngameInfoPanel.AutoSelect)
+					chatTabButton.OnClick();
+			}
+
 			// Handle empty space when tabs aren't displayed
 			var titleText = widget.Get<LabelWidget>("TITLE");
 			var titleTextNoTabs = widget.GetOrNull<LabelWidget>("TITLE_NO_TABS");
 
+			var mapTitle = world.Map.Title;
+			var firstCategory = world.Map.Categories.FirstOrDefault();
+			if (firstCategory != null)
+				mapTitle = firstCategory + ": " + mapTitle;
+
 			titleText.IsVisible = () => numTabs > 1 || (numTabs == 1 && titleTextNoTabs == null);
-			titleText.GetText = () => string.Concat(world.Map.Type, ": ", world.Map.Title);
+			titleText.GetText = () => mapTitle;
 			if (titleTextNoTabs != null)
 			{
 				titleTextNoTabs.IsVisible = () => numTabs == 1;
-				titleTextNoTabs.GetText = () => string.Concat(world.Map.Type, ": ", world.Map.Title);
+				titleTextNoTabs.GetText = () => mapTitle;
 			}
 
 			var bg = widget.Get<BackgroundWidget>("BACKGROUND");

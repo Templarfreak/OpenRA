@@ -1,10 +1,11 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2015 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
- * as published by the Free Software Foundation. For more information,
- * see COPYING.
+ * as published by the Free Software Foundation, either version 3 of
+ * the License, or (at your option) any later version. For more
+ * information, see COPYING.
  */
 #endregion
 
@@ -16,6 +17,7 @@ namespace OpenRA.Mods.Common.Widgets
 {
 	public class SpriteWidget : Widget
 	{
+		public Func<float> GetScale = () => 1f;
 		public string Palette = "chrome";
 		public Func<string> GetPalette;
 		public Func<Sprite> GetSprite;
@@ -27,7 +29,7 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			GetPalette = () => Palette;
 
-			this.WorldRenderer = worldRenderer;
+			WorldRenderer = worldRenderer;
 		}
 
 		protected SpriteWidget(SpriteWidget other)
@@ -44,6 +46,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 		Sprite cachedSprite = null;
 		string cachedPalette = null;
+		float cachedScale;
 		PaletteReference pr;
 		float2 offset = float2.Zero;
 
@@ -51,13 +54,14 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			var sprite = GetSprite();
 			var palette = GetPalette();
+			var scale = GetScale();
 
 			if (sprite == null || palette == null)
 				return;
 
 			if (sprite != cachedSprite)
 			{
-				offset = 0.5f * (new float2(RenderBounds.Size) - sprite.Size);
+				offset = 0.5f * (new float2(RenderBounds.Size) - sprite.Size.XY);
 				cachedSprite = sprite;
 			}
 
@@ -67,7 +71,14 @@ namespace OpenRA.Mods.Common.Widgets
 				cachedPalette = palette;
 			}
 
-			Game.Renderer.SpriteRenderer.DrawSprite(sprite, RenderOrigin + offset, pr);
+			if (scale != cachedScale)
+			{
+				offset *= scale;
+				cachedScale = scale;
+			}
+
+			var size = new float2(sprite.Size.X * scale, sprite.Size.Y * scale);
+			Game.Renderer.SpriteRenderer.DrawSprite(sprite, RenderOrigin + offset, pr, size);
 		}
 	}
 }

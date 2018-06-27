@@ -1,9 +1,17 @@
+--[[
+   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   This file is part of OpenRA, which is free software. It is made
+   available to you under the terms of the GNU General Public License
+   as published by the Free Software Foundation, either version 3 of
+   the License, or (at your option) any later version. For more
+   information, see COPYING.
+]]
 InsertionHelicopterType = "tran.insertion"
 InsertionPath = { InsertionEntry.Location, InsertionLZ.Location }
 ExtractionHelicopterType = "tran.extraction"
 ExtractionPath = { SouthReinforcementsPoint.Location, ExtractionLZ.Location }
 JeepReinforcements = { "jeep", "jeep" }
-TanyaReinforcements = { "e7" }
+TanyaReinforcements = { "e7.noautotarget" }
 EinsteinType = "einstein"
 FlareType = "flare"
 CruisersReinforcements = { "ca", "ca", "ca", "ca" }
@@ -13,7 +21,9 @@ SendInsertionHelicopter = function()
 		TanyaReinforcements, InsertionPath, { InsertionEntry.Location })[2]
 	local tanya = passengers[1]
 	Trigger.OnKilled(tanya, TanyaKilledInAction)
-	tanya.Stance = "HoldFire"
+	Trigger.AfterDelay(DateTime.Seconds(4), function()
+		Media.DisplayMessage("According to the rules of engagement I need your explicit orders to fire, Commander!", "Tanya")
+	end)
 end
 
 SendJeeps = function()
@@ -27,7 +37,6 @@ RunInitialActivities = function()
 	Patrol2.Hunt()
 	Patrol3.Hunt()
 	Patrol4.Hunt()
-	Harvester.FindResources()
 	Civilian1.Wait(DateTime.Seconds(6))
 	Civilian2.Wait(DateTime.Seconds(6))
 	Civilian1.Hunt()

@@ -1,92 +1,97 @@
 mcv.starport:
 	Inherits: mcv
 	Buildable:
-		Prerequisites: repair
+		Prerequisites: starport
 		Queue: Starport
 	Valued:
 		Cost: 2500
-	RenderUnit:
+	RenderSprites:
 		Image: mcv
 
 harvester.starport:
 	Inherits: harvester
 	Buildable:
+		Prerequisites: starport
 		Queue: Starport
 	Valued:
 		Cost: 1500
-	RenderUnit:
+	RenderSprites:
 		Image: harvester
 
 trike.starport:
 	Inherits: trike
 	Buildable:
-		Queue: Starport
 		Prerequisites: starport
+		Queue: Starport
 	Valued:
 		Cost: 315
-	RenderUnit:
+	RenderSprites:
 		Image: trike
 
 quad.starport:
 	Inherits: quad
 	Buildable:
+		Prerequisites: starport
 		Queue: Starport
 	Valued:
 		Cost: 500
-	RenderUnit:
+	RenderSprites:
 		Image: quad
 
-siegetank.starport:
-	Inherits: siegetank
+siege_tank.starport:
+	Inherits: siege_tank
 	Buildable:
+		Prerequisites: starport
 		Queue: Starport
 	Valued:
 		Cost: 1075
-	RenderUnit:
-		Image: siegetank
+	RenderSprites:
+		Image: siege_tank
 
-missiletank.starport:
-	Inherits: missiletank
+missile_tank.starport:
+	Inherits: missile_tank
 	Buildable:
+		Prerequisites: starport
 		Queue: Starport
 	Valued:
 		Cost: 1250
-	RenderUnit:
-		Image: missiletank
+	RenderSprites:
+		Image: missile_tank
 
-combata.starport:
-	Inherits: combata
+combat_tank_a.starport:
+	Inherits: combat_tank_a
 	Buildable:
-		Prerequisites: ~starport.atreides
+		Prerequisites: ~starport.atreides_combat
 		Queue: Starport
 	Valued:
 		Cost: 875
-	RenderUnit:
-		Image: combata
+	RenderSprites:
+		Image: combat_tank_a
 
-combath.starport:
-	Inherits: combath
+combat_tank_h.starport:
+	Inherits: combat_tank_h
 	Buildable:
-		Prerequisites: ~starport.harkonnen
+		Prerequisites: ~starport.harkonnen_combat
 		Queue: Starport
 	Valued:
 		Cost: 875
-	RenderUnit:
-		Image: combath
+	RenderSprites:
+		Image: combat_tank_h
 
-combato.starport:
-	Inherits: combato
+combat_tank_o.starport:
+	Inherits: combat_tank_o
 	Buildable:
-		Prerequisites: ~starport.ordos
+		Prerequisites: ~starport.ordos_combat
 		Queue: Starport
 	Valued:
 		Cost: 875
-	RenderUnit:
-		Image: combato
+	RenderSprites:
+		Image: combat_tank_o
 
 carryall.starport:
 	Inherits: carryall
+	Buildable:
+		Prerequisites: starport
+		Queue: Starport
 	Valued:
 		Cost: 1500
-	Buildable:
-		Queue: Starport

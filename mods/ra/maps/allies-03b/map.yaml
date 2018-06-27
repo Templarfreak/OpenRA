@@ -1,10 +1,8 @@
-MapFormat: 7
+MapFormat: 11
 
 RequiresMod: ra
 
-Title: Allies 03b: Dead End
-
-Description: LANDCOM 16 HQS.\nTOP SECRET.\nTO: FIELD COMMANDER A9\n\nINTELLIGENCE RECON SHOWS HEAVY\nSOVIET MOVEMENT IN YOUR AREA.\nNEARBY BRIDGES ARE KEY TO SOVIET\nADVANCEMENT. DESTROY ALL BRIDGES\nASAP. TANYA WILL ASSIST. KEEP HER\nALIVE AT ALL COSTS.\n\nCONFIRMATION CODE 1612.\n\nTRANSMISSION ENDS.\n
+Title: 03b: Dead End
 
 Author: Westwood Studios
 
@@ -16,44 +14,34 @@ Bounds: 46,31,75,75
 
 Visibility: MissionSelector
 
-Type: Campaign
+Categories: Campaign
 
-Videos:
-	GameStart: brdgtilt.vqa
-	GameWon: toofar.vqa
-	GameLost: sovtstar.vqa
-
-Options:
-	Crates: False
-	Fog: True
-	Shroud: True
-	AllyBuildRadius: False
-	FragileAlliances: False
-	StartingCash: 0
-	ConfigurableStartingUnits: False
-	Difficulties: Easy, Normal
-	ShortGame: False
+LockPreview: True
 
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
 		OwnsWorld: True
 		NonCombatant: True
-		Race: allies
+		Faction: allies
 	PlayerReference@USSR:
 		Name: USSR
-		Race: soviet
-		ColorRamp: 3,255,127
+		Faction: soviet
+		Color: FE1100
 		Enemies: Greece
 	PlayerReference@Greece:
 		Name: Greece
 		Playable: True
 		Required: True
-		LockRace: True
-		Race: allies
+		LockFaction: True
+		Faction: allies
 		LockColor: True
-		ColorRamp: 161,134,236
+		Color: E2E6F5
 		Enemies: USSR
+	PlayerReference@England:
+		Name: England
+		Color: A1EF8C
+		Faction: allies
 
 Actors:
 	Actor0: cycl
@@ -984,10 +972,10 @@ Actors:
 		Location: 83,79
 		Owner: USSR
 	Actor302: apwr
-		Location: 5,5
+		Location: 5,6
 		Owner: USSR
 	Actor304: apwr
-		Location: 5,5
+		Location: 5,6
 		Owner: USSR
 	ExplosiveBarrel: brl3
 		Location: 55,40
@@ -1048,7 +1036,7 @@ Actors:
 		Owner: USSR
 	Jeep: jeep.mission
 		Location: 101,97
-		Owner: Neutral
+		Owner: England
 		Facing: 32
 	Heavy1: 3tnk
 		Location: 96,66
@@ -1167,7 +1155,7 @@ Actors:
 		Location: 54,81
 		Owner: Greece
 	InsertionHeliExit: waypoint
-		Location: 45,76
+		Location: 46,76
 		Owner: Neutral
 	IslandParadropReinforcementsDropzone: waypoint
 		Location: 117,37
@@ -1218,216 +1206,6 @@ Actors:
 		Location: 83,94
 		Owner: Neutral
 
-Smudges:
+Rules: ra|rules/campaign-rules.yaml, ra|rules/campaign-tooltips.yaml, ra|rules/campaign-palettes.yaml, rules.yaml
 
-Rules:
-	Player:
-		-ConquestVictoryConditions:
-		MissionObjectives:
-			EarlyGameOver: true
-	World:
-		-CrateSpawner:
-		-SpawnMPUnits:
-		-MPStartLocations:
-		LuaScript:
-			Scripts: allies03b.lua
-		ObjectivesPanel:
-			PanelName: MISSION_OBJECTIVES
-	^Infantry:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^Tank:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-		Demolishable:
-	^Vehicle:
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-		Demolishable:
-	^Building:
-		Capturable:
-			CaptureThreshold: 0.25
-		Tooltip:
-			GenericVisibility: Enemy
-			ShowOwnerRow: false
-	^TechBuilding:
-		Capturable:
-			Type: ~disabled
-	^Wall:
-		Tooltip:
-			ShowOwnerRow: false
-	^Husk:
-		Tooltip:
-			GenericVisibility: Enemy, Ally, Neutral
-			GenericStancePrefix: false
-			ShowOwnerRow: false
-	^Crate:
-		Tooltip:
-			ShowOwnerRow: false
-	powerproxy.paratroopers:
-		ParatroopersPower:
-			DropItems: E1,E1,E1,E2,E2
-	HACKE6:
-		Inherits: E6
-		-RepairsBridges:
-		-ExternalCaptures:
-		Captures:
-			CaptureTypes: building
-		WithInfantryBody:
-		Cloak@JAIL:
-			UpgradeTypes: jail
-			UpgradeMinEnabledLevel: 1
-			InitialDelay: 0
-			CloakDelay: 0
-			Palette:
-		RenderSprites:
-			Image: E6
-	MEDI:
-		Cloak@JAIL:
-			UpgradeTypes: jail
-			UpgradeMinEnabledLevel: 1
-			InitialDelay: 0
-			CloakDelay: 0
-			Palette:
-	E7.noautotarget:
-		Inherits: E7
-		AutoTarget:
-			EnableStances: false
-		-AttackMove:
-		RenderSprites:
-			Image: E7
-	PRISON:
-		Immobile:
-			OccupiesSpace: false
-		BodyOrientation:
-		UpgradeActorsNear:
-			Upgrades: jail
-			Range: 1c0
-	CAMERA:
-		RevealsShroud:
-			Range: 8c5
-	FTUR:
-		DetectCloaked:
-			Range: 0
-	DOME:
-		DetectCloaked:
-			Range: 0
-	CAMERA.VeryLarge:
-		Inherits: CAMERA
-		RevealsShroud:
-			Range: 40c0
-	CAMERA.Jeep:
-		Mobile:
-			TerrainSpeeds:
-		RevealsShroud:
-			Range: 4c0
-		BodyOrientation:
-		ScriptTriggers:
-	MONEYCRATE:
-		Tooltip:
-			Name: Crate
-		WithCrateBody:
-			Images: scrate
-	E1.Autotarget:
-		Inherits: E1
-		Buildable:
-			Prerequisites: ~disabled
-		RevealsShroud:
-			Range: 8c0
-		AutoTarget:
-			ScanRadius: 7
-		RenderSprites:
-			Image: E1
-	E2.Autotarget:
-		Inherits: E2
-		Buildable:
-			Prerequisites: ~disabled
-		RevealsShroud:
-			Range: 8c0
-		AutoTarget:
-			ScanRadius: 7
-		RenderSprites:
-			Image: E2
-	DOG:
-		Buildable:
-			Prerequisites: ~disabled
-		RevealsShroud:
-			Range: 9c0
-		AutoTarget:
-			ScanRadius: 8
-	TRUK:
-		-Demolishable:
-		Armor:
-			Type: Truk
-	TRAN:
-		RejectsOrders:
-		-Selectable:
-		RevealsShroud:
-			Range: 0c0
-		Cargo:
-			Types: ~disabled
-		Tooltip:
-			ShowOwnerRow: false
-	LST:
-		Tooltip:
-			ShowOwnerRow: false
-	JEEP.mission:
-		Inherits: JEEP
-		RenderUnit:
-			Image: JEEP
-		-Selectable:
-		-Demolishable:
-		-Huntable:
-		-TargetableUnit:
-		-Armament:
-		-WithMuzzleFlash:
-		Cargo:
-			Types: ~disabled
-		RevealsShroud:
-			Range: 0c0
-	E3:
-		Buildable:
-			Prerequisites: ~disabled
-	E4:
-		Buildable:
-			Prerequisites: ~disabled
-	E6:
-		Buildable:
-			Prerequisites: ~disabled
-	SNIPER:
-		Buildable:
-			Prerequisites: ~disabled
-	HIJACKER:
-		Buildable:
-			Prerequisites: ~disabled
-	SHOK:
-		Buildable:
-			Prerequisites: ~disabled
-	SS:
-		Buildable:
-			Prerequisites: ~disabled
-	MSUB:
-		Buildable:
-			Prerequisites: ~disabled
-
-Sequences:
-
-VoxelSequences:
-
-Weapons:
-	Colt45:
-		Warhead@1Dam: SpreadDamage
-			Versus:
-				Truk: 50
-	FireballLauncher:
-		Projectile:
-			High: True
-
-Voices:
-
-Notifications:
-
-Translations:
+Weapons: weapons.yaml
