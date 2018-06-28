@@ -92,7 +92,7 @@ namespace OpenRA.Mods.Common.Traits
 			return unpaused.Trait != null ? unpaused : productionActors.FirstOrDefault();
 		}
 
-		protected override bool BuildUnit(ActorInfo unit)
+		protected override bool BuildUnit(ActorInfo unit, int count)
 		{
 			// Find a production structure to build this actor
 			var bi = unit.TraitInfo<BuildableInfo>();
@@ -109,7 +109,14 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (!producers.Any())
 			{
-				CancelProduction(unit.Name, 1);
+				if (queue.Count > 0)
+					for (var i = 0; i < queue.Count; i++)
+					{
+						if (queue[i].Item == unit.Name)
+						{
+							CancelProduction(queue[i], 1);
+						}
+					}
 				return false;
 			}
 
@@ -124,7 +131,7 @@ namespace OpenRA.Mods.Common.Traits
 					new FactionInit(BuildableInfo.GetInitialFaction(unit, p.Trait.Faction))
 				};
 
-				if (p.Trait.Produce(p.Actor, unit, type, inits))
+				if (p.Trait.Produce(p.Actor, unit, type, bi.Count, inits))
 				{
 					FinishProduction();
 					return true;

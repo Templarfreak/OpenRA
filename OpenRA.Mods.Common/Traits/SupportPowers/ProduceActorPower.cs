@@ -78,8 +78,8 @@ namespace OpenRA.Mods.Common.Traits
 						new OwnerInit(self.Owner),
 						new FactionInit(BuildableInfo.GetInitialFaction(ai, faction))
 					};
-
-					activated |= p.Trait.Produce(p.Actor, ai, info.Type, inits);
+					var bi = ai.TraitInfoOrDefault<BuildableInfo>();
+					activated |= p.Trait.Produce(p.Actor, ai, info.Type, bi.Count, inits);
 				}
 
 				if (activated)

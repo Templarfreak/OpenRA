@@ -176,7 +176,7 @@ namespace OpenRA.GameRules
 		}
 
 		/// <summary>Applies all the weapon's warheads to the target.</summary>
-		public void Impact(Target target, Actor firedBy, IEnumerable<int> damageModifiers)
+		public void Impact(Target target, Target OG, Actor firedBy, IEnumerable<int> damageModifiers)
 		{
 			foreach (var warhead in Warheads)
 			{
@@ -185,7 +185,7 @@ namespace OpenRA.GameRules
 				if (wh.Delay > 0)
 					firedBy.World.AddFrameEndTask(w => w.Add(new DelayedImpact(wh.Delay, wh, target, firedBy, damageModifiers)));
 				else
-					wh.DoImpact(target, firedBy, damageModifiers);
+					wh.DoImpact(target, OG, firedBy, damageModifiers);
 			}
 		}
 	}

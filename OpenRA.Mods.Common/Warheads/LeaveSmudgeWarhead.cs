@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("How close to ground must the impact happen to spawn smudges.")]
 		public readonly WDist AirThreshold = new WDist(128);
 
-		public override void DoImpact(Target target, Actor firedBy, IEnumerable<int> damageModifiers)
+		public override void DoImpact(Target target, Target OG, Actor firedBy, IEnumerable<int> damageModifiers)
 		{
 			var world = firedBy.World;
 			var pos = target.CenterPosition;

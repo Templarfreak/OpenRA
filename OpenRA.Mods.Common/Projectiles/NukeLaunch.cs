@@ -93,7 +93,7 @@ namespace OpenRA.Mods.Common.Effects
 		void Explode(World world)
 		{
 			world.AddFrameEndTask(w => { w.Remove(this); w.ScreenMap.Remove(this); });
-			weapon.Impact(Target.FromPos(pos), firedBy.PlayerActor, Enumerable.Empty<int>());
+			weapon.Impact(Target.FromPos(pos), Target.FromPos(pos), firedBy.PlayerActor, Enumerable.Empty<int>());
 			world.WorldActor.Trait<ScreenShaker>().AddEffect(20, pos, 5);
 
 			foreach (var flash in world.WorldActor.TraitsImplementing<FlashPaletteEffect>())

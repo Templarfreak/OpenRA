@@ -10,6 +10,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
@@ -119,7 +120,7 @@ namespace OpenRA.Mods.Common.Traits
 			});
 		}
 
-		protected virtual ExitInfo SelectExit(Actor self, ActorInfo producee, string productionType, Func<ExitInfo, bool> p)
+		public virtual ExitInfo SelectExit(Actor self, ActorInfo producee, string productionType, Func<ExitInfo, bool> p)
 		{
 			return self.RandomExitOrDefault(productionType, p);
 		}
@@ -129,7 +130,7 @@ namespace OpenRA.Mods.Common.Traits
 			return SelectExit(self, producee, productionType, e => CanUseExit(self, producee, e));
 		}
 
-		public virtual bool Produce(Actor self, ActorInfo producee, string productionType, TypeDictionary inits)
+		public virtual bool Produce(Actor self, ActorInfo producee, string productionType, int count, TypeDictionary inits)
 		{
 			if (IsTraitDisabled || IsTraitPaused || Reservable.IsReserved(self) || (building != null && building.Locked))
 				return false;
@@ -139,7 +140,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (exit != null || self.OccupiesSpace == null)
 			{
-				DoProduction(self, producee, exit, productionType, inits);
+				for (var i = 0; i < count; i++)
+				{
+					DoProduction(self, producee, exit, productionType, inits);
+				}
 
 				return true;
 			}
@@ -147,7 +151,26 @@ namespace OpenRA.Mods.Common.Traits
 			return false;
 		}
 
-		static bool CanUseExit(Actor self, ActorInfo producee, ExitInfo s)
+		public virtual bool Starport(Actor self, List<ActorInfo> producees, string productionType, List<TypeDictionary> inits, ProductionQueue p)
+		{
+
+			foreach (ActorInfo somenewinfo in producees)
+			{
+				var someindex = producees.IndexOf(somenewinfo);
+				var producee = producees.ElementAt(someindex);
+				var pinit = inits.ElementAt(someindex);
+
+				self.World.AddFrameEndTask(ww => Produce(self, producees.ElementAt(someindex), productionType, 1, inits.ElementAt(someindex)));
+			}
+			var rules = self.World.Map.Rules;
+			//var speechinfo = self.TraitOrDefault<ProductionQueueInfo>();
+
+			Game.Sound.PlayNotification(rules, self.Owner, "Speech", p.Info.ReadyAudio, self.Owner.Faction.InternalName);
+
+			return true;
+		}
+
+		public bool CanUseExit(Actor self, ActorInfo producee, ExitInfo s)
 		{
 			var mobileInfo = producee.TraitInfoOrDefault<MobileInfo>();
 

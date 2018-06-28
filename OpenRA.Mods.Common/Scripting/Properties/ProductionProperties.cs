@@ -48,7 +48,8 @@ namespace OpenRA.Mods.Common.Scripting
 				new FactionInit(faction)
 			};
 
-			Self.QueueActivity(new WaitFor(() => p.Produce(Self, actorInfo, productionType, inits)));
+			var bi = actorInfo.TraitInfoOrDefault<BuildableInfo>();
+			Self.QueueActivity(new WaitFor(() => p.Produce(Self, actorInfo, productionType, bi.Count, inits)));
 		}
 	}
 

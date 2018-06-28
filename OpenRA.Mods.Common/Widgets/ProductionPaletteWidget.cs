@@ -444,9 +444,38 @@ namespace OpenRA.Mods.Common.Widgets
 					WidgetUtils.DrawSHPCentered(pio.Sprite, icon.Pos + iconOffset + pio.Offset(IconSize), worldRenderer.Palette(pio.Palette), 1f);
 
 				// Build progress
+				//We find the most-recent, not done, started, unit that matches the name of the queue we're looking at. (icon.Queued[0])
 				if (icon.Queued.Count > 0)
 				{
 					var first = icon.Queued[0];
+					var firstname = first.Item;
+					var webroke = false;
+
+					foreach (ProductionItem item in icon.Queued)
+					{
+						var iindex = icon.Queued.IndexOf(item);
+						if (!icon.Queued[iindex].Done && icon.Queued[iindex].Started && icon.Queued[iindex].Item == firstname)
+						{
+							first = icon.Queued[iindex];
+							webroke = true;
+							break;
+						}
+						webroke = false;
+					}
+					//If we can't find one that's started, then we find one that hasn't, but only if we didn't find one before.
+					if (!webroke)
+					{
+						foreach (ProductionItem item in icon.Queued)
+						{
+							var iindex = icon.Queued.IndexOf(item);
+							if (!icon.Queued[iindex].Done && icon.Queued[iindex].Item == firstname)
+							{
+								first = icon.Queued[iindex];
+								break;
+							}
+						}
+					}
+
 					clock.PlayFetchIndex(ClockSequence,
 						() => (first.TotalTime - first.RemainingTime)
 							* (clock.CurrentSequence.Length - 1) / first.TotalTime);

@@ -1,13 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27130.2010
+VisualStudioVersion = 15.0.27130.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenRA.Game", "OpenRA.Game\OpenRA.Game.csproj", "{0DFB103F-2962-400F-8C6D-E2C28CCBA633}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenRA.Mods.Cnc", "OpenRA.Mods.Cnc\OpenRA.Mods.Cnc.csproj", "{2881135D-4D62-493E-8F83-5EEE92CCC6BE}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenRA.Utility", "OpenRA.Utility\OpenRA.Utility.csproj", "{F33337BE-CB69-4B24-850F-07D23E408DDF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenRA.Server", "OpenRA.Server\OpenRA.Server.csproj", "{76F621A1-3D8E-4A99-9F7E-B071EB657817}"
 EndProject
@@ -66,8 +64,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Red Alert Lua scripts", "Re
 		mods\ra\maps\allies-05a\allies05a.lua = mods\ra\maps\allies-05a\allies05a.lua
 		mods\ra\maps\allies-06a\allies06a-AI.lua = mods\ra\maps\allies-06a\allies06a-AI.lua
 		mods\ra\maps\allies-06a\allies06a.lua = mods\ra\maps\allies-06a\allies06a.lua
-		mods\ra\maps\allies-06b\allies06b.lua = mods\ra\maps\allies-06b\allies06b.lua
 		mods\ra\maps\allies-06b\allies06b-AI.lua = mods\ra\maps\allies-06b\allies06b-AI.lua
+		mods\ra\maps\allies-06b\allies06b.lua = mods\ra\maps\allies-06b\allies06b.lua
 		mods\ra\maps\desert-shellmap\desert-shellmap.lua = mods\ra\maps\desert-shellmap\desert-shellmap.lua
 		mods\ra\maps\evacuation\evacuation.lua = mods\ra\maps\evacuation\evacuation.lua
 		mods\ra\maps\exodus\exodus.lua = mods\ra\maps\exodus\exodus.lua
@@ -102,7 +100,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Red Alert Lua scripts", "Re
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dune 2000 Lua scripts", "Dune 2000 Lua scripts", "{06B1AE07-DDB0-4287-8700-A8CD9A0E652E}"
 	ProjectSection(SolutionItems) = preProject
-		mods\d2k\bits\scripts\campaign-global.lua = mods\d2k\bits\scripts\campaign-global.lua
 		mods\d2k\maps\atreides-01a\atreides01a.lua = mods\d2k\maps\atreides-01a\atreides01a.lua
 		mods\d2k\maps\atreides-01b\atreides01b.lua = mods\d2k\maps\atreides-01b\atreides01b.lua
 		mods\d2k\maps\atreides-02a\atreides02a-AI.lua = mods\d2k\maps\atreides-02a\atreides02a-AI.lua
@@ -117,6 +114,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dune 2000 Lua scripts", "Du
 		mods\d2k\maps\atreides-04\atreides04.lua = mods\d2k\maps\atreides-04\atreides04.lua
 		mods\d2k\maps\atreides-05\atreides05-AI.lua = mods\d2k\maps\atreides-05\atreides05-AI.lua
 		mods\d2k\maps\atreides-05\atreides05.lua = mods\d2k\maps\atreides-05\atreides05.lua
+		mods\d2k\bits\scripts\campaign-global.lua = mods\d2k\bits\scripts\campaign-global.lua
 		mods\d2k\maps\harkonnen-01a\harkonnen01a.lua = mods\d2k\maps\harkonnen-01a\harkonnen01a.lua
 		mods\d2k\maps\harkonnen-01b\harkonnen01b.lua = mods\d2k\maps\harkonnen-01b\harkonnen01b.lua
 		mods\d2k\maps\harkonnen-02a\harkonnen02a-AI.lua = mods\d2k\maps\harkonnen-02a\harkonnen02a-AI.lua
@@ -137,10 +135,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dune 2000 Lua scripts", "Du
 		mods\d2k\maps\harkonnen-06b\harkonnen06b.lua = mods\d2k\maps\harkonnen-06b\harkonnen06b.lua
 		mods\d2k\maps\harkonnen-07\harkonnen07-AI.lua = mods\d2k\maps\harkonnen-07\harkonnen07-AI.lua
 		mods\d2k\maps\harkonnen-07\harkonnen07.lua = mods\d2k\maps\harkonnen-07\harkonnen07.lua
-		mods\d2k\maps\harkonnen-09a\harkonnen09a-AI.lua = mods\d2k\maps\harkonnen-09a\harkonnen09a-AI.lua
-		mods\d2k\maps\harkonnen-09a\harkonnen09a.lua = mods\d2k\maps\harkonnen-09a\harkonnen09a.lua
 		mods\d2k\maps\harkonnen-08\harkonnen08-AI.lua = mods\d2k\maps\harkonnen-08\harkonnen08-AI.lua
 		mods\d2k\maps\harkonnen-08\harkonnen08.lua = mods\d2k\maps\harkonnen-08\harkonnen08.lua
+		mods\d2k\maps\harkonnen-09a\harkonnen09a-AI.lua = mods\d2k\maps\harkonnen-09a\harkonnen09a-AI.lua
+		mods\d2k\maps\harkonnen-09a\harkonnen09a.lua = mods\d2k\maps\harkonnen-09a\harkonnen09a.lua
 		mods\d2k\maps\harkonnen-09b\harkonnen09b-AI.lua = mods\d2k\maps\harkonnen-09b\harkonnen09b-AI.lua
 		mods\d2k\maps\harkonnen-09b\harkonnen09b.lua = mods\d2k\maps\harkonnen-09b\harkonnen09b.lua
 		mods\d2k\maps\ordos-01a\ordos01a.lua = mods\d2k\maps\ordos-01a\ordos01a.lua
@@ -175,6 +173,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tiberian Sun Lua scripts", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenRA.StyleCheck", "OpenRA.StyleCheck\OpenRA.StyleCheck.csproj", "{5FEAB6DC-4E81-4B63-958B-22FC3534C606}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenRA.Mods.Shock", "OpenRA.Mods.Shock\OpenRA.Mods.Shock.csproj", "{285E4E35-C61A-4DF1-A371-E4982DF2E11D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -189,10 +189,6 @@ Global
 		{2881135D-4D62-493E-8F83-5EEE92CCC6BE}.Debug|x86.Build.0 = Debug|x86
 		{2881135D-4D62-493E-8F83-5EEE92CCC6BE}.Release|x86.ActiveCfg = Release|x86
 		{2881135D-4D62-493E-8F83-5EEE92CCC6BE}.Release|x86.Build.0 = Release|x86
-		{F33337BE-CB69-4B24-850F-07D23E408DDF}.Debug|x86.ActiveCfg = Debug|x86
-		{F33337BE-CB69-4B24-850F-07D23E408DDF}.Debug|x86.Build.0 = Debug|x86
-		{F33337BE-CB69-4B24-850F-07D23E408DDF}.Release|x86.ActiveCfg = Release|x86
-		{F33337BE-CB69-4B24-850F-07D23E408DDF}.Release|x86.Build.0 = Release|x86
 		{76F621A1-3D8E-4A99-9F7E-B071EB657817}.Debug|x86.ActiveCfg = Debug|x86
 		{76F621A1-3D8E-4A99-9F7E-B071EB657817}.Debug|x86.Build.0 = Debug|x86
 		{76F621A1-3D8E-4A99-9F7E-B071EB657817}.Release|x86.ActiveCfg = Release|x86
@@ -217,9 +213,16 @@ Global
 		{5FEAB6DC-4E81-4B63-958B-22FC3534C606}.Debug|x86.Build.0 = Debug|x86
 		{5FEAB6DC-4E81-4B63-958B-22FC3534C606}.Release|x86.ActiveCfg = Release|x86
 		{5FEAB6DC-4E81-4B63-958B-22FC3534C606}.Release|x86.Build.0 = Release|x86
+		{285E4E35-C61A-4DF1-A371-E4982DF2E11D}.Debug|x86.ActiveCfg = Debug|x86
+		{285E4E35-C61A-4DF1-A371-E4982DF2E11D}.Debug|x86.Build.0 = Debug|x86
+		{285E4E35-C61A-4DF1-A371-E4982DF2E11D}.Release|x86.ActiveCfg = Release|x86
+		{285E4E35-C61A-4DF1-A371-E4982DF2E11D}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8999734A-6D55-40AC-AA17-418DD736302B}
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = OpenRA.Game\OpenRA.Game.csproj

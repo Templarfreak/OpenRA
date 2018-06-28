@@ -110,13 +110,13 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var cells = buildingInfo.UnpathableTiles(self.Location);
 				foreach (var c in cells)
-					weapon.Impact(Target.FromPos(self.World.Map.CenterOfCell(c)), e.Attacker, Enumerable.Empty<int>());
+					weapon.Impact(Target.FromPos(self.World.Map.CenterOfCell(c)), Target.FromPos(self.World.Map.CenterOfCell(c)), e.Attacker, Enumerable.Empty<int>());
 
 				return;
 			}
 
 			// Use .FromPos since this actor is killed. Cannot use Target.FromActor
-			weapon.Impact(Target.FromPos(self.CenterPosition), e.Attacker, Enumerable.Empty<int>());
+			weapon.Impact(Target.FromPos(self.CenterPosition), Target.FromPos(self.CenterPosition), e.Attacker, Enumerable.Empty<int>());
 		}
 
 		WeaponInfo ChooseWeaponForExplosion(Actor self)

@@ -48,7 +48,7 @@ namespace OpenRA.Mods.Cnc.Effects
 			anim.Tick();
 			if (!impacted && weaponDelay-- <= 0)
 			{
-				weapon.Impact(target, firedBy.PlayerActor, Enumerable.Empty<int>());
+				weapon.Impact(target, target, firedBy.PlayerActor, Enumerable.Empty<int>());
 				impacted = true;
 			}
 		}

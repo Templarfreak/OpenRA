@@ -55,8 +55,8 @@ namespace OpenRA.Mods.Cnc.Traits
 				new OwnerInit(self.Owner),
 				new FactionInit(BuildableInfo.GetInitialFaction(produced.Info, faction))
 			};
-
-			production.Produce(self, produced.Info, productionType, inits);
+			var bi = produced.Info.TraitInfoOrDefault<BuildableInfo>();
+			production.Produce(self, produced.Info, productionType, bi.Count, inits);
 		}
 	}
 }

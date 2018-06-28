@@ -226,6 +226,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				Type = t,
 				Variant = ChooseRandomVariant(t),
+				ResHealth = t.Info.ResHealth,
 			};
 		}
 
@@ -287,6 +288,8 @@ namespace OpenRA.Mods.Common.Traits
 		public ResourceType GetResource(CPos cell) { return Content[cell].Type; }
 		public ResourceType GetRenderedResource(CPos cell) { return RenderContent[cell].Type; }
 		public int GetResourceDensity(CPos cell) { return Content[cell].Density; }
+		public void SetHealth(CPos p, int newhealth) { var cell = Content[p]; cell.ResHealth = newhealth; Content[p] = cell; }
+		public int GetHealth(CPos cell) { return Content[cell].ResHealth; }
 		public int GetMaxResourceDensity(CPos cell)
 		{
 			if (Content[cell].Type == null)
@@ -315,6 +318,7 @@ namespace OpenRA.Mods.Common.Traits
 			public int Density;
 			public string Variant;
 			public Sprite Sprite;
+			public int ResHealth;
 		}
 	}
 }

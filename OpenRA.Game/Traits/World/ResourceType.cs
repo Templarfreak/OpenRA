@@ -37,6 +37,9 @@ namespace OpenRA.Traits
 		[Desc("Maximum number of resource units allowed in a single cell.")]
 		public readonly int MaxDensity = 10;
 
+		[Desc("Health of resource. DestroysResource Warheads will have to do this much damage to this resource before it is destroyed.")]
+		public int ResHealth = 5;
+
 		[FieldLoader.Require]
 		[Desc("Resource identifier used by other traits.")]
 		public readonly string Type = null;

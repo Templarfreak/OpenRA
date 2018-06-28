@@ -14,7 +14,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class BuildableInfo : TraitInfo<Buildable>
+	public class BuildableInfo : TraitInfo<Buildable>, IRulesetLoaded
 	{
 		[Desc("The prerequisite names that must be available before this can be built.",
 			"This can be prefixed with ! to invert the prerequisite (disabling production if the prerequisite is available)",
@@ -30,6 +30,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Disable production when there are more than this many of this actor on the battlefield. Set to 0 to disable.")]
 		public readonly int BuildLimit = 0;
+
+		[Desc("Number of units that get built in one go. This will ignore BuildLimit if EnforceBuildLimit is false." +
+		"This cannot be 0. Default is 1, which will function normally.")]
+		public readonly int Count = 1;
 
 		[Desc("Force a specific faction variant, overriding the faction of the producing actor.")]
 		public readonly string ForceFaction = null;
@@ -56,6 +60,12 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var bi = ai.TraitInfoOrDefault<BuildableInfo>();
 			return bi != null ? bi.ForceFaction ?? defaultFaction : defaultFaction;
+		}
+
+		public void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			if (Count == 0)
+				throw new YamlException("Count on trait Buildable is 0!".F(ai));
 		}
 	}
 

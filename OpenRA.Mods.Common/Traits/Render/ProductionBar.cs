@@ -67,7 +67,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		void ITick.Tick(Actor self)
 		{
-			var current = queue.CurrentItem();
+			//This will function completely normally for normal Production Queues or if we're a Starport Queue
+			//With ParallelProduction off.
+			var current = queue.MostRecentStandard();
 			value = current != null ? 1 - (float)current.RemainingCost / current.TotalCost : 0;
 		}
 

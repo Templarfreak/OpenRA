@@ -20,8 +20,14 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Size of the area. The resources are seeded within this area.", "Provide 2 values for a ring effect (outer/inner).")]
 		public readonly int[] Size = { 0, 0 };
 
+		[Desc("The amount of damage this DestroyResource Warhead does to Resource Types.")]
+		public readonly int ResDamage = 1;
+
+		[Desc("Which resources this Warhead can destroy. If this list is empty, it can destroy any resource.")]
+		public readonly HashSet<string> Resources = new HashSet<string>();
+
 		// TODO: Allow maximum resource removal to be defined. (Per tile, and in total).
-		public override void DoImpact(Target target, Actor firedBy, IEnumerable<int> damageModifiers)
+		public override void DoImpact(Target target, Target OG, Actor firedBy, IEnumerable<int> damageModifiers)
 		{
 			var world = firedBy.World;
 			var targetTile = world.Map.CellContaining(target.CenterPosition);
@@ -32,7 +38,25 @@ namespace OpenRA.Mods.Common.Warheads
 
 			// Destroy all resources in the selected tiles
 			foreach (var cell in allCells)
-				resLayer.Destroy(cell);
+			{
+				var res = resLayer.GetResource(cell);
+				var rez = resLayer.GetHealth(cell);
+				if (res != null)
+				{
+					var isEmpty = (Resources.Count == 0);
+					if (Resources.Contains(res.Info.Type) || isEmpty)
+					{
+						if (rez - ResDamage <= 0)
+						{
+							resLayer.Destroy(cell);
+						}
+						else
+						{
+							resLayer.SetHealth(cell, rez - ResDamage);
+						}
+					}
+				}
+			}
 		}
 	}
 }
