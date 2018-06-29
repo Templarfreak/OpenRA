@@ -77,17 +77,17 @@ namespace OpenRA.Mods.Shock.Warheads
 			OriginalTarget = ogtarg;
 		}
 
-		public override void DoImpact(Target target, Target OG, Actor firedBy, IEnumerable<int> damageModifiers)
+		public override void DoImpact(Target target, Target og, Actor firedBy, IEnumerable<int> damageModifiers)
 		{
 			var world = firedBy.World;
 			var map = world.Map;
-			int OGHits = 0;
+			int ogHits = 0;
 			List<int> Hits = new List<int>();
 			List<Actor> ActorHits = new List<Actor>();
 			List<int> MaxHitCount = new List<int>();
 			var rnd = new Random();
 			Target loc = target;
-			Target targ = OG;
+			Target targ = og;
 			Target PickedTarget;
 			Target shrapnelTarget;
 			int Picked;
@@ -110,7 +110,7 @@ namespace OpenRA.Mods.Shock.Warheads
 					return;
 			}
 
-			var directActors = world.FindActorsInCircle(loc.CenterPosition, TargetSearchRadius).Where(x => x != OG.Actor) ;
+			var directActors = world.FindActorsInCircle(loc.CenterPosition, TargetSearchRadius).Where(x => x != og.Actor) ;
 
 			var availableTargetActors = world.FindActorsInCircle(loc.CenterPosition, weapon.Range)
 				.Where(x => directActors.Contains(x)
@@ -127,7 +127,7 @@ namespace OpenRA.Mods.Shock.Warheads
 				{
 					shrapnelTarget = Target.FromActor(targetActor.Current);
 					PickedTarget = Target.FromActor(targetActor.Current);
-					//This is actually the Outer for OG target
+					//This is actually the Outer for og target
 					OuterTarget = Target.FromActor(targetActor.Current);
 					PickedType = TargetType.Invalid;
 					if (Target.FromActor(targetActor.Current).Type != TargetType.Invalid && Target.FromActor(targetActor.Current).Type != TargetType.Terrain)
@@ -149,8 +149,8 @@ namespace OpenRA.Mods.Shock.Warheads
 				{ 
 					if (world.SharedRandom.Next(100) <= RetargetAccuracy)
 					{ 
-						shrapnelTarget = OG;
-						PickedTarget = OG;
+						shrapnelTarget = og;
+						PickedTarget = og;
 						PickedType = PickedTarget.Type;
 						OuterTarget = Target.FromActor(targetActor.Current);
 						Picked = 3;
@@ -161,14 +161,14 @@ namespace OpenRA.Mods.Shock.Warheads
 				{
 					if (shrapnelTarget.Type == TargetType.Terrain || shrapnelTarget.Type == TargetType.Invalid)
 					{
-						shrapnelTarget = OG;
-						PickedTarget = OG;
+						shrapnelTarget = og;
+						PickedTarget = og;
 						//PickedType = PickedTarget.Type;
 						Picked = 1;
 					}
 				}
 
-				if (OGHits == OriginalTargetHits && (Picked == 3 || (PickedType == TargetType.Invalid && Picked == 1)))
+				if (ogHits == OriginalTargetHits && (Picked == 3 || (PickedType == TargetType.Invalid && Picked == 1)))
 				{
 					shrapnelTarget = OuterTarget;
 					PickedTarget = OuterTarget;
@@ -178,7 +178,7 @@ namespace OpenRA.Mods.Shock.Warheads
 					Hits.Add(1);
 				}
 
-				if (OGHits == OriginalTargetHits && Picked == 1 && PickedType == TargetType.Invalid)
+				if (ogHits == OriginalTargetHits && Picked == 1 && PickedType == TargetType.Invalid)
 				{
 					shrapnelTarget = target;
 					Picked = 2;
@@ -186,18 +186,18 @@ namespace OpenRA.Mods.Shock.Warheads
 
 				if (PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain)
 				{
-					if (PickedTarget.Actor == OG.Actor && (OGHits < OriginalTargetHits || OriginalTargetHits == 0))
-						OGHits++;
+					if (PickedTarget.Actor == og.Actor && (ogHits < OriginalTargetHits || OriginalTargetHits == 0))
+						ogHits++;
 				}
 
-				if (PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain && PickedTarget.Actor != OG.Actor)
+				if (PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain && PickedTarget.Actor != og.Actor)
 				{ 
 					if (!ActorHits.Contains(PickedTarget.Actor))
 						ActorHits.Add(PickedTarget.Actor);
 						Hits.Add(1);
 				}
 
-				if ((PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain) && PickedTarget.Actor != OG.Actor)
+				if ((PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain) && PickedTarget.Actor != og.Actor)
 				{
 					index = ActorHits.FindIndex(a => a == PickedTarget.Actor);
 
@@ -210,7 +210,7 @@ namespace OpenRA.Mods.Shock.Warheads
 					}
 				}
 
-				if ((PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain) && PickedTarget.Actor != OG.Actor)
+				if ((PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain) && PickedTarget.Actor != og.Actor)
 				{ 
 					index = ActorHits.FindIndex(a => a == PickedTarget.Actor);
 					if (ActorHits[index] == PickedTarget.Actor)

@@ -61,6 +61,7 @@ namespace OpenRA.Mods.Shock.Traits
 			conditionManager = self.TraitOrDefault<ConditionManager>();
 		}
 
+		//Count down ticks for the Progress Bar that is built into the trait.
 		void ITick.Tick(Actor self)
 		{
 			if (info.Duration != 0)
@@ -80,6 +81,7 @@ namespace OpenRA.Mods.Shock.Traits
 			}
 		}
 
+		//Do Progress Bar stuff.
 		float ISelectionBar.GetValue()
 		{
 
@@ -106,7 +108,7 @@ namespace OpenRA.Mods.Shock.Traits
 		{
 			if (!info.Types.Overlaps(types))
 				return;
-
+			//Give the condition upon infiltration. Set ticks so we can remove it later and display the progress bar (if Duration > 0).
 			conditionManager = self.TraitOrDefault<ConditionManager>();
 			ticks = info.Duration;
 			ConditionToken = conditionManager.GrantCondition(self, info.Condition);

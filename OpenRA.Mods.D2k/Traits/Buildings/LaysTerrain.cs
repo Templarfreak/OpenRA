@@ -29,6 +29,9 @@ namespace OpenRA.Mods.D2k.Traits
 			"Tiles being offset out of the actor's footprint will not be placed.")]
 		public readonly CVec Offset = CVec.Zero;
 
+		[Desc("When true, allows this tile to be placed under buildings. Default is false.")]
+		public readonly bool PlaceUnderBuildings = false;
+
 		public object Create(ActorInitializer init) { return new LaysTerrain(init.Self, this); }
 	}
 
@@ -63,10 +66,12 @@ namespace OpenRA.Mods.D2k.Traits
 						continue;
 
 					// Don't place under other buildings or custom terrain
-					if (bi.GetBuildingAt(c) != self || map.CustomTerrain[c] != byte.MaxValue)
+					if (map.CustomTerrain[c] != byte.MaxValue)
+						continue;
+					if (info.PlaceUnderBuildings == false && bi.GetBuildingAt(c) != self)
 						continue;
 
-					var index = Game.CosmeticRandom.Next(template.TilesCount);
+						var index = Game.CosmeticRandom.Next(template.TilesCount);
 					layer.AddTile(c, new TerrainTile(template.Id, (byte)index));
 				}
 
@@ -76,7 +81,7 @@ namespace OpenRA.Mods.D2k.Traits
 			var origin = self.Location + info.Offset;
 			for (var i = 0; i < template.TilesCount; i++)
 			{
-				var c = origin + new CVec(i % template.Size.X, i / template.Size.X);
+				var c = origin + new CVec(i % template.Size.X, i / template.Size.Y);
 
 				// Only place on allowed terrain types
 				if (!info.TerrainTypes.Contains(map.GetTerrainInfo(c).Type))

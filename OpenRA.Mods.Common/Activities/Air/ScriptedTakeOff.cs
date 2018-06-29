@@ -17,10 +17,10 @@ namespace OpenRA.Mods.Common.Activities
 {
 	public class ScriptedTakeOff : Activity
 	{
+		const int ScanInterval = 7;
+
 		readonly Aircraft aircraft;
 		readonly IMove move;
-
-		const int ScanInterval = 7;
 
 		int scanTicks;
 		Activity inner;

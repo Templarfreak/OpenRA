@@ -109,14 +109,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (!producers.Any())
 			{
-				if (queue.Count > 0)
-					for (var i = 0; i < queue.Count; i++)
+				if (Queue.Count > 0)
+					for (var i = 0; i < Queue.Count; i++)
 					{
-						if (queue[i].Item == unit.Name)
+						if (Queue[i].Item == unit.Name)
 						{
-							CancelProduction(queue[i], 1);
+							CancelProduction(Queue[i], 1);
 						}
 					}
+
 				return false;
 			}
 

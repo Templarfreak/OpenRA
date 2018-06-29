@@ -128,7 +128,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			public void Tick(World world)
 			{
-				// Cancel the OG if we can't use the power
+				// Cancel the og if we can't use the power
 				if (!manager.Powers.ContainsKey(order))
 					world.CancelInputMode();
 			}

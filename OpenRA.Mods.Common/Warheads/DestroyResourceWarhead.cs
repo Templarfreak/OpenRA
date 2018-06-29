@@ -27,7 +27,7 @@ namespace OpenRA.Mods.Common.Warheads
 		public readonly HashSet<string> Resources = new HashSet<string>();
 
 		// TODO: Allow maximum resource removal to be defined. (Per tile, and in total).
-		public override void DoImpact(Target target, Target OG, Actor firedBy, IEnumerable<int> damageModifiers)
+		public override void DoImpact(Target target, Target og, Actor firedBy, IEnumerable<int> damageModifiers)
 		{
 			var world = firedBy.World;
 			var targetTile = world.Map.CellContaining(target.CenterPosition);

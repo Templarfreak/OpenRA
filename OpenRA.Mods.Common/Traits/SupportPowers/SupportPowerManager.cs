@@ -56,6 +56,7 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var t in a.TraitsImplementing<SupportPower>())
 			{
 				var key = MakeKey(t);
+				var bi = a.TraitOrDefault<BuildableInfo>();
 
 				if (!Powers.ContainsKey(key))
 				{
@@ -68,7 +69,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (t.Info.Prerequisites.Any())
 					{
-						TechTree.Add(key, t.Info.Prerequisites, 0, this);
+						TechTree.Add(key, t.Info.Prerequisites, bi.BuildLimit, this);
 						TechTree.Update();
 					}
 				}
@@ -286,7 +287,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual void Tick(World world)
 		{
-			// Cancel the OG if we can't use the power
+			// Cancel the og if we can't use the power
 			if (!manager.Powers.ContainsKey(order))
 				world.CancelInputMode();
 		}

@@ -68,7 +68,7 @@ namespace OpenRA.Mods.Shock.Traits
 
 		// A list of things we could possibly build
 		readonly Dictionary<ActorInfo, ProductionState> producible = new Dictionary<ActorInfo, ProductionState>();
-		//readonly List<ProductionItem> queue = new List<ProductionItem>();
+		//readonly List<ProductionItem> Queue = new List<ProductionItem>();
 
 		public Production[] StarportTraits;
 
@@ -109,7 +109,7 @@ namespace OpenRA.Mods.Shock.Traits
 
 		protected override void BeginProduction(ProductionItem item)
 		{
-			queue.Add(item);
+			Queue.Add(item);
 		}
 
 		protected override void CancelProduction(ProductionItem item, uint numberToCancel)
@@ -142,21 +142,21 @@ namespace OpenRA.Mods.Shock.Traits
 				totaltime = 0;
 				var limit = 0;
 
-				foreach (ProductionItem p in queue)
+				foreach (ProductionItem p in Queue)
 				{
-					var pindex = queue.IndexOf(p);
+					var pindex = Queue.IndexOf(p);
 
-					if (queue[pindex].Done)
+					if (Queue[pindex].Done)
 					{
-						queue[pindex].Tick(playerResources);
+						Queue[pindex].Tick(PlayerResources);
 					}
 
-					if (!queue[pindex].Done && !allProductionPaused)
+					if (!Queue[pindex].Done && !allProductionPaused)
 					{
-						queue[pindex].Tick(playerResources);
+						Queue[pindex].Tick(PlayerResources);
 
-						if (!queue[pindex].Done && queue[pindex].Started)
-							totaltime += queue[pindex].RemainingTime;
+						if (!Queue[pindex].Done && Queue[pindex].Started)
+							totaltime += Queue[pindex].RemainingTime;
 
 						limit += 1;
 
@@ -168,45 +168,45 @@ namespace OpenRA.Mods.Shock.Traits
 					}
 				}
 
-				foreach (ProductionItem p in queue)
+				foreach (ProductionItem p in Queue)
 				{
-					var pindex = queue.IndexOf(p);
+					var pindex = Queue.IndexOf(p);
 
-					if (!queue[pindex].Done && !queue[pindex].Started)
-						totaltime += queue[pindex].TotalTime;
+					if (!Queue[pindex].Done && !Queue[pindex].Started)
+						totaltime += Queue[pindex].TotalTime;
 				}
 			}
 			else
 			{
-				if (queue.Count > 0)
+				if (Queue.Count > 0)
 				{
-					foreach (ProductionItem p in queue)
+					foreach (ProductionItem p in Queue)
 					{
-						var indexof = queue.IndexOf(p);
+						var indexof = Queue.IndexOf(p);
 
-						if (!queue[indexof].Done)
+						if (!Queue[indexof].Done)
 						{
 							if (!allProductionPaused)
 							{
-								queue[indexof].Tick(playerResources);
+								Queue[indexof].Tick(PlayerResources);
 							}
-							if (!queue[indexof].Done && queue[indexof].Started)
-								totaltime = queue[indexof].RemainingTime;
+							if (!Queue[indexof].Done && Queue[indexof].Started)
+								totaltime = Queue[indexof].RemainingTime;
 
 							break;
 						}
-						if (queue[indexof].Done)
+						if (Queue[indexof].Done)
 						{
-							queue[indexof].Tick(playerResources);
+							Queue[indexof].Tick(PlayerResources);
 						}
 
 					}
 
-					foreach (ProductionItem p in queue)
+					foreach (ProductionItem p in Queue)
 					{
-						var pindex = queue.IndexOf(p);
-						if (!queue[pindex].Done && !queue[pindex].Started)
-							totaltime += queue[pindex].TotalTime;
+						var pindex = Queue.IndexOf(p);
+						if (!Queue[pindex].Done && !Queue[pindex].Started)
+							totaltime += Queue[pindex].TotalTime;
 					}
 				}
 			}
@@ -216,12 +216,8 @@ namespace OpenRA.Mods.Shock.Traits
 				foreach (int i in info.TMinus)
 				{
 					var iindex = info.TMinus.IndexOf(i);
-					if (self.Info.Name == "nahand")
-					{
-						System.Diagnostics.Debug.WriteLine(totaltime);
-					}
 					
-					if (totaltime <= i && totaltime > 0 && queue.Count > 0 && !timeremainingdone[iindex] && waitticks == 0)
+					if (totaltime <= i && totaltime > 0 && Queue.Count > 0 && !timeremainingdone[iindex] && waitticks == 0)
 					{
 						if (info.TMinusSounds.ElementAt(iindex) != null)
 						{
@@ -229,6 +225,7 @@ namespace OpenRA.Mods.Shock.Traits
 							{
 								timeremainingdone[j] = true;
 							}
+
 							timeremainingdone[iindex] = Game.Sound.PlayNotification(rules, self.Owner, "Speech", info.TMinusSounds[iindex], self.Owner.Faction.InternalName);
 
 						}
@@ -238,36 +235,36 @@ namespace OpenRA.Mods.Shock.Traits
 
 			if (info.StarportDelivery)
 			{
-				for (var i = 0; i < queue.Count; i++)
+				for (var i = 0; i < Queue.Count; i++)
 				{
-					if (queue[i].Done && !queue[i].NotInStarportList)
+					if (Queue[i].Done && !Queue[i].NotInStarportList)
 					{
-						//StarportList.Add(new ActorInfo(queue[i].Item));
-						for (var j = 0; j < queue[i].count; j++)
+						//StarportList.Add(new ActorInfo(Queue[i].Item));
+						for (var j = 0; j < Queue[i].Count; j++)
 						{
-							StarportList.Add(rules.Actors[queue[i].Item]);
+							StarportList.Add(rules.Actors[Queue[i].Item]);
 						}
-						queue[i].NotInStarportList = true;
+						Queue[i].NotInStarportList = true;
 					}
 				}
 
-				for (var i = 0; i < Math.Min(info.StarportLimit, queue.Count); i++)
+				for (var i = 0; i < Math.Min(info.StarportLimit, Queue.Count); i++)
 				{
-					if (!queue[i].Done)
+					if (!Queue[i].Done)
 					{
 						return;
 					}
 				}
 
-				if (queue.Count > 0)
+				if (Queue.Count > 0)
 				{
 					var mostLikelyProducerTrait = MostLikelyProducer().Trait;
 					if (!self.IsInWorld || self.IsDead || mostLikelyProducerTrait == null)
 					{
-						if (queue.Count > 0)
-							for (var j = 0; j < queue.Count; j++)
+						if (Queue.Count > 0)
+							for (var j = 0; j < Queue.Count; j++)
 							{
-								CancelProduction(queue[j], 1);
+								CancelProduction(Queue[j], 1);
 							}
 						return;
 					}
@@ -346,12 +343,12 @@ namespace OpenRA.Mods.Shock.Traits
 			// Cannot produce if I'm dead or trait is disabled
 			if (!self.IsInWorld || self.IsDead || mostLikelyProducerTrait == null)
 			{
-				if (queue.Count > 0)
-					for (var i = 0; i < queue.Count; i++)
+				if (Queue.Count > 0)
+					for (var i = 0; i < Queue.Count; i++)
 					{
-						if (queue[i].Item == unit.Name)
+						if (Queue[i].Item == unit.Name)
 						{
-							CancelProduction(queue[i], 1);
+							CancelProduction(Queue[i], 1);
 						}
 					}
 				//CancelProduction(unit.Name, 1);
@@ -395,14 +392,14 @@ namespace OpenRA.Mods.Shock.Traits
 			return true;
 		}
 
-		public override bool AddProductionItem(ProductionQueue queue, int count, string order, int cost, PowerManager aplayerpower, Ruleset rules,
+		public override bool AddProductionItem(ProductionQueue Queue, int count, string order, int cost, PowerManager aplayerpower, Ruleset rules,
 			ActorInfo unit, int time = 0, bool hasPlayedSound = true)
 		{
 			var bi = unit.TraitInfo<BuildableInfo>();
 			var type = developerMode.AllTech ? Info.Type : (bi.BuildAtProductionType ?? Info.Type);
 			var starport = info.StarportDelivery;
 
-			BeginProduction(new ProductionItem(queue, count, order, cost, aplayerpower, () => self.World.AddFrameEndTask(_ =>
+			BeginProduction(new ProductionItem(Queue, count, order, cost, aplayerpower, () => self.World.AddFrameEndTask(_ =>
 			{
 				var isBuilding = unit.HasTraitInfo<BuildingInfo>();
 

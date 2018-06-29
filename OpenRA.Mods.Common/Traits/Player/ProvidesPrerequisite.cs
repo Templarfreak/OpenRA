@@ -23,6 +23,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Only grant this prerequisite when you have these prerequisites.")]
 		public readonly string[] RequiresPrerequisites = { };
 
+		[Desc("Only grant this prerequisite when the tileset of the map is one of these. If none specified, then it doesn't require a tileset.")]
+		public readonly string[] RequiresTilesets = { };
+
 		[Desc("Only grant this prerequisite for certain factions.")]
 		public readonly HashSet<string> Factions = new HashSet<string>();
 
@@ -38,11 +41,15 @@ namespace OpenRA.Mods.Common.Traits
 		bool enabled;
 		TechTree techTree;
 		string faction;
+		Actor self;
+		ProvidesPrerequisiteInfo info;
 
 		public ProvidesPrerequisite(ActorInitializer init, ProvidesPrerequisiteInfo info)
 			: base(info)
 		{
+			this.info = info;
 			prerequisite = info.Prerequisite;
+			self = init.Self;
 
 			if (string.IsNullOrEmpty(prerequisite))
 				prerequisite = init.Self.Info.Name;
@@ -55,6 +62,10 @@ namespace OpenRA.Mods.Common.Traits
 			get
 			{
 				if (!enabled)
+					yield break;
+
+				var tilset = self.World.Map.Rules.TileSet;
+				if (Info.RequiresTilesets.Contains(tilset.Name) == false && info.RequiresTilesets.Length != 0)
 					yield break;
 
 				yield return prerequisite;

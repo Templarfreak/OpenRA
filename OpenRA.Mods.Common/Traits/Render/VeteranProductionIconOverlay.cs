@@ -65,9 +65,11 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 			foreach (var a in self.World.Map.Rules.Actors.Values)
 			{
+				var bi = a.TraitInfoOrDefault<BuildableInfo>();
+
 				var uwc = a.TraitInfoOrDefault<ProducibleWithLevelInfo>();
 				if (uwc != null)
-					ttc.Add(MakeKey(a.Name), uwc.Prerequisites, 0, this);
+					ttc.Add(MakeKey(a.Name), uwc.Prerequisites, bi.BuildLimit, this);
 			}
 		}
 

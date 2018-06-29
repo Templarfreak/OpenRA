@@ -153,7 +153,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual bool Starport(Actor self, List<ActorInfo> producees, string productionType, List<TypeDictionary> inits, ProductionQueue p)
 		{
-
 			foreach (ActorInfo somenewinfo in producees)
 			{
 				var someindex = producees.IndexOf(somenewinfo);
@@ -162,8 +161,8 @@ namespace OpenRA.Mods.Common.Traits
 
 				self.World.AddFrameEndTask(ww => Produce(self, producees.ElementAt(someindex), productionType, 1, inits.ElementAt(someindex)));
 			}
+
 			var rules = self.World.Map.Rules;
-			//var speechinfo = self.TraitOrDefault<ProductionQueueInfo>();
 
 			Game.Sound.PlayNotification(rules, self.Owner, "Speech", p.Info.ReadyAudio, self.Owner.Faction.InternalName);
 

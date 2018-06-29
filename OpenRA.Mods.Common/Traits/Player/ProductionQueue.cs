@@ -92,25 +92,25 @@ namespace OpenRA.Mods.Common.Traits
 
 		// A list of things we could possibly build
 		readonly Dictionary<ActorInfo, ProductionState> producible = new Dictionary<ActorInfo, ProductionState>();
-		public readonly List<ProductionItem> queue = new List<ProductionItem>();
+		public readonly List<ProductionItem> Queue = new List<ProductionItem>();
 		readonly IEnumerable<ActorInfo> allProducibles;
 		readonly IEnumerable<ActorInfo> buildableProducibles;
 
 		public Production[] productionTraits;
 
 		// Will change if the owner changes
-		PowerManager playerPower;
-		public PlayerResources playerResources;
+		PowerManager PlayerPower;
+		public PlayerResources PlayerResources;
 		protected DeveloperMode developerMode;
 
 		public Actor Actor { get { return self; } }
 
-		[Sync] public int QueueLength { get { return queue.Count; } }
-		[Sync] public int CurrentRemainingCost { get { return QueueLength == 0 ? 0 : queue[0].RemainingCost; } }
-		[Sync] public int CurrentRemainingTime { get { return QueueLength == 0 ? 0 : queue[0].RemainingTime; } }
-		[Sync] public int CurrentSlowdown { get { return QueueLength == 0 ? 0 : queue[0].Slowdown; } }
-		[Sync] public bool CurrentPaused { get { return QueueLength != 0 && queue[0].Paused; } }
-		[Sync] public bool CurrentDone { get { return QueueLength != 0 && queue[0].Done; } }
+		[Sync] public int QueueLength { get { return Queue.Count; } }
+		[Sync] public int CurrentRemainingCost { get { return QueueLength == 0 ? 0 : Queue[0].RemainingCost; } }
+		[Sync] public int CurrentRemainingTime { get { return QueueLength == 0 ? 0 : Queue[0].RemainingTime; } }
+		[Sync] public int CurrentSlowdown { get { return QueueLength == 0 ? 0 : Queue[0].Slowdown; } }
+		[Sync] public bool CurrentPaused { get { return QueueLength != 0 && Queue[0].Paused; } }
+		[Sync] public bool CurrentDone { get { return QueueLength != 0 && Queue[0].Done; } }
 		[Sync] public bool Enabled { get; protected set; }
 
 		public string Faction { get; private set; }
@@ -120,8 +120,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			self = init.Self;
 			Info = info;
-			playerResources = playerActor.Trait<PlayerResources>();
-			playerPower = playerActor.Trait<PowerManager>();
+			PlayerResources = playerActor.Trait<PlayerResources>();
+			PlayerPower = playerActor.Trait<PowerManager>();
 			developerMode = playerActor.Trait<DeveloperMode>();
 
 			Faction = init.Contains<FactionInit>() ? init.Get<FactionInit, string>() : self.Owner.Faction.InternalName;
@@ -140,20 +140,20 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected void ClearQueue()
 		{
-			if (queue.Count == 0)
+			if (Queue.Count == 0)
 				return;
 
 			// Refund the current item
-			playerResources.GiveCash(queue[0].TotalCost - queue[0].RemainingCost);
-			queue.Clear();
+			PlayerResources.GiveCash(Queue[0].TotalCost - Queue[0].RemainingCost);
+			Queue.Clear();
 		}
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
 		{
 			ClearQueue();
 
-			playerPower = newOwner.PlayerActor.Trait<PowerManager>();
-			playerResources = newOwner.PlayerActor.Trait<PlayerResources>();
+			PlayerPower = newOwner.PlayerActor.Trait<PowerManager>();
+			PlayerResources = newOwner.PlayerActor.Trait<PlayerResources>();
 			developerMode = newOwner.PlayerActor.Trait<DeveloperMode>();
 
 			if (!Info.Sticky)
@@ -186,7 +186,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in AllBuildables(Info.Type))
 			{
-				var bi = a.TraitInfo<BuildableInfo>();
+				var bi = a.TraitInfoOrDefault<BuildableInfo>();
 
 				producible.Add(a, new ProductionState());
 				ttc.Add(a.Name, bi.Prerequisites, bi.BuildLimit, this);
@@ -224,70 +224,73 @@ namespace OpenRA.Mods.Common.Traits
 
 		public ProductionItem CurrentItem()
 		{
-			return queue.ElementAtOrDefault(0);
+			return Queue.ElementAtOrDefault(0);
 		}
 
-		//Some new search functions. This only returns non-paused units in the queue.
+		//Some new search functions. This only returns non-paused units in the Queue.
 		public ProductionItem MostRecentNotPausedItem()
 		{
-			//return queue.ElementAtOrDefault(0);
-			for (var i = 0; i < queue.Count; i++)
+			//return Queue.ElementAtOrDefault(0);
+			for (var i = 0; i < Queue.Count; i++)
 			{
-				if (!queue[i].Paused)
+				if (!Queue[i].Paused)
 				{
-					return queue[i];
+					return Queue[i];
 				}
 			}
-			return queue.ElementAtOrDefault(0);
+
+			return Queue.ElementAtOrDefault(0);
 		}
 
 		//Not paused, done, has started. If anything is found to be a building, we just always return said building otherwise
 		//Otherwise it could give us trouble if it is used in something like ProductionPaletteWidget.
 		public ProductionItem MostRecentStandard()
 		{
-			for (var i = 0; i < queue.Count; i++)
+			for (var i = 0; i < Queue.Count; i++)
 			{
 				var rules = self.World.Map.Rules;
-				var unit = rules.Actors[queue[i].Item];
+				var unit = rules.Actors[Queue[i].Item];
 				var isbuilding = unit.HasTraitInfo<BuildingInfo>();
 
-				if (!queue[i].Paused && !queue[i].Done && queue[i].Started && !isbuilding)
+				if (!Queue[i].Paused && !Queue[i].Done && Queue[i].Started && !isbuilding)
 				{
-					return queue[i];
+					return Queue[i];
 				}
 				else if (isbuilding)
 				{
-					return queue[i];
+					return Queue[i];
 				}
 			}
-			return queue.ElementAtOrDefault(0);
+
+			return Queue.ElementAtOrDefault(0);
 		}
 
 		//Same as before but here we also check if the queued item's name is equal to whatever item name we're given.
 		//I was using this in ProductionPaletteWidget but now there is new logic there. This may still be useful later though.
 		public ProductionItem MostRecentStandard(string item)
 		{
-			for (var i = 0; i < queue.Count; i++)
+			for (var i = 0; i < Queue.Count; i++)
 			{
 				var rules = self.World.Map.Rules;
-				var unit = rules.Actors[queue[i].Item];
+				var unit = rules.Actors[Queue[i].Item];
 				var isbuilding = unit.HasTraitInfo<BuildingInfo>();
 
-				if (!queue[i].Paused && !queue[i].Done && queue[i].Started && !isbuilding && queue[i].Item == item)
+				if (!Queue[i].Paused && !Queue[i].Done && Queue[i].Started && !isbuilding && Queue[i].Item == item)
 				{
-					return queue[i];
+					return Queue[i];
 				}
-				else if (isbuilding && queue[i].Item == item)
+				else if (isbuilding && Queue[i].Item == item)
 				{
-					return queue[i];
+					return Queue[i];
 				}
 			}
-			return queue.ElementAtOrDefault(0);
+
+			return Queue.ElementAtOrDefault(0);
 		}
 
 		public virtual IEnumerable<ProductionItem> AllQueued()
 		{
-			return queue;
+			return Queue;
 		}
 
 		public virtual IEnumerable<ActorInfo> AllItems()
@@ -343,15 +346,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void TickInner(Actor self, bool allProductionPaused)
 		{
-			while (queue.Count > 0 && BuildableItems().All(b => b.Name != queue[0].Item))
+			while (Queue.Count > 0 && BuildableItems().All(b => b.Name != Queue[0].Item))
 			{
 				// Refund what's been paid so far
-				playerResources.GiveCash(queue[0].TotalCost - queue[0].RemainingCost);
+				PlayerResources.GiveCash(Queue[0].TotalCost - Queue[0].RemainingCost);
 				FinishProduction();
 			}
 
-			if (queue.Count > 0 && !allProductionPaused)
-				queue[0].Tick(playerResources);
+			if (Queue.Count > 0 && !allProductionPaused)
+				Queue[0].Tick(PlayerResources);
 		}
 
 		public bool CanQueue(ActorInfo actor, out string notificationAudio)
@@ -364,13 +367,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (!developerMode.AllTech)
 			{
-				if (Info.QueueLimit > 0 && queue.Count >= Info.QueueLimit)
+				if (Info.QueueLimit > 0 && Queue.Count >= Info.QueueLimit)
 				{
 					notificationAudio = Info.LimitedAudio;
 					return false;
 				}
 
-				var queueCount = queue.Count(i => i.Item == actor.Name);
+				var queueCount = Queue.Count(i => i.Item == actor.Name);
 				if (Info.ItemLimit > 0 && queueCount >= Info.ItemLimit)
 				{
 					notificationAudio = Info.LimitedAudio;
@@ -400,9 +403,9 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				case "StartProduction":
 					//We call this so StarportProductionQueue can know that we've added, or at least attempted to add,
-					//Something to the queue so we can reset waitticks so the notification callouts don't overlap
+					//Something to the Queue so we can reset waitticks so the notification callouts don't overlap
 					//With other sounds and so we can re-check if we need to say other sounds we originally thought
-					//we didn't need to (because the queue updated).
+					//we didn't need to (because the Queue updated).
 					NotifyStarport();
 
 					var unit = rules.Actors[order.TargetString];
@@ -413,7 +416,7 @@ namespace OpenRA.Mods.Common.Traits
 					var fromLimit = int.MaxValue;
 					var hasPlayedSound = false;
 
-					// Not built by this queue
+					// Not built by this Queue
 					if (!bi.Queue.Contains(Info.Type))
 						return;
 
@@ -425,14 +428,14 @@ namespace OpenRA.Mods.Common.Traits
 					if (!developerMode.AllTech)
 					{
 						if (Info.QueueLimit > 0)
-							fromLimit = Info.QueueLimit - queue.Count;
+							fromLimit = Info.QueueLimit - Queue.Count;
 
 						if (Info.ItemLimit > 0)
-							fromLimit = Math.Min(fromLimit, Info.ItemLimit - queue.Count(i => i.Item == order.TargetString));
+							fromLimit = Math.Min(fromLimit, Info.ItemLimit - Queue.Count(i => i.Item == order.TargetString));
 
 						if (bi.BuildLimit > 0)
 						{
-							inQueue = queue.Count(pi => pi.Item == order.TargetString);
+							inQueue = Queue.Count(pi => pi.Item == order.TargetString);
 							owned = self.Owner.World.ActorsHavingTrait<Buildable>().Count(a => a.Info.Name == order.TargetString && a.Owner == self.Owner);
 							fromLimit = bi.BuildLimit - ((inQueue * bi.Count) + owned);
 							//We feed this into Produce and Produce loops DoProduction counttobuild many times.
@@ -455,34 +458,35 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						//This allows us to override AddProductionItem so we can change this through another ProductionQueue.
 						//For instance we make some minor changes to this for the StarportQueue.
-						hasPlayedSound = AddProductionItem(this, counttobuild, order.TargetString, cost, playerPower, rules, unit, time, hasPlayedSound);
+						hasPlayedSound = AddProductionItem(this, counttobuild, order.TargetString, cost, PlayerPower, rules, unit, time, hasPlayedSound);
 					}
 
 					break;
 				case "PauseProduction":
 					//We pause *all* units in production on the icon.
-					if (queue.Count > 0)
-						for (var i = 0; i < queue.Count; i++)
+					if (Queue.Count > 0)
+						for (var i = 0; i < Queue.Count; i++)
 						{
-							if (queue[i].Item == order.TargetString)
+							if (Queue[i].Item == order.TargetString)
 							{
-								queue[i].Pause(order.ExtraData != 0);
+								Queue[i].Pause(order.ExtraData != 0);
 							}
 						}
+
 					break;
 				case "CancelProduction":
-					//But we only cancel ExtraData many units of the queue, then break.
+					//But we only cancel ExtraData many units of the Queue, then break.
 					//The setup for this (and PauseProduction) has the added benefit of always pausing the ones
-					//that are the oldest in the queue (so they appear closer to or are 0 index).
+					//that are the oldest in the Queue (so they appear closer to or are 0 index).
 					//This means that the ones that are the most complete gets paused.
 					if (order.ExtraData > 1)
 					{
-						if (queue.Count > 0)
-							for (var i = 0; i < queue.Count; i++)
+						if (Queue.Count > 0)
+							for (var i = 0; i < Queue.Count; i++)
 							{
-								if (queue[i].Item == order.TargetString)
+								if (Queue[i].Item == order.TargetString)
 								{
-									CancelProduction(queue[i], order.ExtraData);
+									CancelProduction(Queue[i], order.ExtraData);
 									return;
 								}
 							}
@@ -491,26 +495,27 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						//I think this is useless now, but I don't want to touch it.
 						//All of these For loops should probably also be Foreach's. That's just me not knowing what I'm doing.
-						if (queue.Count > 0)
-							for (var i = 0; i < queue.Count; i++)
+						if (Queue.Count > 0)
+							for (var i = 0; i < Queue.Count; i++)
 							{
-								if (queue[i].Item == order.TargetString)
+								if (Queue[i].Item == order.TargetString)
 								{
-									CancelProduction(queue[i], order.ExtraData);
+									CancelProduction(Queue[i], order.ExtraData);
 									return;
 								}
 							}
 					}
+
 					break;
 			}
 		}
 
 		//Any new ProductionQueue trait can override this to change what Action is given to the ProductionItem (as well as lots of other behavior
 		// here)
-		public virtual bool AddProductionItem(ProductionQueue queue, int count, string order, int cost, PowerManager playerpower, Ruleset rules,
+		public virtual bool AddProductionItem(ProductionQueue Queue, int count, string order, int cost, PowerManager PlayerPower, Ruleset rules,
 			ActorInfo unit, int time = 0, bool hasPlayedSound = false)
 		{
-			BeginProduction(new ProductionItem(queue, count, order, cost, playerPower, () => self.World.AddFrameEndTask(_ =>
+			BeginProduction(new ProductionItem(Queue, count, order, cost, PlayerPower, () => self.World.AddFrameEndTask(_ =>
 			{
 				var isBuilding = unit.HasTraitInfo<BuildingInfo>();
 
@@ -559,32 +564,33 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// Refund what has been paid
 			//We only cancel the top-most units that fit our conditions.
-			if (queue.Count != 0)
+			if (Queue.Count != 0)
 			{
-				for (var i = 0; i < queue.Count; i++)
+				for (var i = 0; i < Queue.Count; i++)
 				{
-					var itemstring = queue[i];
-					if (queue.ElementAt(i) == itemName)
+					var itemstring = Queue[i];
+					if (Queue.ElementAt(i) == itemName)
 					{
-						playerResources.GiveCash(itemstring.TotalCost - itemstring.RemainingCost);
-						queue.RemoveAt(i);
+						PlayerResources.GiveCash(itemstring.TotalCost - itemstring.RemainingCost);
+						Queue.RemoveAt(i);
 						return true;
 					}
 				}
 			}
+
 			return false;
 		}
 
 		public void FinishProduction()
 		{
 			//Or finish them.
-			if (queue.Count != 0)
+			if (Queue.Count != 0)
 			{
-				for (var i = 0; i < queue.Count; i++)
+				for (var i = 0; i < Queue.Count; i++)
 				{
-					if (queue.ElementAt(i).Done == true)
+					if (Queue.ElementAt(i).Done == true)
 					{
-						queue.RemoveAt(i);
+						Queue.RemoveAt(i);
 					}
 				}
 			}
@@ -596,10 +602,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected virtual void BeginProduction(ProductionItem item)
 		{
-			queue.Add(item);
+			Queue.Add(item);
 		}
 
-		// Returns the actor/trait that is most likely (but not necessarily guaranteed) to produce something in this queue
+		// Returns the actor/trait that is most likely (but not necessarily guaranteed) to produce something in this Queue
 		public virtual TraitPair<Production> MostLikelyProducer()
 		{
 			var traits = productionTraits.Where(p => !p.IsTraitDisabled && p.Info.Produces.Contains(Info.Type));
@@ -607,7 +613,7 @@ namespace OpenRA.Mods.Common.Traits
 			return new TraitPair<Production>(self, unpaused != null ? unpaused : traits.FirstOrDefault());
 		}
 
-		// Builds a unit from the actor that holds this queue (1 queue per building)
+		// Builds a unit from the actor that holds this Queue (1 Queue per building)
 		// Returns false if the unit can't be built
 		protected virtual bool BuildUnit(ActorInfo unit, int count)
 		{
@@ -616,14 +622,15 @@ namespace OpenRA.Mods.Common.Traits
 			// Cannot produce if I'm dead or trait is disabled
 			if (!self.IsInWorld || self.IsDead || mostLikelyProducerTrait == null)
 			{
-				if (queue.Count > 0)
-					for (var i = 0; i < queue.Count; i++)
+				if (Queue.Count > 0)
+					for (var i = 0; i < Queue.Count; i++)
 					{
-						if (queue[i].Item == unit.Name)
+						if (Queue[i].Item == unit.Name)
 						{
-							CancelProduction(queue[i], 1);
+							CancelProduction(Queue[i], 1);
 						}
 					}
+
 				return false;
 			}
 
@@ -659,7 +666,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly ProductionQueue Queue;
 		public readonly int TotalCost;	
 		public readonly Action OnComplete;
-		public int count;
+		public int Count;
 		public bool NotInStarportList = false;
 
 		public int TotalTime { get; private set; }
@@ -683,14 +690,14 @@ namespace OpenRA.Mods.Common.Traits
 		readonly BuildableInfo bi;
 		readonly PowerManager pm;
 
-		public ProductionItem(ProductionQueue queue, int count, string item, int cost, PowerManager pm, Action onComplete)
+		public ProductionItem(ProductionQueue Queue, int count, string item, int cost, PowerManager pm, Action onComplete)
 		{
 			Item = item;
 			RemainingTime = TotalTime = 1;
 			RemainingCost = TotalCost = cost;
 			OnComplete = onComplete;
-			this.count = count;
-			Queue = queue;
+			this.Count = count;
+			this.Queue = Queue;
 			this.pm = pm;
 			ai = Queue.Actor.World.Map.Rules.Actors[Item];
 			bi = ai.TraitInfo<BuildableInfo>();

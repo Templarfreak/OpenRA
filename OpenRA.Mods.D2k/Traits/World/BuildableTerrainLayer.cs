@@ -21,6 +21,9 @@ namespace OpenRA.Mods.D2k.Traits
 		[Desc("Palette to render the layer sprites in.")]
 		public readonly string Palette = TileSet.TerrainPaletteInternalName;
 
+		//[Desc("Z-Offset of this Terrain Layer.")]
+		//public readonly int LayerZOffset = 40;
+
 		public object Create(ActorInitializer init) { return new BuildableTerrainLayer(init.Self, this); }
 	}
 
@@ -52,7 +55,8 @@ namespace OpenRA.Mods.D2k.Traits
 
 			// Terrain tiles define their origin at the topleft
 			var s = theater.TileSprite(tile);
-			dirty[cell] = new Sprite(s.Sheet, s.Bounds, s.ZRamp, float2.Zero, s.Channel, s.BlendMode);
+
+			dirty[cell] = new Sprite(s.Sheet, s.Bounds, s.ZRamp, s.Offset, s.Channel, s.BlendMode);
 		}
 
 		void ITickRender.TickRender(WorldRenderer wr, Actor self)

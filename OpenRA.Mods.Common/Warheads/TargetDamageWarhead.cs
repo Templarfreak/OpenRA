@@ -17,7 +17,7 @@ namespace OpenRA.Mods.Common.Warheads
 {
 	public class TargetDamageWarhead : DamageWarhead
 	{
-		public override void DoImpact(Target target, Target OG, Actor firedBy, IEnumerable<int> damageModifiers)
+		public override void DoImpact(Target target, Target og, Actor firedBy, IEnumerable<int> damageModifiers)
 		{
 			// Damages a single actor, rather than a position. Only support by InstantHit for now.
 			// TODO: Add support for 'area of damage'
