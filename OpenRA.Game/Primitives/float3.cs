@@ -20,7 +20,7 @@ namespace OpenRA
 	[StructLayout(LayoutKind.Sequential)]
 	public struct float3
 	{
-		public readonly float X, Y, Z;
+		public float X, Y, Z;
 		public float2 XY { get { return new float2(X, Y); } }
 
 		public float3(float x, float y, float z) { X = x; Y = y; Z = z; }

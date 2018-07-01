@@ -73,6 +73,7 @@ namespace OpenRA.Mods.Common.Graphics
 				var u = rad.Length * angle.Cos() * railgun.LeftVector / (1024 * 1024)
 					+ rad.Length * angle.Sin() * railgun.UpVector / (1024 * 1024);
 				points[i] = wr.Screen3DPosition(centerPos + u);
+				points[i].Z += ZOffset;
 
 				centerPos += railgun.ForwardStep;
 				angle += railgun.AngleStep;
