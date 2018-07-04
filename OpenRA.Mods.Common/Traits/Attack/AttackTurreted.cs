@@ -35,6 +35,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override bool CanAttack(Actor self, Target target)
 		{
+			var turretReady = CanAttackParams(self, target);
+
+			return turretReady && base.CanAttack(self, target);
+		}
+
+		protected virtual bool CanAttackParams(Actor self, Target target, bool ready = false)
+		{
 			if (target.Type == TargetType.Invalid)
 				return false;
 
@@ -44,7 +51,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (t.FaceTarget(self, target))
 					turretReady = true;
 
-			return turretReady && base.CanAttack(self, target);
+			return turretReady;
 		}
 	}
 }

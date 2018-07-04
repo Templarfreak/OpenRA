@@ -158,18 +158,9 @@ namespace OpenRA.Mods.Common.Projectiles
 
 			if (ticks < info.DamageDuration && --interval <= 0)
 			{
-<<<<<<< HEAD
-				if (hitanim != null)
-					hitanim.PlayThen(info.HitAnimSequence, () => animationComplete = true);
-				else
-					animationComplete = true;
 
 				args.Weapon.Impact(Target.FromPos(target), Target.FromPos(target), args.SourceActor, args.DamageModifiers);
-				doneDamage = true;
-=======
-				args.Weapon.Impact(Target.FromPos(target), args.SourceActor, args.DamageModifiers);
 				interval = info.DamageInterval;
->>>>>>> f31e5d17b3f8165f4dcf1e3bc2f0300d080c4231
 			}
 
 			if (showHitAnim)

@@ -870,3 +870,6 @@ mods/ts-mod/Assets/Visual/subt.hva
 mods/ts-mod/Assets/Visual/subt.vxl
 mods/ts-mod/sequences/GDI/structures.yaml
 mods/ts-mod/sequences/Nod/structures.yaml
+mods/ts-mod/Assets/Nod/Buildings/nsamwip.shp
+mods/ts-mod/Assets/Nod/Buildings/nsam.shp
+mods/ts-mod/Assets/Nod/Buildings/nasam.shp

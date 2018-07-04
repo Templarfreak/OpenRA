@@ -28,14 +28,27 @@ namespace OpenRA.Mods.Cnc.Traits
 		[Desc("The percentage of damage that is received while this actor is closed.")]
 		public readonly int ClosedDamageMultiplier = 50;
 
+		[Desc("Whether to start in the closed state or not. Default is false.")]
+		public readonly bool StartClosed = false;
+
+		[Desc("If true, the turret will not turn unless it has completed OpeningSequence.")]
+		public readonly bool WaitUntilSurfaced = false;
+
+		[Desc("Sequence to play when idling.")]
+		[SequenceReference]
+		public readonly string IdleSequence = "idle";
+
 		[Desc("Sequence to play when opening.")]
-		[SequenceReference] public readonly string OpeningSequence = "opening";
+		[SequenceReference]
+		public readonly string OpeningSequence = "opening";
 
 		[Desc("Sequence to play when closing.")]
-		[SequenceReference] public readonly string ClosingSequence = "closing";
+		[SequenceReference]
+		public readonly string ClosingSequence = "closing";
 
 		[Desc("Idle sequence to play when closed.")]
-		[SequenceReference] public readonly string ClosedIdleSequence = "closed-idle";
+		[SequenceReference]
+		public readonly string ClosedIdleSequence = "closed-idle";
 
 		[Desc("Which sprite body to play the animation on.")]
 		public readonly string Body = "body";
@@ -54,6 +67,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		int idleTicks = 0;
 		PopupState state = PopupState.Open;
 		bool skippedMakeAnimation;
+		bool startclosed = false;
 
 		public AttackPopupTurreted(ActorInitializer init, AttackPopupTurretedInfo info)
 			: base(init.Self, info)
@@ -62,14 +76,31 @@ namespace OpenRA.Mods.Cnc.Traits
 			turret = turrets.FirstOrDefault();
 			wsb = init.Self.TraitsImplementing<WithSpriteBody>().Single(w => w.Info.Name == info.Body);
 			skippedMakeAnimation = init.Contains<SkipMakeAnimsInit>();
+			startclosed = info.StartClosed;
 		}
 
 		protected override bool CanAttack(Actor self, Target target)
 		{
-			if (state == PopupState.Transitioning || !building.BuildComplete)
+			//we want to stop it from turning completely if WaitUntilSurfaced is true until the PopupState == Open. Well, it can turn during this too.
+			if ((state == PopupState.Transitioning && info.WaitUntilSurfaced == true) || !building.BuildComplete)
 				return false;
 
-			if (!base.CanAttack(self, target))
+			if (state == PopupState.Open || info.WaitUntilSurfaced == false)
+				foreach (var t in turrets)
+					if (target.Type != TargetType.Invalid)
+						if (t.FaceTarget(self, target))
+							if (state == PopupState.Open) // seems redundant but if WaitUntilSurfaced == false then it would just always return true here
+							return true;                  // if the turret has a target, meaning it would never surface.
+
+
+			//^^^ but we have this here so that regardless of WaitUntilSurfaced it can't queue up more states from below this line while it is transitioning.
+			//That is, if for some reason it would ever do so in the first place.
+			if (state == PopupState.Transitioning)
+				return false;
+
+			//if (!base.CanAttack(self, target))
+			//	return false;
+			if (target.Type == TargetType.Invalid)
 				return false;
 
 			idleTicks = 0;
@@ -79,20 +110,31 @@ namespace OpenRA.Mods.Cnc.Traits
 				wsb.PlayCustomAnimation(self, info.OpeningSequence, () =>
 				{
 					state = PopupState.Open;
-					wsb.PlayCustomAnimationRepeating(self, wsb.Info.Sequence);
+					wsb.PlayCustomAnimationRepeating(self, info.IdleSequence);
 				});
 				return false;
 			}
-
-			return true;
+			return false;
 		}
 
 		void INotifyIdle.TickIdle(Actor self)
 		{
+			if (startclosed && building.BuildComplete)
+			{
+				state = PopupState.Closed;
+				wsb.PlayCustomAnimationRepeating(self, info.ClosedIdleSequence);
+				turret.DesiredFacing = null;
+				startclosed = false;
+			}
+
 			if (state == PopupState.Open && idleTicks++ > info.CloseDelay)
 			{
 				turret.DesiredFacing = info.DefaultFacing;
 				state = PopupState.Rotating;
+			}
+			else if (state == PopupState.Rotating && idleTicks++ > info.CloseDelay && turret.TurretFacing != info.DefaultFacing)
+			{
+				turret.DesiredFacing = info.DefaultFacing;
 			}
 			else if (state == PopupState.Rotating && turret.TurretFacing == info.DefaultFacing)
 			{

@@ -78,16 +78,6 @@ namespace OpenRA.Mods.Shock.Warheads
 		{
 			var world = firedBy.World;
 
-			//if (world.LocalPlayer != null)
-			//{
-			//	var devMode = world.LocalPlayer.PlayerActor.TraitOrDefault<DeveloperMode>();
-			//	if (devMode != null && devMode.ShowCombatGeometry)
-			//	{
-			//		WDist[] rng = Exts.MakeArray(Range.Length, i => WDist.FromCells(Range[i]));
-			//		world.WorldActor.Trait<WarheadDebugOverlay>().AddImpact(pos, rng, DebugOverlayColor);
-			//	}
-			//}
-
 			// Accumulate radiation
 			var targetTile = world.Map.CellContaining(pos);
 			for (var i = 0; i < Range.Length; i++)
