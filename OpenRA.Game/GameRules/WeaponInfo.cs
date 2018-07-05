@@ -64,6 +64,9 @@ namespace OpenRA.GameRules
 		[Desc("Number of shots in a single ammo magazine.")]
 		public readonly int Burst = 1;
 
+		[Desc("Use this in conjunction with Burst. Will randomly pick from Burst to BurstMax. Use 0 for no random range.")]
+		public readonly int BurstMax = 0;
+
 		[Desc("What types of targets are affected.")]
 		public readonly BitSet<TargetableType> ValidTargets = new BitSet<TargetableType>("Ground", "Water");
 

@@ -129,6 +129,9 @@ namespace OpenRA.Mods.Common.Traits
 		public WDist Recoil;
 		public int FireDelay { get; protected set; }
 		public int Burst { get; protected set; }
+		public int BurstMax { get; protected set; }
+		public int NewBurst { get; protected set; }
+		public int BurstRandom { get; protected set; }
 
 		public Armament(Actor self, ArmamentInfo info)
 			: base(info)
@@ -136,7 +139,8 @@ namespace OpenRA.Mods.Common.Traits
 			this.self = self;
 
 			Weapon = info.WeaponInfo;
-			Burst = Weapon.Burst;
+			RandomizeBurst();
+			Burst = BurstRandom;
 
 			var barrels = new List<Barrel>();
 			for (var i = 0; i < info.LocalOffset.Length; i++)
@@ -257,7 +261,7 @@ namespace OpenRA.Mods.Common.Traits
 				return null;
 
 			if (ticksSinceLastShot >= Weapon.ReloadDelay)
-				Burst = Weapon.Burst;
+				Burst = BurstRandom;
 
 			ticksSinceLastShot = 0;
 
@@ -327,7 +331,7 @@ namespace OpenRA.Mods.Common.Traits
 					if (args.Weapon.Report != null && args.Weapon.Report.Any())
 						Game.Sound.Play(SoundType.World, args.Weapon.Report.Random(self.World.SharedRandom), self.CenterPosition);
 
-					if (Burst == args.Weapon.Burst && args.Weapon.StartBurstReport != null && args.Weapon.StartBurstReport.Any())
+					if (Burst == BurstRandom && args.Weapon.StartBurstReport != null && args.Weapon.StartBurstReport.Any())
 						Game.Sound.Play(SoundType.World, args.Weapon.StartBurstReport.Random(self.World.SharedRandom), self.CenterPosition);
 
 					foreach (var na in notifyAttacks)
@@ -336,6 +340,20 @@ namespace OpenRA.Mods.Common.Traits
 					Recoil = Info.Recoil;
 				}
 			});
+		}
+
+		protected void RandomizeBurst()
+		{
+			NewBurst = Weapon.Burst;
+			BurstMax = Weapon.BurstMax;
+
+			if (BurstMax != 0)
+			{
+				Random brst = new Random();
+				NewBurst = brst.Next(Burst, BurstMax + 1);
+			}
+
+			BurstRandom = NewBurst;
 		}
 
 		protected virtual void UpdateBurst(Actor self, Target target)
@@ -363,6 +381,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				foreach (var nbc in notifyBurstComplete)
 					nbc.FiredBurst(self, target, this);
+					RandomizeBurst();
 			}
 		}
 
