@@ -873,3 +873,13 @@ mods/ts-mod/sequences/Nod/structures.yaml
 mods/ts-mod/Assets/Nod/Buildings/nsamwip.shp
 mods/ts-mod/Assets/Nod/Buildings/nsam.shp
 mods/ts-mod/Assets/Nod/Buildings/nasam.shp
+mods/ts-mod/Assets/GDI/Infantry/engig.shp
+mods/ts-mod/Assets/GDI/Infantry/peace.shp
+mods/ts-mod/rules/Weapons/attacktypes.yaml
+mods/ts-mod/rules/Weapons/commonweaps.yaml
+mods/ts-mod/rules/Weapons/energyweapons.yaml
+mods/ts-mod/rules/Weapons/missiles.yaml
+mods/ts-mod/rules/Weapons/naval.yaml
+mods/ts-mod/rules/Weapons/special.yaml
+mods/ts-mod/sequences/GDI/infantry.yaml
+OpenRA.Game/Graphics/PlatformInterfaces.cs
