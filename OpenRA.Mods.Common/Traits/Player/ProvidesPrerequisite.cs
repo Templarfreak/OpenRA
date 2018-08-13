@@ -31,6 +31,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Should it recheck everything when it is captured?")]
 		public readonly bool ResetOnOwnerChange = false;
+
+		IEnumerable<string> ITechTreePrerequisiteInfo.Prerequisites(ActorInfo info)
+		{
+			return new string[] { Prerequisite ?? info.Name };
+		}
+
 		public override object Create(ActorInitializer init) { return new ProvidesPrerequisite(init, this); }
 	}
 

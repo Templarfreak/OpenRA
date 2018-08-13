@@ -368,6 +368,8 @@ MCV:
 		Actor: MCV.Husk
 		OwnerType: InternalName
 		EffectiveOwnerFromOwner: true
+	TransferTimedExternalConditionOnTransform:
+		Condition: invulnerability
 
 JEEP:
 	Inherits: ^Vehicle
@@ -407,8 +409,8 @@ JEEP:
 	WithSpriteTurret:
 	Cargo:
 		Types: Infantry
-		MaxWeight: 2
-		PipCount: 2
+		MaxWeight: 1
+		PipCount: 1
 		LoadingCondition: notmobile
 	ProducibleWithLevel:
 		Prerequisites: vehicles.upgraded
@@ -698,6 +700,7 @@ DTRK:
 	Explodes:
 		Weapon: MiniNuke
 		EmptyWeapon: MiniNuke
+		DamageSource: Killer
 	AttackSuicides:
 	-DamageMultiplier@IRONCURTAIN:
 	KillsSelf:

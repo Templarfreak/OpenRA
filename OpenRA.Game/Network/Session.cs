@@ -126,6 +126,9 @@ namespace OpenRA.Network
 			public bool IsInvalid { get { return State == ClientState.Invalid; } }
 			public bool IsObserver { get { return Slot == null; } }
 
+			// Linked to the online player database
+			public string Fingerprint;
+
 			public MiniYamlNode Serialize()
 			{
 				return new MiniYamlNode("Client@{0}".F(Index), FieldSaver.Save(this));
@@ -198,6 +201,7 @@ namespace OpenRA.Network
 			public bool AllowVersionMismatch;
 			public string GameUid;
 			public bool EnableSingleplayer;
+			public bool Dedicated;
 
 			[FieldLoader.Ignore]
 			public Dictionary<string, LobbyOptionState> LobbyOptions = new Dictionary<string, LobbyOptionState>();

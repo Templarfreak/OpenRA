@@ -73,6 +73,60 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 167, options, setupItem);
 		}
 
+		public static void ShowPlayerActionDropDown(DropDownButtonWidget dropdown, Session.Slot slot,
+			Session.Client c, OrderManager orderManager, Widget lobby,  Action before, Action after)
+		{
+			Action<bool> okPressed = tempBan => { orderManager.IssueOrder(Order.Command("kick {0} {1}".F(c.Index, tempBan))); after(); };
+			var onClick = new Action(() =>
+			{
+				before();
+
+				Game.LoadWidget(null, "KICK_CLIENT_DIALOG", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs
+				{
+					{ "clientName", c.Name },
+					{ "okPressed", okPressed },
+					{ "cancelPressed", after }
+				});
+			});
+
+			var options = new List<DropDownOption>
+			{
+				new DropDownOption
+				{
+					Title = "Kick",
+					OnClick = onClick
+				},
+			};
+
+			if (orderManager.LobbyInfo.GlobalSettings.Dedicated)
+			{
+				options.Add(new DropDownOption
+				{
+					Title = "Transfer Admin",
+					OnClick = () => orderManager.IssueOrder(Order.Command("make_admin {0}".F(c.Index)))
+				});
+			}
+
+			if (!c.IsObserver && orderManager.LobbyInfo.GlobalSettings.AllowSpectators)
+			{
+				options.Add(new DropDownOption
+				{
+					Title = "Move to Spectator",
+					OnClick = () => orderManager.IssueOrder(Order.Command("make_spectator {0}".F(c.Index)))
+				});
+			}
+
+			Func<DropDownOption, ScrollItemWidget, ScrollItemWidget> setupItem = (o, itemTemplate) =>
+			{
+				var item = ScrollItemWidget.Setup(itemTemplate, o.IsSelected, o.OnClick);
+				var labelWidget = item.Get<LabelWidget>("LABEL");
+				labelWidget.GetText = () => o.Title;
+				return item;
+			};
+
+			dropdown.ShowDropDown("PLAYERACTION_DROPDOWN_TEMPLATE", 167, options, setupItem);
+		}
+
 		public static void ShowTeamDropDown(DropDownButtonWidget dropdown, Session.Client client,
 			OrderManager orderManager, int teamCount)
 		{
@@ -242,21 +296,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			return "Poor";
 		}
 
-		public static string DescriptiveIpAddress(string ip)
+		public static void SetupLatencyWidget(Widget parent, Session.Client c, OrderManager orderManager, bool visible)
 		{
-			if (ip == null)
-				return "Unknown Host";
-			if (ip == IPAddress.Loopback.ToString())
-				return "Local Host";
-			return ip;
-		}
-
-		public static void SetupClientWidget(Widget parent, Session.Client c, OrderManager orderManager, bool visible)
-		{
-			var adminIndicator = parent.GetOrNull("ADMIN_INDICATOR");
-			if (adminIndicator != null)
-				adminIndicator.IsVisible = () => c != null && c.IsAdmin;
-
 			var block = parent.GetOrNull("LATENCY");
 			if (block != null)
 			{
@@ -267,13 +308,36 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						orderManager.LobbyInfo.PingFromClient(c));
 			}
 
-			var tooltip = parent.Get<ClientTooltipRegionWidget>("CLIENT_REGION");
+			var tooltip = parent.Get<ClientTooltipRegionWidget>("LATENCY_REGION");
 			tooltip.IsVisible = () => c != null && visible;
 			if (c != null)
-				tooltip.Bind(orderManager, c.Index);
+				tooltip.Bind(orderManager, null, c);
 		}
 
-		public static void SetupEditableNameWidget(Widget parent, Session.Slot s, Session.Client c, OrderManager orderManager)
+		public static void SetupProfileWidget(Widget parent, Session.Client c, OrderManager orderManager, WorldRenderer worldRenderer)
+		{
+			var profile = parent.GetOrNull<ImageWidget>("PROFILE");
+			if (profile != null && c.Bot == null)
+			{
+				var imageName = (c != null && c.IsAdmin ? "admin-" : "player-")
+					+ (c.Fingerprint != null ? "registered" : "anonymous");
+
+				profile.GetImageName = () => imageName;
+				profile.IsVisible = () => true;
+			}
+
+			var profileTooltip = parent.GetOrNull<ClientTooltipRegionWidget>("PROFILE_TOOLTIP");
+			if (profileTooltip != null && c.Bot == null)
+			{
+				if (c != null && c.Fingerprint != null)
+					profileTooltip.Template = "REGISTERED_PLAYER_TOOLTIP";
+
+				profileTooltip.Bind(orderManager, worldRenderer, c);
+				profileTooltip.IsVisible = () => true;
+			}
+		}
+
+		public static void SetupEditableNameWidget(Widget parent, Session.Slot s, Session.Client c, OrderManager orderManager, WorldRenderer worldRenderer)
 		{
 			var name = parent.Get<TextFieldWidget>("NAME");
 			name.IsVisible = () => true;
@@ -310,18 +374,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return true;
 			};
 
+			SetupProfileWidget(name, c, orderManager, worldRenderer);
+
 			HideChildWidget(parent, "SLOT_OPTIONS");
 		}
 
-		public static void SetupNameWidget(Widget parent, Session.Slot s, Session.Client c)
+		public static void SetupNameWidget(Widget parent, Session.Slot s, Session.Client c, OrderManager orderManager, WorldRenderer worldRenderer)
 		{
 			var name = parent.Get<LabelWidget>("NAME");
+			name.IsVisible = () => true;
 			var font = Game.Renderer.Fonts[name.Font];
 			var label = WidgetUtils.TruncateText(c.Name, name.Bounds.Width, font);
 			name.GetText = () => label;
+
+			SetupProfileWidget(parent, c, orderManager, worldRenderer);
 		}
 
-		public static void SetupEditableSlotWidget(Widget parent, Session.Slot s, Session.Client c, OrderManager orderManager, MapPreview map)
+		public static void SetupEditableSlotWidget(Widget parent, Session.Slot s, Session.Client c,
+			OrderManager orderManager, WorldRenderer worldRenderer, MapPreview map)
 		{
 			var slot = parent.Get<DropDownButtonWidget>("SLOT_OPTIONS");
 			slot.IsVisible = () => true;
@@ -343,23 +413,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			HideChildWidget(parent, "SLOT_OPTIONS");
 		}
 
-		public static void SetupKickWidget(Widget parent, Session.Slot s, Session.Client c, OrderManager orderManager, Widget lobby, Action before, Action after)
+		public static void SetupPlayerActionWidget(Widget parent, Session.Slot s, Session.Client c, OrderManager orderManager,
+			WorldRenderer worldRenderer,  Widget lobby, Action before, Action after)
 		{
-			var button = parent.Get<ButtonWidget>("KICK");
-			button.IsVisible = () => Game.IsHost && c.Index != orderManager.LocalClient.Index;
-			button.IsDisabled = () => orderManager.LocalClient.IsReady;
-			Action<bool> okPressed = tempBan => { orderManager.IssueOrder(Order.Command("kick {0} {1}".F(c.Index, tempBan))); after(); };
-			button.OnClick = () =>
-			{
-				before();
+			var slot = parent.Get<DropDownButtonWidget>("PLAYER_ACTION");
+			slot.IsVisible = () => Game.IsHost && c.Index != orderManager.LocalClient.Index;
+			slot.IsDisabled = () => orderManager.LocalClient.IsReady;
+			slot.GetText = () => c != null ? c.Name : string.Empty;
+			slot.OnMouseDown = _ => ShowPlayerActionDropDown(slot, s, c, orderManager, lobby, before, after);
 
-				Game.LoadWidget(null, "KICK_CLIENT_DIALOG", lobby.Get("TOP_PANELS_ROOT"), new WidgetArgs
-				{
-					{ "clientName", c.Name },
-					{ "okPressed", okPressed },
-					{ "cancelPressed", after }
-				});
-			};
+			SetupProfileWidget(slot, c, orderManager, worldRenderer);
+
+			// Ensure Name selector (if present) is hidden
+			HideChildWidget(parent, "NAME");
 		}
 
 		public static void SetupKickSpectatorsWidget(Widget parent, OrderManager orderManager, Widget lobby, Action before, Action after, bool skirmishMode)
@@ -498,6 +564,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			parent.Get<ImageWidget>("STATUS_IMAGE").IsVisible = () => c.IsReady || c.Bot != null;
 		}
 
+		public static void HideReadyWidgets(Widget parent)
+		{
+			HideChildWidget(parent, "STATUS_CHECKBOX");
+			HideChildWidget(parent, "STATUS_IMAGE");
+		}
+
 		public static void AddPlayerFlagAndName(ScrollItemWidget template, Player player)
 		{
 			var flag = template.Get<ImageWidget>("FLAG");
@@ -527,12 +599,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			playerName.GetColor = () => player.Color.RGB;
 		}
 
-		public static string GetExternalIP(int clientIndex, OrderManager orderManager)
+		public static string GetExternalIP(Session.Client client, OrderManager orderManager)
 		{
-			var client = orderManager.LobbyInfo.ClientWithIndex(clientIndex);
 			var address = client != null ? client.IpAddress : "";
 			var lc = orderManager.LocalClient;
-			if (lc != null && lc.Index == clientIndex && address == IPAddress.Loopback.ToString())
+			if (lc != null && lc.Index == client.Index && address == IPAddress.Loopback.ToString())
 			{
 				var externalIP = UPnP.ExternalIP;
 				if (externalIP != null)
@@ -576,6 +647,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var widget = parent.GetOrNull(widgetId);
 			if (widget != null)
 				widget.IsVisible = () => false;
+		}
+	}
+
+	class ShowPlayerActionDropDownOption
+	{
+		public Action Click { get; set; }
+		public string Title;
+		public Func<bool> Selected = () => false;
+
+		public ShowPlayerActionDropDownOption(string title, Action click)
+		{
+			Click = click;
+			Title = title;
 		}
 	}
 }

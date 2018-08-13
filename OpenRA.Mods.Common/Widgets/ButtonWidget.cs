@@ -11,6 +11,7 @@
 
 using System;
 using System.Drawing;
+using System.Linq;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -25,6 +26,9 @@ namespace OpenRA.Mods.Common.Widgets
 		public bool DisableKeySound = false;
 
 		[Translate] public string Text = "";
+		public TextAlign Align = TextAlign.Center;
+		public int LeftMargin = 5;
+		public int RightMargin = 5;
 		public string Background = "button";
 		public bool Depressed = false;
 		public int VisualHeight = ChromeMetrics.Get<int>("ButtonDepth");
@@ -87,6 +91,9 @@ namespace OpenRA.Mods.Common.Widgets
 			ModRules = other.ModRules;
 
 			Text = other.Text;
+			Align = other.Align;
+			LeftMargin = other.LeftMargin;
+			RightMargin = other.RightMargin;
 			Font = other.Font;
 			BaseLine = other.BaseLine;
 			TextColor = other.TextColor;
@@ -229,11 +236,13 @@ namespace OpenRA.Mods.Common.Widgets
 			var colordisabled = GetColorDisabled();
 			var bgDark = GetContrastColorDark();
 			var bgLight = GetContrastColorLight();
-			var s = font.Measure(text);
+			var textSize = font.Measure(text);
 			var stateOffset = Depressed ? new int2(VisualHeight, VisualHeight) : new int2(0, 0);
-			var position = new int2(rb.X + (UsableWidth - s.X) / 2, rb.Y - BaseLine + (Bounds.Height - s.Y) / 2);
 
-			DrawBackground(rb, disabled, Depressed, Ui.MouseOverWidget == this, highlighted);
+			var position = GetTextPosition(textSize, rb);
+
+			var hover = Ui.MouseOverWidget == this || Children.Any(c => c == Ui.MouseOverWidget);
+			DrawBackground(rb, disabled, Depressed, hover, highlighted);
 			if (Contrast)
 				font.DrawTextWithContrast(text, position + stateOffset,
 					disabled ? colordisabled : color, bgDark, bgLight, 2);
@@ -242,6 +251,23 @@ namespace OpenRA.Mods.Common.Widgets
 			else
 				font.DrawText(text, position + stateOffset,
 					disabled ? colordisabled : color);
+		}
+
+		int2 GetTextPosition(int2 textSize, Rectangle rb)
+		{
+			var y = rb.Y - BaseLine + (Bounds.Height - textSize.Y) / 2;
+
+			switch (Align)
+			{
+				case TextAlign.Left:
+					return new int2(rb.X + LeftMargin, y);
+				case TextAlign.Center:
+					return new int2(rb.X + (UsableWidth - textSize.X) / 2, y);
+				case TextAlign.Right:
+					return new int2(rb.X + UsableWidth - textSize.X - RightMargin, y);
+				default:
+					throw new ArgumentOutOfRangeException("Align");
+			}
 		}
 
 		public override Widget Clone() { return new ButtonWidget(this); }
