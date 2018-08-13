@@ -64,9 +64,7 @@ namespace OpenRA.Mods.Common.Graphics
 			else
 			{
 				var start = wr.Screen3DPosition(pos);
-				start.Z += zOffset;
 				var end = wr.Screen3DPosition(pos + length);
-				end.Z += zOffset;
 				var screenWidth = wr.ScreenVector(new WVec(width, WDist.Zero, WDist.Zero))[0];
 				Game.Renderer.WorldRgbaColorRenderer.DrawLine(start, end, screenWidth, color);
 			}

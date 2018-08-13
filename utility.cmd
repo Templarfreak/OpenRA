@@ -10,6 +10,7 @@ if /I "%mod%" EQU "--exit" (exit /b)
 if /I "%mod%" EQU "ra" (goto help)
 if /I "%mod%" EQU "cnc" (goto help)
 if /I "%mod%" EQU "ts" (goto help)
+if /I "%mod%" EQU "ts-mod" (goto help)
 if /I "%mod%" EQU "d2k" (goto help)
 echo.
 echo Unknown mod: %mod%

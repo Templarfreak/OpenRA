@@ -30,6 +30,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("The shape of the beam.  Accepts values Cylindrical or Flat.")]
 		public readonly BeamRenderableShape Shape = BeamRenderableShape.Cylindrical;
 
+		//?
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int ZOffset = 0;
 
@@ -65,6 +66,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("The shape of the beam.  Accepts values Cylindrical or Flat.")]
 		public readonly BeamRenderableShape SecondaryBeamShape = BeamRenderableShape.Cylindrical;
 
+		//?
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int SecondaryBeamZOffset = 0;
 

@@ -104,6 +104,7 @@ namespace OpenRA.Mods.Common.Traits
 	public class Armament : PausableConditionalTrait<ArmamentInfo>, ITick, IExplodeModifier
 	{
 		public readonly WeaponInfo Weapon;
+		public List<IWarhead> Warheads;
 		public readonly Barrel[] Barrels;
 
 		readonly Actor self;
@@ -382,6 +383,17 @@ namespace OpenRA.Mods.Common.Traits
 				foreach (var nbc in notifyBurstComplete)
 					nbc.FiredBurst(self, target, this);
 					RandomizeBurst();
+
+				Warheads = Weapon.Warheads;
+
+				foreach (var w in Warheads)
+				{
+					if (w is INotifyBurstComplete)
+					{
+						var nbc = w as INotifyBurstComplete;
+						nbc.FiredBurst(self, target, this);
+					}
+				}
 			}
 		}
 

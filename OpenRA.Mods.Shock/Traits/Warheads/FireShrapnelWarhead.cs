@@ -18,7 +18,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Shock.Warheads
 {
-	public class FireShrapnelWarhead : WarheadAS, IRulesetLoaded<WeaponInfo>
+	public class FireShrapnelWarhead : WarheadAS, IRulesetLoaded<WeaponInfo>, INotifyBurstComplete
 	{
 		[WeaponReference, FieldLoader.Require]
 		[Desc("Has to be defined in weapons.yaml as well.")]
@@ -27,7 +27,7 @@ namespace OpenRA.Mods.Shock.Warheads
 		[Desc("Amount of shrapnels thrown.")]
 		public readonly int[] Amount = { 1 };
 
-		[Desc("The chance that any particular shrapnel will had an actor.")]
+		[Desc("The chance that any particular shrapnel will hit an actor.")]
 		public readonly int AimChance = 0;
 
 		[Desc("What diplomatic stances can be targeted by the shrapnel.")]
@@ -51,9 +51,14 @@ namespace OpenRA.Mods.Shock.Warheads
 		[Desc("Maximum amount of times the sharpnels can hit the same original target. 0 for no limit.")]
 		public readonly int OriginalTargetHits = 0;
 
-		[Desc("Maximum amount of times the sharpnels can hit any other target other than ground in particular. 0 for no limit. This is" +
-			"PER TARGET. So 10 missiles and 2 targets with TargetHits of 5 has a chance for all missiles to hit somebody!")]
+		[Desc("Maximum amount of times the sharpnels can hit any other target other than ground in particular. 0 for no limit.")]
 		public readonly int TargetHits = 0;
+
+		[Desc("Hits for TargetHits carry over between Bursts.")]
+		public readonly bool CarryOverHits = true;
+
+		[Desc("Hits for OriginalTargetHits carry over between Bursts.")]
+		public readonly bool CarryOverOriginalHits = true;
 
 		[Desc("Needed to have classic Reaper-style Cluster Missiles, but to also allow for detonation-on-target-style like the original FireShrapnel by Graion." +
 			" If this is off, Airburst-style *will not work, period.* The missile will detonate in the air and then no Clusters will be made because there are no ValidImpact"
@@ -70,11 +75,38 @@ namespace OpenRA.Mods.Shock.Warheads
 				throw new YamlException("Weapons Ruleset does not contain an entry '{0}'".F(Weapon.ToLowerInvariant()));
 		}
 
-		Target OriginalTarget;
+		int OGHits = 0;
+		List<int> Hits = new List<int>();
+		List<Actor> ActorsHit = new List<Actor>();
 
-		public void RememberTarg(Target ogtarg)
+		public void RememberOGHits(int oghits)
 		{
-			OriginalTarget = ogtarg;
+			OGHits = oghits;
+		}
+
+		public void RememberHits(List<int> hits, List<Actor> actorhits)
+		{
+			Hits = hits;
+			ActorsHit = actorhits;
+		}
+
+		public enum ShrapnelType : byte { None, Outer, Terrain, Original }
+
+		public class ShrapnelTarget
+		{
+			public ShrapnelType picked;
+			public TargetType type;
+			public Target target;
+			public int oghits;
+			public int hits;
+			public bool dothrow = true;
+			
+		}
+
+		void INotifyBurstComplete.FiredBurst(Actor self, Target target, Armament a)
+		{
+			Hits = new List<int>();
+			ActorsHit = new List<Actor>();
 		}
 
 		public override void DoImpact(Target target, Target og, Actor firedBy, IEnumerable<int> damageModifiers)
@@ -84,17 +116,8 @@ namespace OpenRA.Mods.Shock.Warheads
 			int ogHits = 0;
 			List<int> Hits = new List<int>();
 			List<Actor> ActorHits = new List<Actor>();
-			List<int> MaxHitCount = new List<int>();
-			var rnd = new Random();
 			Target loc = target;
-			Target targ = og;
-			Target PickedTarget;
-			Target shrapnelTarget;
-			int Picked;
-			TargetType PickedType = TargetType.Invalid;
-			int index = 1;
-			Target OuterTarget;
-			int Count = 0;
+			List<ShrapnelTarget> shrapnelTargets = new List<ShrapnelTarget>();
 
 			var amount = Amount.Length == 2
 					? world.SharedRandom.Next(Amount[0], Amount[1])
@@ -106,11 +129,11 @@ namespace OpenRA.Mods.Shock.Warheads
 
 			if (IsAirburst == false)
 			{
-				if (!IsValidImpact(target.CenterPosition, firedBy))
+				if (!IsValidImpact(loc.CenterPosition, firedBy))
 					return;
 			}
 
-			var directActors = world.FindActorsInCircle(loc.CenterPosition, TargetSearchRadius).Where(x => x != og.Actor) ;
+			var directActors = world.FindActorsInCircle(loc.CenterPosition, TargetSearchRadius).Where(x => x != loc.Actor) ;
 
 			var availableTargetActors = world.FindActorsInCircle(loc.CenterPosition, weapon.Range)
 				.Where(x => directActors.Contains(x)
@@ -121,165 +144,134 @@ namespace OpenRA.Mods.Shock.Warheads
 			var targetActor = availableTargetActors.GetEnumerator();
 			targetActor.MoveNext();
 
+			if (CarryOverHits)
+			{
+				ActorHits = ActorsHit;
+				Hits = this.Hits;
+			}
+
+			if (CarryOverOriginalHits)
+			{
+				ogHits = OGHits;
+			}
+
 			for (var i = 0; i < amount; i++)
 			{
-				if (world.SharedRandom.Next(100) <= AimChance)
-				{
-					shrapnelTarget = Target.FromActor(targetActor.Current);
-					PickedTarget = Target.FromActor(targetActor.Current);
-					//This is actually the Outer for og target
-					OuterTarget = Target.FromActor(targetActor.Current);
-					PickedType = TargetType.Invalid;
-					if (Target.FromActor(targetActor.Current).Type != TargetType.Invalid && Target.FromActor(targetActor.Current).Type != TargetType.Terrain)
-					{
-						PickedType = PickedTarget.Type;
-					}
-					Picked = 1;
-				}
-				else
-				{
-					shrapnelTarget = target;
-					PickedTarget = target;
-					PickedType = target.Type;
-					OuterTarget = target;
-					Picked = 2;
-				}
-
-				if (PickedType != TargetType.Terrain && PickedType != TargetType.Invalid)
-				{ 
-					if (world.SharedRandom.Next(100) <= RetargetAccuracy)
-					{ 
-						shrapnelTarget = og;
-						PickedTarget = og;
-						PickedType = PickedTarget.Type;
-						OuterTarget = Target.FromActor(targetActor.Current);
-						Picked = 3;
-					}
-				}
-
-				if (PickedType != TargetType.Terrain && PickedType == TargetType.Invalid && Picked == 1)
-				{
-					if (shrapnelTarget.Type == TargetType.Terrain || shrapnelTarget.Type == TargetType.Invalid)
-					{
-						shrapnelTarget = og;
-						PickedTarget = og;
-						//PickedType = PickedTarget.Type;
-						Picked = 1;
-					}
-				}
-
-				if (ogHits == OriginalTargetHits && (Picked == 3 || (PickedType == TargetType.Invalid && Picked == 1)))
-				{
-					shrapnelTarget = OuterTarget;
-					PickedTarget = OuterTarget;
-					Picked = 1;
-
-					ActorHits.Add(PickedTarget.Actor);
-					Hits.Add(1);
-				}
-
-				if (ogHits == OriginalTargetHits && Picked == 1 && PickedType == TargetType.Invalid)
-				{
-					shrapnelTarget = target;
-					Picked = 2;
-				}
-
-				if (PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain)
-				{
-					if (PickedTarget.Actor == og.Actor && (ogHits < OriginalTargetHits || OriginalTargetHits == 0))
-						ogHits++;
-				}
-
-				if (PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain && PickedTarget.Actor != og.Actor)
-				{ 
-					if (!ActorHits.Contains(PickedTarget.Actor))
-						ActorHits.Add(PickedTarget.Actor);
-						Hits.Add(1);
-				}
-
-				if ((PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain) && PickedTarget.Actor != og.Actor)
-				{
-					index = ActorHits.FindIndex(a => a == PickedTarget.Actor);
-
-					if (ActorHits[index] == PickedTarget.Actor)
-					{
-						if (Hits[index] < TargetHits || TargetHits == 0)
-						{
-							Hits[index]++;
-						}
-					}
-				}
-
-				if ((PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain) && PickedTarget.Actor != og.Actor)
-				{ 
-					index = ActorHits.FindIndex(a => a == PickedTarget.Actor);
-					if (ActorHits[index] == PickedTarget.Actor)
-					{
-						if (Hits[index] == TargetHits && Picked == 1 && PickedTarget.Type != TargetType.Invalid && PickedTarget.Type != TargetType.Terrain)
-						{
-							targetActor.MoveNext();
-							//This is actually Actor Target's Outer
-							OuterTarget = Target.FromActor(targetActor.Current);
-							shrapnelTarget = OuterTarget;
-							MaxHitCount.Add(1);
-						}
-						if (Hits[index] == TargetHits && Picked == 1 )
-						{
-							var allmaxedout = 2;
-							allmaxedout = MaxHitCount.FindIndex(a => a == 0);
-							if (allmaxedout == 2 && Count != amount)
-							{
-								shrapnelTarget = target;
-								Picked = 2;
-							}
-						}
-					}
-				}
-
-				if (ThrowWithoutTarget && (shrapnelTarget.Type == loc.Type || shrapnelTarget.Type == TargetType.Invalid))
+				ShrapnelTarget shrapnelTarget = new ShrapnelTarget();
+				
+				if (ThrowWithoutTarget && (loc.Type == TargetType.Terrain || loc.Type == TargetType.Invalid || 
+					loc.Type == TargetType.Actor || loc.Type == TargetType.FrozenActor))
 				{
 					var rotation = WRot.FromFacing(world.SharedRandom.Next(1024));
 					var range = world.SharedRandom.Next(weapon.MinRange.Length, weapon.Range.Length);
 					var targetpos = loc.CenterPosition + new WVec(range, 0, 0).Rotate(rotation);
 					var tpos = Target.FromPos(new WPos(targetpos.X, targetpos.Y, map.CenterOfCell(map.CellContaining(targetpos)).Z));
+
 					if (weapon.IsValidAgainst(tpos, firedBy.World, firedBy))
-						shrapnelTarget = tpos;
+					{
+						shrapnelTarget.target = tpos;
+						shrapnelTarget.picked = ShrapnelType.Terrain;
+						shrapnelTarget.type = TargetType.Terrain;
+					}
+				}
+				else
+				{
+					shrapnelTarget.dothrow = false;
 				}
 
-				var args = new ProjectileArgs
+				if (world.SharedRandom.Next(100) <= AimChance)
 				{
-					Weapon = weapon,
-					Facing = (shrapnelTarget.CenterPosition - target.CenterPosition).Yaw.Facing,
+					int ind = 0;
 
-					DamageModifiers = !firedBy.IsDead ? firedBy.TraitsImplementing<IFirepowerModifier>()
-						.Select(a => a.GetFirepowerModifier()).ToArray() : new int[0],
-
-					InaccuracyModifiers = !firedBy.IsDead ? firedBy.TraitsImplementing<IInaccuracyModifier>()
-						.Select(a => a.GetInaccuracyModifier()).ToArray() : new int[0],
-
-					RangeModifiers = !firedBy.IsDead ? firedBy.TraitsImplementing<IRangeModifier>()
-						.Select(a => a.GetRangeModifier()).ToArray() : new int[0],
-
-					Source = target.CenterPosition,
-					SourceActor = firedBy,
-					GuidedTarget = shrapnelTarget,
-					PassiveTarget = shrapnelTarget.CenterPosition
-				};
-
-				if (args.Weapon.Projectile != null)
-				{
-					var projectile = args.Weapon.Projectile.Create(args);
-					if (projectile != null)
+					if (ActorHits.Contains(targetActor.Current))
 					{
-						firedBy.World.AddFrameEndTask(w => w.Add(projectile));
-						Count++;
-					}
+						ind = ActorHits.IndexOf(targetActor.Current);
 
-					if (args.Weapon.Report != null && args.Weapon.Report.Any())
-						Game.Sound.Play(SoundType.World, args.Weapon.Report.Random(firedBy.World.SharedRandom), target.CenterPosition);
+						if (Hits[ind] < TargetHits || TargetHits == 0)
+						{
+							shrapnelTarget.target = Target.FromActor(targetActor.Current);
+							shrapnelTarget.picked = ShrapnelType.Outer;
+							shrapnelTarget.type = TargetType.Actor;
+							shrapnelTarget.dothrow = true;
+
+							Hits[ind] += 1;
+						}
+					}
+					else
+					{
+						ActorHits.Add(targetActor.Current);
+						Hits.Add(1);
+
+						shrapnelTarget.target = Target.FromActor(targetActor.Current);
+						shrapnelTarget.picked = ShrapnelType.Outer;
+						shrapnelTarget.type = TargetType.Actor;
+						shrapnelTarget.dothrow = true;
+					}
+				}
+
+				shrapnelTargets.Add(shrapnelTarget);
+
+			}
+
+			if (CarryOverHits)
+			{
+				RememberHits(Hits, ActorHits);
+			}
+
+			foreach (ShrapnelTarget t in shrapnelTargets)
+			{
+				var ind = shrapnelTargets.IndexOf(t);
+
+				if (world.SharedRandom.Next(100) <= RetargetAccuracy && shrapnelTargets[ind].picked == ShrapnelType.Outer 
+					&& (ogHits < OriginalTargetHits || OriginalTargetHits == 0))
+				{
+					shrapnelTargets[ind].target = og;
+					ogHits += 1;
 				}
 			}
 
+			if (CarryOverOriginalHits)
+			{
+				RememberOGHits(ogHits);
+			}
+
+			foreach (ShrapnelTarget t in shrapnelTargets)
+			{
+				if (t.dothrow == true)
+				{
+					var args = new ProjectileArgs
+					{
+						Weapon = weapon,
+						Facing = (t.target.CenterPosition - loc.CenterPosition).Yaw.Facing,
+
+						DamageModifiers = !firedBy.IsDead ? firedBy.TraitsImplementing<IFirepowerModifier>()
+					.Select(a => a.GetFirepowerModifier()).ToArray() : new int[0],
+
+						InaccuracyModifiers = !firedBy.IsDead ? firedBy.TraitsImplementing<IInaccuracyModifier>()
+					.Select(a => a.GetInaccuracyModifier()).ToArray() : new int[0],
+
+						RangeModifiers = !firedBy.IsDead ? firedBy.TraitsImplementing<IRangeModifier>()
+					.Select(a => a.GetRangeModifier()).ToArray() : new int[0],
+
+						Source = loc.CenterPosition,
+						SourceActor = firedBy,
+						GuidedTarget = t.target,
+						PassiveTarget = t.target.CenterPosition
+					};
+
+					if (args.Weapon.Projectile != null)
+					{
+						var projectile = args.Weapon.Projectile.Create(args);
+						if (projectile != null)
+						{
+							firedBy.World.AddFrameEndTask(w => w.Add(projectile));
+						}
+
+						if (args.Weapon.Report != null && args.Weapon.Report.Any())
+							Game.Sound.Play(SoundType.World, args.Weapon.Report.Random(firedBy.World.SharedRandom), loc.CenterPosition);
+					}
+				}
+			}
 		}
 	}
 }

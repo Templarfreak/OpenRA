@@ -72,7 +72,7 @@ namespace OpenRA.Platforms.Default
 		[DllImport("user32.dll")]
 		static extern bool SetProcessDPIAware();
 
-		public Sdl2PlatformWindow(Size requestWindowSize, WindowMode windowMode, int batchSize)
+		public Sdl2PlatformWindow(Size requestWindowSize, WindowMode windowMode, int batchSize, string windowname)
 		{
 			Console.WriteLine("Using SDL 2 with OpenGL renderer");
 
@@ -112,6 +112,8 @@ namespace OpenRA.Platforms.Default
 
 				window = SDL.SDL_CreateWindow("OpenRA", SDL.SDL_WINDOWPOS_CENTERED, SDL.SDL_WINDOWPOS_CENTERED,
 					windowSize.Width, windowSize.Height, windowFlags);
+
+				SDL.SDL_SetWindowTitle(window, windowname);
 
 				surfaceSize = windowSize;
 				windowScale = 1;

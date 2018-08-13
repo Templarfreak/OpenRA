@@ -34,6 +34,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Duration of the beam and helix")]
 		public readonly int Duration = 15;
 
+		//?
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int ZOffset = 0;
 

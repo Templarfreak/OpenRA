@@ -16,9 +16,9 @@ namespace OpenRA.Platforms.Default
 {
 	public class DefaultPlatform : IPlatform
 	{
-		public IPlatformWindow CreateWindow(Size size, WindowMode windowMode, int batchSize)
+		public IPlatformWindow CreateWindow(Size size, WindowMode windowMode, int batchSize, string windowname)
 		{
-			return new Sdl2PlatformWindow(size, windowMode, batchSize);
+			return new Sdl2PlatformWindow(size, windowMode, batchSize, windowname);
 		}
 
 		public ISoundEngine CreateSound(string device)

@@ -48,6 +48,7 @@ echo "Compiling Windows launchers"
 makelauncher "${BUILTDIR}/RedAlert.exe" "Red Alert" "ra" RedAlert.ico
 makelauncher "${BUILTDIR}/TiberianDawn.exe" "Tiberian Dawn" "cnc" TiberianDawn.ico
 makelauncher "${BUILTDIR}/Dune2000.exe" "Dune 2000" "d2k" Dune2000.ico
+makelauncher "${BUILTDIR}/Sun.exe" "Tiberian Sun" "ts-mod" ts.ico
 
 # Windows specific files
 cp OpenRA.ico RedAlert.ico TiberianDawn.ico Dune2000.ico "${BUILTDIR}"

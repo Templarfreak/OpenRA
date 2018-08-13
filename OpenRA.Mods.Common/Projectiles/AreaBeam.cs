@@ -60,6 +60,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		[Desc("Should the beam be visually rendered? False = Beam is invisible.")]
 		public readonly bool RenderBeam = true;
 
+		//?
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int ZOffset = 0;
 

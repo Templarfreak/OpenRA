@@ -238,6 +238,7 @@ namespace OpenRA
 		}
 
 		static Modifiers modifiers;
+		static string windowname = "OpenRA";
 		public static Modifiers GetModifierKeys() { return modifiers; }
 		internal static void HandleModifierKeys(Modifiers mods) { modifiers = mods; }
 
@@ -268,6 +269,9 @@ namespace OpenRA
 				EngineVersion = "Unknown";
 
 			Console.WriteLine("Engine version is {0}", EngineVersion);
+
+
+			windowname = args.GetValue("WindowName", "OpenRA");
 
 			// Special case handling of Game.Mod argument: if it matches a real filesystem path
 			// then we use this to override the mod search path, and replace it with the mod id
@@ -307,7 +311,7 @@ namespace OpenRA
 						throw new InvalidOperationException("Platform dll must include exactly one IPlatform implementation.");
 
 					var platform = (IPlatform)platformType.GetConstructor(Type.EmptyTypes).Invoke(null);
-					Renderer = new Renderer(platform, Settings.Graphics);
+					Renderer = new Renderer(platform, Settings.Graphics, windowname);
 					Sound = new Sound(platform, Settings.Sound);
 
 					break;

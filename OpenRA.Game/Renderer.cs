@@ -49,11 +49,11 @@ namespace OpenRA
 		ITexture currentPaletteTexture;
 		IBatchRenderer currentBatchRenderer;
 
-		public Renderer(IPlatform platform, GraphicSettings graphicSettings)
+		public Renderer(IPlatform platform, GraphicSettings graphicSettings, string windowname)
 		{
 			var resolution = GetResolution(graphicSettings);
 
-			Window = platform.CreateWindow(new Size(resolution.Width, resolution.Height), graphicSettings.Mode, graphicSettings.BatchSize);
+			Window = platform.CreateWindow(new Size(resolution.Width, resolution.Height), graphicSettings.Mode, graphicSettings.BatchSize, windowname);
 			Context = Window.Context;
 
 			TempBufferSize = graphicSettings.BatchSize;
