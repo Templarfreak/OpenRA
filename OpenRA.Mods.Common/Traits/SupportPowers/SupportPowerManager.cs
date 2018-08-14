@@ -56,7 +56,15 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var t in a.TraitsImplementing<SupportPower>())
 			{
 				var key = MakeKey(t);
-				var bi = a.TraitOrDefault<BuildableInfo>();
+				int limit;
+				if (t.Info.AllowMultiple)
+				{
+					limit = 999999;
+				}
+				else
+				{
+					limit = 1;
+				}
 
 				if (!Powers.ContainsKey(key))
 				{
@@ -69,7 +77,7 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (t.Info.Prerequisites.Any())
 					{
-						TechTree.Add(key, t.Info.Prerequisites, bi.BuildLimit, this);
+						TechTree.Add(key, t.Info.Prerequisites, limit, this);
 						TechTree.Update();
 					}
 				}
