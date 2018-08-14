@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Shock.Traits
 		public object Create(ActorInitializer init) { return new GrantConditionOnInfiltration(init.Self, this, DisplayTimer, Duration); }
 	}
 
-	class GrantConditionOnInfiltration : INotifyInfiltrated, ITick, ISelectionBar
+	class GrantConditionOnInfiltration : INotifyInfiltrated, ITick, ISelectionBar, INotifyCreated
 	{
 		readonly GrantConditionOnInfiltrationInfo info;
 		ConditionManager conditionManager;
@@ -58,6 +58,10 @@ namespace OpenRA.Mods.Shock.Traits
 			this.self = self;
 			this.timer = timer;
 			this.ticks = 0;
+		}
+
+		void INotifyCreated.Created(Actor self)
+		{
 			conditionManager = self.TraitOrDefault<ConditionManager>();
 		}
 

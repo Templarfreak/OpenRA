@@ -883,3 +883,9 @@ mods/ts-mod/rules/Weapons/naval.yaml
 mods/ts-mod/rules/Weapons/special.yaml
 mods/ts-mod/sequences/GDI/infantry.yaml
 OpenRA.Game/Graphics/PlatformInterfaces.cs
+mods/cnc/rules/vehicles.yaml
+mods/ts-mod/chrome/playerprofile.yaml
+mods/cnc/rules/vehicles.yaml
+*.yaml
+mods/cnc/rules/vehicles.yaml
+mods/cnc/rules/vehicles.yaml
