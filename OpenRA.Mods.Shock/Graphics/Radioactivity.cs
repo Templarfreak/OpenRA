@@ -83,9 +83,9 @@ namespace OpenRA.Mods.Shock.Graphics
 			if (level == 0)
 				return; // don't visualize 0 cells. They show up before cells get removed.
 
-			float crunch = (((float)(level) / (float)(layer.Info.MaxLevel)) * 255);
+			float crunch = (((float)(level) / layer.Info.MaxLevel) * layer.Info.Brightest);
 			int alpha = (int)(crunch);
-			alpha = alpha.Clamp(0, 255);
+			alpha = alpha.Clamp((int)(0 + (float)(layer.Info.Darkest)), 255); // Just to be safe.
 
 			Color newcolor = Color.FromArgb(alpha, layer.Info.Color);
 			float3 zoffset = new float3(0, 0, ZOffset);

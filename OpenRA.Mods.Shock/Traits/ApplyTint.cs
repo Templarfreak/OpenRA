@@ -179,9 +179,9 @@ namespace OpenRA.Mods.Shock.Traits
 			int m = Info.MaxLevel * foff / 100;
 			int level = l.Clamp(0, m); // Saturate the visualization to MaxLevel
 			//int alpha = (YIntercept + Slope * level) / 100; // Linear interpolation
-			float crunch = (((float)(level) / (float)(Info.MaxLevel)) * 255);
+			float crunch = (((float)(level) / Info.MaxLevel) * (Info.Brightest));
 			int alpha = (int)(crunch);
-			alpha = alpha.Clamp(0, 255); // Just to be safe.
+			alpha = alpha.Clamp((int)(0 + (float)(Info.Darkest)), 255); // Just to be safe.
 
 			Color new_col1 = Color.FromArgb(alpha, col);
 			Color new_col2 = Color.FromArgb(alpha, col2);
