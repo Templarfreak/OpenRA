@@ -15,6 +15,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
+using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Warheads;
 using OpenRA.Mods.Shock.Traits;
@@ -91,17 +92,17 @@ namespace OpenRA.Mods.Shock.Warheads
 					.First(l => l.Info.Name == RadioactivityLayerName);
 
 				foreach (var cell in affectedCells)
-					IncreaseRALevel(cell, falloffDifference[i], Falloff[i], raLayer);
+					IncreaseRALevel(cell, world.wr, falloffDifference[i], Falloff[i], raLayer);
 			}
 		}
 
 		// Increase radiation level of the cell at given pos, considering falloff
-		void IncreaseRALevel(CPos pos, int foffDiff, int foff, RadioactivityLayer raLayer)
+		void IncreaseRALevel(CPos pos, WorldRenderer wr, int foffDiff, int foff, RadioactivityLayer raLayer)
 		{
 			// increase RA level of the cell by this amount.
 			// Apply fall off to MaxLevel, because if we keep desolator there for very long,
 			// all cells get saturated and doesn't look good.
-			raLayer.IncreaseLevel(pos, Level * foffDiff / 100, MaxLevel * foff / 100);
+			raLayer.IncreaseLevel(pos, wr, Level * foff / 100, MaxLevel * foff / 100);
 		}
 	}
 }

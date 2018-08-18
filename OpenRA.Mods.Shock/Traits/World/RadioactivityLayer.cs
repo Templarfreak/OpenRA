@@ -17,6 +17,7 @@ using System.Drawing;
 using OpenRA.Graphics;
 using OpenRA.Mods.Shock.Graphics;
 using OpenRA.Traits;
+using System.Linq;
 
 /* Works without base engine modification */
 
@@ -168,22 +169,30 @@ namespace OpenRA.Mods.Shock.Traits
 				return level;
 		}
 
-		public void IncreaseLevel(CPos cell, int level, int max_level)
+		public void IncreaseLevel(CPos cell, WorldRenderer wr, int level, int max_level)
 		{
+			var map = wr.World.Map;
+			var tileSet = wr.World.Map.Rules.TileSet;
+			var uv = map.CellContaining(world.Map.CenterOfCell(cell)).ToMPos(map);
+
+			if (!map.Height.Contains(uv))
+				return;
+
+			var height = (int)map.Height[uv];
+			var tile = map.Tiles[uv];
+			var ti = tileSet.GetTileInfo(tile);
+			var ramp = ti != null ? ti.RampType : 0;
+
+			var corners = map.Grid.CellCorners[ramp];
+			var pos = map.CenterOfCell(uv.ToCPos(map));
+			var screen = corners.Select(c => wr.Screen3DPxPosition(pos + c)).ToArray();
+
 			// Initialize, on fresh impact.
 			if (!tiles.ContainsKey(cell))
-				tiles[cell] = new Radioactivity(this, world.Map.CenterOfCell(cell));
+				tiles[cell] = new Radioactivity(this, screen, world.Map.CenterOfCell(cell));
 
 			tiles[cell].IncreaseLevel(Info.UpdateDelay, level, max_level);
 			dirty.Add(cell);
-		}
-
-		public void Destroy(CPos cell)
-		{
-			// Clear cell
-			// Content[cell] = EmptyCell;
-			// world.Map.CustomTerrain[cell] = byte.MaxValue;
-			// dirty[cell] = 100;
 		}
 
 		bool disposed = false;

@@ -117,6 +117,7 @@ namespace OpenRA
 		public readonly Actor WorldActor;
 
 		public readonly Map Map;
+		public WorldRenderer wr;
 
 		public readonly IActorMap ActorMap;
 		public readonly ScreenMap ScreenMap;

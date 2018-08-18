@@ -56,6 +56,7 @@ namespace OpenRA
 		}
 
 		public override string ToString() { return "{0},{1},{2}".F(X, Y, Z); }
+		public Color ToColor() { return Color.FromArgb((byte)X, (byte)Y, (byte)Z); }
 
 		public static readonly float3 Zero = new float3(0, 0, 0);
 	}

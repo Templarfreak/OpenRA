@@ -19,7 +19,6 @@ using System.Drawing;
 using System.Linq;
 using OpenRA.Effects;
 using OpenRA.Graphics;
-using System.Drawing.Imaging;
 using OpenRA.Mods.Shock.Traits;
 
 /*
@@ -33,8 +32,11 @@ namespace OpenRA.Mods.Shock.Graphics
 	{
 		public int Ticks = 0;
 		public int Level = 0;
+
 		readonly RadioactivityLayer layer;
 		readonly WPos wpos;
+
+		public float3[] screen;
 
 		public int ZOffset
 		{
@@ -44,10 +46,11 @@ namespace OpenRA.Mods.Shock.Graphics
 			}
 		}
 
-		public Radioactivity(RadioactivityLayer layer, WPos wpos)
+		public Radioactivity(RadioactivityLayer layer, float3[] corners, WPos wpos)
 		{
 			this.wpos = wpos;
 			this.layer = layer;
+			screen = corners;
 		}
 
 		public Radioactivity(Radioactivity src)
@@ -56,6 +59,7 @@ namespace OpenRA.Mods.Shock.Graphics
 			Level = src.Level;
 			layer = src.layer;
 			wpos = src.wpos;
+			screen = src.screen;
 		}
 
 		public IRenderable WithPalette(PaletteReference newPalette) { return this; }
@@ -75,28 +79,13 @@ namespace OpenRA.Mods.Shock.Graphics
 
 		public void Render(WorldRenderer wr)
 		{
-			var map = wr.World.Map;
-			var tileSet = wr.World.Map.Rules.TileSet;
-			var uv = map.CellContaining(wpos).ToMPos(map);
-
-			if (!map.Height.Contains(uv))
-				return;
-
-			var height = (int)map.Height[uv];
-			var tile = map.Tiles[uv];
-			var ti = tileSet.GetTileInfo(tile);
-			var ramp = ti != null ? ti.RampType : 0;
-
-			var corners = map.Grid.CellCorners[ramp];
-			var pos = map.CenterOfCell(uv.ToCPos(map));
-			var screen = corners.Select(c => wr.Screen3DPxPosition(pos + c)).ToArray();
-
 			int level = this.Level.Clamp(0, layer.Info.MaxLevel); // Saturate the visualization to MaxLevel
 			if (level == 0)
 				return; // don't visualize 0 cells. They show up before cells get removed.
 
-			int alpha = (layer.YIntercept100 + layer.Slope100 * level) / 100; // Linear interpolation
-			alpha = alpha.Clamp(0, 255); // Just to be safe.
+			float crunch = (((float)(level) / (float)(layer.Info.MaxLevel)) * 255);
+			int alpha = (int)(crunch);
+			alpha = alpha.Clamp(0, 255);
 
 			Color newcolor = Color.FromArgb(alpha, layer.Info.Color);
 			float3 zoffset = new float3(0, 0, ZOffset);
