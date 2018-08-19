@@ -99,7 +99,7 @@ namespace OpenRA.Mods.Shock.Traits
 		public override object Create(ActorInitializer init) { return new ApplyTint(init.Self, this); }
 	}
 
-	public class ApplyTint : INotifyCreated, IWorldLoaded
+	public class ApplyTint : INotifyCreated
 	{
 		public readonly ApplyTintInfo Info;
 		// Since radioactivity level is accumulative, we pre-compute this var from Falloff. (Lookup table)
@@ -117,11 +117,6 @@ namespace OpenRA.Mods.Shock.Traits
 			// rad level visualization constants...
 			Slope100 = 100 * (info.Brightest - info.Darkest) / (info.MaxLevel - 1);
 			YIntercept100 = 100 * info.Brightest - (info.MaxLevel * Slope100);
-		}
-
-		public void WorldLoaded(World w, WorldRenderer wr)
-		{
-			RunTint(w);
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -163,7 +158,7 @@ namespace OpenRA.Mods.Shock.Traits
 				{
 					if (!allcells.Contains(cell))
 					{
-						SetTintLevels(cell, w.wr, Info.Color, Info.Color2, falloffDifference[i], Info.Falloff[i], raLayer, Slope100, YIntercept100);
+						SetTintLevels(cell, Info.Color, Info.Color2, falloffDifference[i], Info.Falloff[i], raLayer, Slope100, YIntercept100);
 						allcells.Add(cell);
 					}
 					
@@ -173,7 +168,7 @@ namespace OpenRA.Mods.Shock.Traits
 		}
 
 		// Increase radiation level of the cell at given pos, considering falloff
-		void SetTintLevels(CPos pos, WorldRenderer wr, Color col, Color col2, int foffDiff, int foff, TintLayer tLayer, int Slope, int YIntercept)
+		void SetTintLevels(CPos pos, Color col, Color col2, int foffDiff, int foff, TintLayer tLayer, int Slope, int YIntercept)
 		{
 			int l = Info.Level * foff / 100;
 			int m = Info.MaxLevel * foff / 100;
@@ -193,7 +188,7 @@ namespace OpenRA.Mods.Shock.Traits
 				mix = 1000;
 			}
 
-			tLayer.TintCell(pos, wr, new_col1, new_col2, l, m, Slope, YIntercept, 
+			tLayer.TintCell(pos, new_col1, new_col2, l, m, Slope, YIntercept, 
 				Info.MaxLevel, Info.MixThreshold + mix);
 		}
 	}

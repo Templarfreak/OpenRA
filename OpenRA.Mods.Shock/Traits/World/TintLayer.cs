@@ -42,9 +42,9 @@ namespace OpenRA.Mods.Shock.Traits
 		public object Create(ActorInitializer init) { return new TintLayer(init.Self, this); }
 	}
 
-	public class TintLayer : IWorldLoaded, ITickRender
+	public class TintLayer : IWorldLoaded
 	{
-		readonly World world;
+		public readonly World world;
 		public readonly TintLayerInfo Info;
 
 		// In the following, I think dictionary is better than array, as radioactivity has similar affecting area as smudges.
@@ -55,38 +55,20 @@ namespace OpenRA.Mods.Shock.Traits
 		// what's visible to the player.
 		readonly Dictionary<CPos, Tint> renderedTiles = new Dictionary<CPos, Tint>();
 
+		public WorldRenderer wr;
+
 		public TintLayer(Actor self, TintLayerInfo info)
 		{
 			world = self.World;
 			Info = info;
 		}
 
-		public void WorldLoaded(World w, WorldRenderer wr) { }
-
-		// tick render, regardless of pause state.
-		public void TickRender(WorldRenderer wr, Actor self)
+		public void WorldLoaded(World w, WorldRenderer wr)
 		{
-			foreach (var c in tiles)
-			{
-				if (self.World.FogObscures(c.Key))
-					continue;
-
-				if (renderedTiles.ContainsKey(c.Key))
-				{
-					world.Remove(renderedTiles[c.Key]);
-					renderedTiles.Remove(c.Key);
-				}
-
-				// synchronize observations with true value.
-				if (tiles.ContainsKey(c.Key))
-				{
-					renderedTiles[c.Key] = new Tint(tiles[c.Key]);
-					world.Add(renderedTiles[c.Key]);
-				}
-			}
+			this.wr = wr;
 		}
 
-		public void TintCell(CPos cell, WorldRenderer wr, Color col, Color col2, int level, int max_level, int slope, int yintercept, int max, int mix)
+		public void TintCell(CPos cell, Color col, Color col2, int level, int max_level, int slope, int yintercept, int max, int mix)
 		{
 			// Initialize, on fresh impact.
 			if (!tiles.ContainsKey(cell))

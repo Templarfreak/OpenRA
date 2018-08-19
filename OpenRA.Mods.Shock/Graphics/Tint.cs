@@ -59,6 +59,7 @@ namespace OpenRA.Mods.Shock.Graphics
 			this.col2 = col2;
 			screen = corners;
 			MixThreshold = Mix;
+			layer.world.Add(this);
 		}
 
 		public Tint(Tint src)
@@ -90,15 +91,15 @@ namespace OpenRA.Mods.Shock.Graphics
 		{
 			float3 zoffset = new float3(0, 0, ZOffset);
 
-			Game.Renderer.WorldRgbaColorRenderer.FillTriangle(screen[0] + zoffset, screen[1] + zoffset, screen[2] + zoffset, col);
-			Game.Renderer.WorldRgbaColorRenderer.FillTriangle(screen[2] + zoffset, screen[3] + zoffset, screen[0] + zoffset, col);
+			Game.Renderer.WorldRgbaColorRenderer.FillRect(screen[0] + zoffset, screen[1] + zoffset, screen[2] + zoffset, screen[3] + zoffset, col);
+			//Game.Renderer.WorldRgbaColorRenderer.FillTriangle(screen[2] + zoffset, screen[3] + zoffset, screen[0] + zoffset, col);
 
 			// mix in yellow so that the radion shines brightly, after certain threshold.
 			// It is different than tinting the info.color itself and provides nicer look.
 			if (col.A > MixThreshold)
 			{
-				Game.Renderer.WorldRgbaColorRenderer.FillTriangle(screen[0] + zoffset, screen[1] + zoffset, screen[2] + zoffset, col2);
-				Game.Renderer.WorldRgbaColorRenderer.FillTriangle(screen[2] + zoffset, screen[3] + zoffset, screen[0] + zoffset, col2);
+				Game.Renderer.WorldRgbaColorRenderer.FillRect(screen[0] + zoffset, screen[1] + zoffset, screen[2] + zoffset, screen[3] + zoffset, col2);
+				//Game.Renderer.WorldRgbaColorRenderer.FillTriangle(screen[2] + zoffset, screen[3] + zoffset, screen[0] + zoffset, col2);
 			}
 		}
 
