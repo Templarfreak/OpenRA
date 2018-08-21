@@ -79,6 +79,7 @@
     <Compile Include="Graphics\Tint.cs" />
     <Compile Include="Primitives\double2.cs" />
     <Compile Include="Primitives\double3.cs" />
+    <Compile Include="Traits\Conditions\GrantConditionAfterTimer.cs" />
     <Compile Include="Traits\Conditions\GrantConditionOnIdle.cs" />
     <Compile Include="Traits\DamagedByRadioactivity.cs" />
     <Compile Include="Graphics\RadBeamRenderable.cs" />
