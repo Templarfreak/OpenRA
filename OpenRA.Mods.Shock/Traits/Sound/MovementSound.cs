@@ -10,15 +10,26 @@
 #endregion
 
 using System.Collections.Generic;
+using OpenRA.Mods.Common;
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
-namespace OpenRA.Mods.Common.Traits.Sound
+namespace OpenRA.Mods.Shock.Traits.Sound
 {
-	[Desc("Plays a looping audio file at the actor position. Attach this to the `World` actor to cover the whole map.")]
-	class AmbientSoundInfo : ConditionalTraitInfo
+	[Desc("Plays a looping audio file, but only while the actor is moving.")]
+	class MovementSoundInfo : ConditionalTraitInfo
 	{
 		[FieldLoader.Require]
 		public readonly string[] SoundFiles = null;
+
+		[Desc("If true, than instead of randomly picking which sound in SoundFiles to use it will run through them sequentially.")]
+		public readonly bool Iteration = false;
+
+		[Desc("Add tags here than all units within GroupRadius that share these same tags will truncate their sounds in favor of the World actor" +
+			"playing one single \"group\" sound appropriate for them. This requires the World Actor to have the GroupMovementSound trait.")]
+		public readonly string[] GroupMovement = null;
+
+		public readonly int GroupRadius = 0;
 
 		[Desc("Initial delay (in ticks) before playing the sound for the first time.",
 			"Two values indicate a random delay range.")]
@@ -31,17 +42,24 @@ namespace OpenRA.Mods.Common.Traits.Sound
 		[Desc("Volume at which the sound gets played at.")]
 		public readonly float Volume = 1f;
 
-		public override object Create(ActorInitializer init) { return new AmbientSound(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new MovementSound(init.Self, this); }
 	}
 
-	class AmbientSound : ConditionalTrait<AmbientSoundInfo>, ITick, INotifyRemovedFromWorld
+	class MovementSound : ConditionalTrait<MovementSoundInfo>, ITick, INotifyRemovedFromWorld
 	{
 		readonly bool loop;
 		HashSet<ISound> currentSounds = new HashSet<ISound>();
 		WPos cachedPosition;
 		int delay;
 
-		public AmbientSound(Actor self, AmbientSoundInfo info)
+		int ax;
+		int ay;
+		int p_ax;
+		int p_ay;
+
+		bool moving = false;
+
+		public MovementSound(Actor self, MovementSoundInfo info)
 			: base(info)
 		{
 			delay = Util.RandomDelay(self.World, info.Delay);
@@ -50,10 +68,24 @@ namespace OpenRA.Mods.Common.Traits.Sound
 
 		void ITick.Tick(Actor self)
 		{
+			p_ax = ax;
+			p_ay = ay;
+			ax = self.CenterPosition.X;
+			ay = self.CenterPosition.Y;
+
+			if ((p_ax != ax) || (p_ay != ay))
+			{
+				moving = true;
+			}
+			else
+			{
+				moving = false;
+			}
+
 			if (IsTraitDisabled)
 				return;
 
-			currentSounds.RemoveWhere(s => s == null || s.Complete);
+			currentSounds.RemoveWhere(s => s == null || (!moving && s.Complete));
 
 			var pos = self.CenterPosition;
 			if (pos != cachedPosition)
@@ -77,20 +109,30 @@ namespace OpenRA.Mods.Common.Traits.Sound
 
 		void StartSound(Actor self)
 		{
-			var sound = Info.SoundFiles.RandomOrDefault(Game.CosmeticRandom);
-
-			ISound s;
-			if (self.OccupiesSpace != null)
+			if (moving)
 			{
-				cachedPosition = self.CenterPosition;
-				s = loop ? Game.Sound.PlayLooped(SoundType.World, sound, cachedPosition, Info.Volume) :
-					Game.Sound.Play(SoundType.World, sound, self.CenterPosition, Info.Volume);
-			}
-			else
-				s = loop ? Game.Sound.PlayLooped(SoundType.World, sound, Info.Volume) :
-					Game.Sound.Play(SoundType.World, sound, Info.Volume);
+				var sound = Info.SoundFiles.RandomOrDefault(Game.CosmeticRandom);
 
-			currentSounds.Add(s);
+				ISound s;
+				if (self.OccupiesSpace != null)
+				{
+					cachedPosition = self.CenterPosition;
+					if (loop)
+					{
+						s = Game.Sound.PlayLooped(SoundType.World, sound, cachedPosition, Info.Volume);
+					}
+					else
+					{
+						s = Game.Sound.Play(SoundType.World, sound, self.CenterPosition, Info.Volume);
+					}
+				}
+				else
+					s = loop ? Game.Sound.PlayLooped(SoundType.World, sound, Info.Volume) :
+						Game.Sound.Play(SoundType.World, sound, Info.Volume);
+
+				currentSounds.Add(s);
+			}
+
 		}
 
 		void StopSound()

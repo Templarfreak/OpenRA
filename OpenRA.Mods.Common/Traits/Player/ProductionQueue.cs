@@ -353,8 +353,8 @@ namespace OpenRA.Mods.Common.Traits
 			while (Queue.Count > 0 && BuildableItems().All(b => b.Name != Queue[0].Item))
 			{
 				// Refund what's been paid so far
-				PlayerResources.GiveCash(Queue[0].TotalCost - Queue[0].RemainingCost);
-				FinishProduction();
+				//PlayerResources.GiveCash(Queue[0].TotalCost - Queue[0].RemainingCost);
+				CancelProductionInner(Queue[0]);
 			}
 
 			if (Queue.Count > 0 && !allProductionPaused)

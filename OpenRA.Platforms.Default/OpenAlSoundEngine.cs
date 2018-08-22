@@ -51,6 +51,13 @@ namespace OpenRA.Platforms.Default
 
 		readonly Dictionary<uint, PoolSlot> sourcePool = new Dictionary<uint, PoolSlot>(PoolSize);
 		float volume = 1f;
+
+		public float previousvolume = 0;
+		public float currentvolume = 0;
+
+		public Dictionary<uint, float> allsoundspreviousvolume = new Dictionary<uint, float>();
+		public Dictionary<uint, float> allsoundscurrentvolume = new Dictionary<uint, float>();
+
 		IntPtr device;
 		IntPtr context;
 
@@ -244,6 +251,15 @@ namespace OpenRA.Platforms.Default
 			if (!TryGetSourceFromPool(out source))
 				return null;
 
+			if (allsoundscurrentvolume.ContainsKey(source))
+			{
+				allsoundscurrentvolume[source] = volume;
+			}
+			else
+			{
+				allsoundscurrentvolume.Add(source, volume);
+			}
+
 			var slot = sourcePool[source];
 			slot.Pos = pos;
 			slot.FrameStarted = currFrame;
@@ -313,17 +329,38 @@ namespace OpenRA.Platforms.Default
 
 		public void SetSoundVolume(float volume, ISound music, ISound video)
 		{
+			previousvolume = currentvolume;
+			currentvolume = volume;
+
+			allsoundspreviousvolume = allsoundscurrentvolume;
+
+			float volume_mod = (float)(previousvolume) / currentvolume;
+
 			var sounds = sourcePool.Keys.Where(key =>
 			{
 				int state;
+				
 				AL10.alGetSourcei(key, AL10.AL_SOURCE_STATE, out state);
 				return (state == AL10.AL_PLAYING || state == AL10.AL_PAUSED) &&
 					   (music == null || key != ((OpenAlSound)music).Source) &&
 					   (video == null || key != ((OpenAlSound)video).Source);
 			});
 
+			allsoundscurrentvolume = new Dictionary<uint, float>();
+
 			foreach (var s in sounds)
-				AL10.alSourcef(s, AL10.AL_GAIN, volume);
+			{
+				float vol = volume;
+
+				if (allsoundspreviousvolume.ContainsKey(s))
+				{
+					vol = allsoundspreviousvolume[s] / volume_mod;
+				}
+
+				AL10.alSourcef(s, AL10.AL_GAIN, vol);
+				allsoundscurrentvolume.Add(s, vol);
+			}
+
 		}
 
 		public void StopSound(ISound sound)
