@@ -253,11 +253,11 @@ namespace OpenRA.Platforms.Default
 
 			if (allsoundscurrentvolume.ContainsKey(source))
 			{
-				allsoundscurrentvolume[source] = volume;
+				allsoundscurrentvolume[source] = volume * atten;
 			}
 			else
 			{
-				allsoundscurrentvolume.Add(source, volume);
+				allsoundscurrentvolume.Add(source, volume * atten);
 			}
 
 			var slot = sourcePool[source];
@@ -276,6 +276,15 @@ namespace OpenRA.Platforms.Default
 			uint source;
 			if (!TryGetSourceFromPool(out source))
 				return null;
+
+			if (allsoundscurrentvolume.ContainsKey(source))
+			{
+				allsoundscurrentvolume[source] = volume;
+			}
+			else
+			{
+				allsoundscurrentvolume.Add(source, volume);
+			}
 
 			var slot = sourcePool[source];
 			slot.Pos = pos;
