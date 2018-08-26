@@ -75,6 +75,7 @@
   <ItemGroup />
   <ItemGroup>
     <Compile Include="Experimental\hp.cs" />
+    <Compile Include="Extensions\Dictionary.cs" />
     <Compile Include="Extensions\Color.cs" />
     <Compile Include="Graphics\Tint.cs" />
     <Compile Include="Primitives\double2.cs" />
@@ -94,6 +95,7 @@
     <Compile Include="Traits\Warheads\WarheadAS.cs" />
     <Compile Include="Traits\ApplyTint.cs" />
     <Compile Include="Traits\World\RadioactivityLayer.cs" />
+    <Compile Include="Traits\World\Sound\GlobalMovementSound.cs" />
     <Compile Include="Traits\World\TintLayer.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

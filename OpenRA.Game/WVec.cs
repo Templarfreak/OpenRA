@@ -33,6 +33,11 @@ namespace OpenRA
 		public static WVec operator *(int a, WVec b) { return new WVec(a * b.X, a * b.Y, a * b.Z); }
 		public static WVec operator *(WVec a, int b) { return b * a; }
 
+		public static bool operator <(WVec me, WVec other) { return me.X < other.X && me.Y < other.Y && me.Z < other.Z; }
+		public static bool operator >(WVec me, WVec other) { return me.X > other.X && me.Y > other.Y && me.Z > other.Z; }
+		public static bool operator <(WVec me, int other) { return me.X < other && me.Y < other && me.Z < other; }
+		public static bool operator >(WVec me, int other) { return me.X > other && me.Y > other && me.Z > other; }
+
 		public static bool operator ==(WVec me, WVec other) { return me.X == other.X && me.Y == other.Y && me.Z == other.Z; }
 		public static bool operator !=(WVec me, WVec other) { return !(me == other); }
 

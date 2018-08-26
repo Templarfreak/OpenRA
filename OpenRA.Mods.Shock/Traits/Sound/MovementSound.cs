@@ -10,6 +10,7 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -21,9 +22,6 @@ namespace OpenRA.Mods.Shock.Traits.Sound
 	{
 		[FieldLoader.Require]
 		public readonly string[] SoundFiles = null;
-
-		[Desc("If true, than instead of randomly picking which sound in SoundFiles to use it will run through them sequentially.")]
-		public readonly bool Iteration = false;
 
 		[Desc("Add tags here than all units within GroupRadius that share these same tags will truncate their sounds in favor of the World actor" +
 			"playing one single \"group\" sound appropriate for them. This requires the World Actor to have the GroupMovementSound trait.")]
@@ -47,6 +45,8 @@ namespace OpenRA.Mods.Shock.Traits.Sound
 
 	class MovementSound : ConditionalTrait<MovementSoundInfo>, ITick, INotifyRemovedFromWorld
 	{
+		GlobalMovementSound w_msound;
+
 		readonly bool loop;
 		HashSet<ISound> currentSounds = new HashSet<ISound>();
 		WPos cachedPosition;
@@ -62,6 +62,15 @@ namespace OpenRA.Mods.Shock.Traits.Sound
 		public MovementSound(Actor self, MovementSoundInfo info)
 			: base(info)
 		{
+			var layers = self.World.WorldActor.TraitsImplementing<GlobalMovementSound>();
+			w_msound = layers.First();
+
+			if (w_msound != null)
+			{
+				w_msound.Groups.Add(self, info.GroupMovement.ToList());
+			}
+
+
 			delay = Util.RandomDelay(self.World, info.Delay);
 			loop = Info.Interval.Length == 0 || (Info.Interval.Length == 1 && Info.Interval[0] == 0);
 		}
@@ -109,7 +118,14 @@ namespace OpenRA.Mods.Shock.Traits.Sound
 
 		void StartSound(Actor self)
 		{
-			if (moving)
+			var playalone = true;
+
+			if (w_msound != null)
+			{
+				playalone = w_msound.PlaySingleSounds(self);
+			}
+
+			if (moving && playalone)
 			{
 				var sound = Info.SoundFiles.RandomOrDefault(Game.CosmeticRandom);
 

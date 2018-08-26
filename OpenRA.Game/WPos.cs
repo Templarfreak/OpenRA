@@ -36,6 +36,13 @@ namespace OpenRA
 		public static bool operator ==(WPos me, WPos other) { return me.X == other.X && me.Y == other.Y && me.Z == other.Z; }
 		public static bool operator !=(WPos me, WPos other) { return !(me == other); }
 
+		public static bool operator <(WPos me, WPos other) { return me.X < other.X && me.Y < other.Y && me.Z < other.Z; }
+		public static bool operator >(WPos me, WPos other) { return me.X > other.X && me.Y > other.Y && me.Z > other.Z; }
+		public static bool operator <(WPos me, WVec other) { return me.X < other.X && me.Y < other.Y && me.Z < other.Z; }
+		public static bool operator >(WPos me, WVec other) { return me.X > other.X && me.Y > other.Y && me.Z > other.Z; }
+		public static bool operator <(WPos me, int other) { return me.X < other && me.Y < other && me.Z < other; }
+		public static bool operator >(WPos me, int other) { return me.X > other && me.Y > other && me.Z > other; }
+
 		/// <summary>
 		/// Returns the linear interpolation between points 'a' and 'b'
 		/// </summary>
@@ -69,6 +76,28 @@ namespace OpenRA
 			var clampedOffset = (int)(offset + (decimal)ret.Z).Clamp<decimal>((decimal)int.MinValue, (decimal)int.MaxValue);
 
 			return new WPos(ret.X, ret.Y, clampedOffset);
+		}
+
+		/// <summary>
+		/// Returns the distance between two WPos, "a" and "b"
+		/// </summary>
+		public static WDist Dist(WPos a, WPos b)
+		{
+			var calc = Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) + Math.Abs(a.Z - b.Z);
+			var dist = new WDist(calc);
+			return dist;
+			
+		}
+
+		/// <summary>
+		/// Returns strictly the 2D distance between two WPos, "a" and "b"
+		/// </summary>
+		public static WDist Dist2D(WPos a, WPos b)
+		{
+			var calc = Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+			var dist = new WDist(calc);
+			return dist;
+
 		}
 
 		public override int GetHashCode() { return X.GetHashCode() ^ Y.GetHashCode() ^ Z.GetHashCode(); }
