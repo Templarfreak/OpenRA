@@ -68,7 +68,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				var bi = a.TraitInfoOrDefault<BuildableInfo>();
 
 				var uwc = a.TraitInfoOrDefault<ProducibleWithLevelInfo>();
-				if (uwc != null)
+				if (uwc != null && bi != null)
 					ttc.Add(MakeKey(a.Name), uwc.Prerequisites, bi.BuildLimit, this);
 			}
 		}
