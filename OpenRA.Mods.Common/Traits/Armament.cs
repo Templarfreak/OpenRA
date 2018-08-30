@@ -39,6 +39,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Time (in frames) until the weapon can fire again.")]
 		public readonly int FireDelay = 0;
 
+		[Desc("If greater than 0, picks a random time in ticks between FireDelay to use as the FireDelay.")]
+		public readonly int RandomFireDelay = 0;
+
 		[Desc("Muzzle position relative to turret or body, (forward, right, up) triples.",
 			"If weapon Burst = 1, it cycles through all listed offsets, otherwise the offset corresponding to current burst is used.")]
 		public readonly WVec[] LocalOffset = { };
@@ -321,7 +324,14 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var na in notifyAttacks)
 				na.PreparingAttack(self, target, this, barrel);
 
-			ScheduleDelayedAction(Info.FireDelay, () =>
+			var delay = Info.FireDelay;
+
+			if (Info.RandomFireDelay > 0)
+			{
+				delay = self.World.SharedRandom.Next(Info.FireDelay, Info.RandomFireDelay);
+			}
+
+			ScheduleDelayedAction(delay, () =>
 			{
 				if (args.Weapon.Projectile != null)
 				{
@@ -350,8 +360,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (BurstMax != 0)
 			{
-				Random brst = new Random();
-				NewBurst = brst.Next(Burst, BurstMax + 1);
+				NewBurst = self.World.SharedRandom.Next(Burst, BurstMax + 1);
 			}
 
 			BurstRandom = NewBurst;
