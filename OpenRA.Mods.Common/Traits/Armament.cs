@@ -259,7 +259,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Note: facing is only used by the legacy positioning code
 		// The world coordinate model uses Actor.Orientation
-		public virtual Barrel CheckFire(Actor self, IFacing facing, Target target)
+		public virtual Barrel CheckFire(Actor self, IFacing facing, Target target, bool delayed = false)
 		{
 			if (!CanFire(self, target))
 				return null;
@@ -274,14 +274,14 @@ namespace OpenRA.Mods.Common.Traits
 			var barrel = Weapon.Burst == 1 ? Barrels[currentBarrel] : Barrels[Burst % Barrels.Length];
 			currentBarrel++;
 
-			FireBarrel(self, facing, target, barrel);
+			FireBarrel(self, facing, target, barrel, delayed);
 
 			UpdateBurst(self, target);
 
 			return barrel;
 		}
 
-		protected virtual void FireBarrel(Actor self, IFacing facing, Target target, Barrel barrel)
+		protected virtual void FireBarrel(Actor self, IFacing facing, Target target, Barrel barrel, bool delayed = false)
 		{
 			Func<WPos> muzzlePosition = () => self.CenterPosition + MuzzleOffset(self, barrel);
 			var legacyFacing = MuzzleOrientation(self, barrel).Yaw.Angle / 4;
@@ -324,12 +324,18 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var na in notifyAttacks)
 				na.PreparingAttack(self, target, this, barrel);
 
-			var delay = Info.FireDelay;
+			var delay = 0;
 
-			if (Info.RandomFireDelay > 0)
+			if (!delayed)
 			{
-				delay = self.World.SharedRandom.Next(Info.FireDelay, Info.RandomFireDelay);
+				delay = Info.FireDelay;
+
+				if (Info.RandomFireDelay > 0)
+				{
+					delay = self.World.SharedRandom.Next(Info.FireDelay, Info.RandomFireDelay);
+				}
 			}
+
 
 			ScheduleDelayedAction(delay, () =>
 			{

@@ -15,6 +15,7 @@ using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits.Render;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -82,6 +83,7 @@ namespace OpenRA.Mods.Common.Traits
 		Dictionary<Actor, IFacing> paxFacing;
 		Dictionary<Actor, IPositionable> paxPos;
 		Dictionary<Actor, RenderSprites> paxRender;
+		List<Pair<int, Action>> delayedActions = new List<Pair<int, Action>>();
 
 		public AttackGarrisoned(Actor self, AttackGarrisonedInfo info)
 			: base(self, info)
@@ -141,6 +143,14 @@ namespace OpenRA.Mods.Common.Traits
 			return coords.Value.LocalToWorld(p.Offset.Rotate(bodyOrientation));
 		}
 
+		protected void ScheduleDelayedAction(int t, Action a)
+		{
+			if (t > 0)
+				delayedActions.Add(Pair.New(t, a));
+			else
+				a();
+		}
+
 		public override void DoAttack(Actor self, Target target, IEnumerable<Armament> armaments = null)
 		{
 			if (!CanAttack(self, target))
@@ -152,41 +162,53 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in Armaments)
 			{
-				if (a.IsTraitDisabled)
-					continue;
-
-				var port = SelectFirePort(self, targetYaw);
-				if (port == null)
-					return;
-
-				var muzzleFacing = targetYaw.Angle / 4;
-				paxFacing[a.Actor].Facing = muzzleFacing;
-				paxPos[a.Actor].SetVisualPosition(a.Actor, pos + PortOffset(self, port));
-
-				var barrel = a.CheckFire(a.Actor, facing, target);
-				if (barrel == null)
-					continue;
-
-				if (a.Info.MuzzleSequence != null)
+				var delay = a.Info.FireDelay;
+				if (a.Info.RandomFireDelay > 0)
 				{
-					// Muzzle facing is fixed once the firing starts
-					var muzzleAnim = new Animation(self.World, paxRender[a.Actor].GetImage(a.Actor), () => muzzleFacing);
-					var sequence = a.Info.MuzzleSequence;
-
-					if (a.Info.MuzzleSplitFacings > 0)
-						sequence += Util.QuantizeFacing(muzzleFacing, a.Info.MuzzleSplitFacings).ToString();
-
-					var muzzleFlash = new AnimationWithOffset(muzzleAnim,
-						() => PortOffset(self, port),
-						() => false,
-						p => RenderUtils.ZOffsetFromCenter(self, p, 1024));
-
-					muzzles.Add(muzzleFlash);
-					muzzleAnim.PlayThen(sequence, () => muzzles.Remove(muzzleFlash));
+					delay = self.World.SharedRandom.Next(a.Info.FireDelay, a.Info.RandomFireDelay);
 				}
 
-				foreach (var npa in self.TraitsImplementing<INotifyAttack>())
-					npa.Attacking(self, target, a, barrel);
+				ScheduleDelayedAction(delay, () =>
+				{
+					if (a.IsTraitDisabled || IsTraitDisabled)
+						return;
+
+					var port = SelectFirePort(self, targetYaw);
+					if (port == null)
+						return;
+
+					if (!paxFacing.ContainsKey(a.Actor) || !paxPos.ContainsKey(a.Actor))
+						return;
+
+					var muzzleFacing = targetYaw.Angle / 4;
+					paxFacing[a.Actor].Facing = muzzleFacing;
+					paxPos[a.Actor].SetVisualPosition(a.Actor, pos + PortOffset(self, port));
+
+					var barrel = a.CheckFire(a.Actor, facing, target, true);
+					if (barrel == null)
+						return;
+
+					if (a.Info.MuzzleSequence != null)
+					{
+						// Muzzle facing is fixed once the firing starts
+						var muzzleAnim = new Animation(self.World, paxRender[a.Actor].GetImage(a.Actor), () => muzzleFacing);
+						var sequence = a.Info.MuzzleSequence;
+
+						if (a.Info.MuzzleSplitFacings > 0)
+							sequence += Util.QuantizeFacing(muzzleFacing, a.Info.MuzzleSplitFacings).ToString();
+
+						var muzzleFlash = new AnimationWithOffset(muzzleAnim,
+							() => PortOffset(self, port),
+							() => false,
+							p => RenderUtils.ZOffsetFromCenter(self, p, 1024));
+
+						muzzles.Add(muzzleFlash);
+						muzzleAnim.PlayThen(sequence, () => muzzles.Remove(muzzleFlash));
+					}
+
+					foreach (var npa in self.TraitsImplementing<INotifyAttack>())
+						npa.Attacking(self, target, a, barrel);
+				});
 			}
 		}
 
@@ -208,6 +230,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void Tick(Actor self)
 		{
+			for (var i = 0; i < delayedActions.Count; i++)
+			{
+				var x = delayedActions[i];
+				if (--x.First <= 0)
+					x.Second();
+				delayedActions[i] = x;
+			}
+
+			delayedActions.RemoveAll(a => a.First <= 0);
+
 			base.Tick(self);
 
 			// Take a copy so that Tick() can remove animations
