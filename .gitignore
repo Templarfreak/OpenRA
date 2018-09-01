@@ -933,3 +933,8 @@ mods/ts/mod.yaml
 OpenRA.Mods.Shock/Traits/World/Sound/GlobalMovementSound.cs
 *.cmd
 *.int
+launch-game.cmd
+mods/ra/rules/structures.yaml
+mods/ts/mod.yaml
+mods/ts/rules/nod-structures.yaml
+mods/ts/rules/world.yaml

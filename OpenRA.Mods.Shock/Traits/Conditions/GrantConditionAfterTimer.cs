@@ -58,10 +58,8 @@ namespace OpenRA.Mods.Shock.Traits
 			{
 				ticks = 0;
 				if (ConditionToken != null_token)
-					conditionManager.RevokeCondition(self, ConditionToken);
+					ConditionToken = conditionManager.RevokeCondition(self, ConditionToken);
 			}
-				
-
 
 			if (ConditionToken == null_token && !IsTraitPaused)
 				ticks++;

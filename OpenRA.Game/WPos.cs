@@ -85,8 +85,8 @@ namespace OpenRA
 		{
 			var calc = Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y) + Math.Abs(a.Z - b.Z);
 			var dist = new WDist(calc);
+
 			return dist;
-			
 		}
 
 		/// <summary>
@@ -96,8 +96,13 @@ namespace OpenRA
 		{
 			var calc = Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
 			var dist = new WDist(calc);
-			return dist;
 
+			return dist;
+		}
+
+		public static float3 ToFloat3(WPos a)
+		{
+			return new float3(a.X, a.Y, a.Z);
 		}
 
 		public override int GetHashCode() { return X.GetHashCode() ^ Y.GetHashCode() ^ Z.GetHashCode(); }

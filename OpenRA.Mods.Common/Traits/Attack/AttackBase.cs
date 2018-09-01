@@ -160,6 +160,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
 		{
+			ResolveOrder(self, order);
+		}
+
+		public virtual void ResolveOrder(Actor self, Order order)
+		{
 			var forceAttack = order.OrderString == forceAttackOrderName;
 			if (forceAttack || order.OrderString == attackOrderName)
 			{

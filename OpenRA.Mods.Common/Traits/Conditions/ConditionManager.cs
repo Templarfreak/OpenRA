@@ -133,6 +133,19 @@ namespace OpenRA.Mods.Common.Traits
 			return InvalidConditionToken;
 		}
 
+		public IEnumerable<int> RevokeConditions(Actor self, IEnumerable<int> tokens)
+		{
+			List<int> new_tokens = new List<int>();
+
+			foreach (var t in tokens)
+			{
+				new_tokens.Add(RevokeCondition(self, t));
+					
+			}
+
+			return new_tokens.AsEnumerable();
+		}
+
 		/// <summary>Returns whether the specified token is valid for RevokeCondition</summary>
 		public bool TokenValid(Actor self, int token)
 		{

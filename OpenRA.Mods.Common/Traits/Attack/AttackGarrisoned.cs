@@ -42,6 +42,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Fire port yaw cone angle.")]
 		public readonly WAngle[] PortCones = null;
 
+		[Desc("Each actor garrisoned will attempt to find their own target if the garrison actor has no direct target orders.")]
+		public readonly bool PickRandomTargets = false;
+
 		public FirePort[] Ports { get; private set; }
 
 		[PaletteReference] public readonly string MuzzlePalette = "effect";
@@ -84,6 +87,7 @@ namespace OpenRA.Mods.Common.Traits
 		Dictionary<Actor, IPositionable> paxPos;
 		Dictionary<Actor, RenderSprites> paxRender;
 		List<Pair<int, Action>> delayedActions = new List<Pair<int, Action>>();
+		bool ForcedAttack = false;
 
 		public AttackGarrisoned(Actor self, AttackGarrisonedInfo info)
 			: base(self, info)
@@ -151,17 +155,41 @@ namespace OpenRA.Mods.Common.Traits
 				a();
 		}
 
+		public override void ResolveOrder(Actor self, Order order)
+		{
+			var forceAttack = order.OrderString == forceAttackOrderName || order.OrderString == attackOrderName;
+			ForcedAttack = forceAttack;
+			base.ResolveOrder(self, order);
+		}
+
 		public override void DoAttack(Actor self, Target target, IEnumerable<Armament> armaments = null)
 		{
+
 			if (!CanAttack(self, target))
 				return;
 
 			var pos = self.CenterPosition;
+
 			var targetedPosition = GetTargetPosition(pos, target);
 			var targetYaw = (targetedPosition - pos).Yaw;
 
 			foreach (var a in Armaments)
 			{
+				if (Info.PickRandomTargets && !ForcedAttack)
+				{
+					var new_target = Target.FromActor(a.Actor.TraitOrDefault<AutoTarget>().ScanForTarget(a.Actor, false));
+
+					if (new_target.Type == TargetType.Invalid)
+						new_target = target;
+
+					if (!CanAttack(self, target))
+						return;
+
+					pos = self.CenterPosition;
+					targetedPosition = GetTargetPosition(pos, new_target);
+					targetYaw = (targetedPosition - pos).Yaw;
+				}
+
 				var delay = a.Info.FireDelay;
 				if (a.Info.RandomFireDelay > 0)
 				{

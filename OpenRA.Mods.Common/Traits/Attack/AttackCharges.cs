@@ -38,8 +38,8 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly AttackChargesInfo info;
 		ConditionManager conditionManager;
-		int chargingToken = ConditionManager.InvalidConditionToken;
-		bool charging;
+		public int chargingToken = ConditionManager.InvalidConditionToken;
+		public bool charging;
 
 		public int ChargeLevel { get; private set; }
 
@@ -60,16 +60,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			// Stop charging when we lose our target
 			charging &= self.CurrentActivity is SetTarget;
-
-			var delta = charging ? info.ChargeRate : -info.DischargeRate;
-			ChargeLevel = (ChargeLevel + delta).Clamp(0, info.ChargeLevel);
-
-			if (ChargeLevel > 0 && conditionManager != null && !string.IsNullOrEmpty(info.ChargingCondition)
-					&& chargingToken == ConditionManager.InvalidConditionToken)
-				chargingToken = conditionManager.GrantCondition(self, info.ChargingCondition);
-
-			if (ChargeLevel == 0 && conditionManager != null && chargingToken != ConditionManager.InvalidConditionToken)
-				chargingToken = conditionManager.RevokeCondition(self, chargingToken);
+			Charging(self);
 
 			base.Tick(self);
 		}
@@ -80,7 +71,25 @@ namespace OpenRA.Mods.Common.Traits
 			return ChargeLevel >= info.ChargeLevel && charging;
 		}
 
-		void INotifyAttack.Attacking(Actor self, Target target, Armament a, Barrel barrel) { ChargeLevel = 0; }
+		protected virtual void StartCharge()
+		{
+			ChargeLevel = 0;
+		}
+
+		protected virtual void Charging(Actor self)
+		{
+			var delta = charging ? info.ChargeRate : -info.DischargeRate;
+			ChargeLevel = (ChargeLevel + delta).Clamp(0, info.ChargeLevel);
+
+			if (ChargeLevel > 0 && conditionManager != null && !string.IsNullOrEmpty(info.ChargingCondition)
+					&& chargingToken == ConditionManager.InvalidConditionToken)
+				chargingToken = conditionManager.GrantCondition(self, info.ChargingCondition);
+
+			if (ChargeLevel == 0 && conditionManager != null && chargingToken != ConditionManager.InvalidConditionToken)
+				chargingToken = conditionManager.RevokeCondition(self, chargingToken);
+		}
+
+		void INotifyAttack.Attacking(Actor self, Target target, Armament a, Barrel barrel) { StartCharge(); }
 		void INotifyAttack.PreparingAttack(Actor self, Target target, Armament a, Barrel barrel) { }
 		void INotifySold.Selling(Actor self) { ChargeLevel = 0; }
 		void INotifySold.Sold(Actor self) { }
