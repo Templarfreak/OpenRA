@@ -157,7 +157,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public override void ResolveOrder(Actor self, Order order)
 		{
-			var forceAttack = order.OrderString == forceAttackOrderName || order.OrderString == attackOrderName;
+			var forceAttack = order.OrderString == "ForceAttack" || order.OrderString == "Attack";
 			ForcedAttack = forceAttack;
 			base.ResolveOrder(self, order);
 		}
