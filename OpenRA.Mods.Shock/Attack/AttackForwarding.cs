@@ -20,6 +20,7 @@ using OpenRA.Primitives;
 using OpenRA.Traits;
 using OpenRA.Effects;
 using OpenRA.Graphics;
+using OpenRA.Activities;
 
 /* Requires some base engine modifications. See the commit for more details. */
 
@@ -56,6 +57,11 @@ namespace OpenRA.Mods.Shock.Traits
 
 		[Desc("Forward with Allies? BOTH Actors must be allowed to forward with allies in order for it to work.")]
 		public readonly bool AlliedForwarding = false;
+
+		[Desc("If this is true, then weapons with Bursts won't actually \"finish\" until the entire burst is used up, this the network" +
+			"remains active. This could theoretically keep the network active indefinitely as long as the burst never actually finishes, thus" +
+			"never having to charge again.")]
+		public readonly bool BurstsHangAround = false;
 
 		[Desc("If true, a beam will be drawn between a Forwarder and whoever they are Forwarding to.")]
 		public readonly bool ForwardBeam = true;
@@ -102,8 +108,29 @@ namespace OpenRA.Mods.Shock.Traits
 		public override object Create(ActorInitializer init) { return new AttackForwarding(init.Self, this); }
 	}
 
-	public class AttackForwarding : AttackCharges, INotifyCreated, IEffect
+	public class AttackForwarding : AttackCharges, INotifyCreated, IEffect, INotifyBurstComplete
 	{
+		// Some 3rd-party mods rely on this being public
+		public class Forwarding : Activity
+		{
+			readonly Actor Master;
+			readonly AttackForwarding attack;
+
+			public Forwarding(AttackForwarding attack, Actor Master)
+			{
+				this.Master = Master;
+				this.attack = attack;
+			}
+
+			public override Activity Tick(Actor self)
+			{
+				if (attack.InUse == false && attack.MasterForward == null)
+					return NextActivity;
+
+				return this;
+			}
+		}
+
 		ConditionManager conditionManager;
 		List<Pair<int, string>> ConditionTokens = new List<Pair<int, string>>();
 		int null_token = ConditionManager.InvalidConditionToken;
@@ -113,20 +140,22 @@ namespace OpenRA.Mods.Shock.Traits
 
 		//Is this "Prism Tower" forwarding its power somewhere else, or is attacking, already?
 		public bool InUse = false;
+
+		public bool BeamExists = false;
+		public bool ForwardingDone = true;
+
 		public Actor MasterForward = null;
 		public Actor DelegateForward = null;
 		public WVec DelegateOffset;
-		public bool BeamExists = false;
-		public bool ForwardingDone = true;
 		int ticks;
 
 		//List of Actors currently forwarding to this actor, and of all actors forwarding to this actor period, through all forwards
 		//from all actors.
 		public List<Pair<AttackForwarding, Actor>> ForwardList = new List<Pair<AttackForwarding, Actor>>();
 		public List<Pair<AttackForwarding, Actor>> ForwardMasterList = new List<Pair<AttackForwarding, Actor>>();
-		public IEnumerable<Armament> ForwardArmaments;
 
 		public List<Forward> Forwards;
+		SetTarget currentactivity = null;
 
 		public AttackForwarding(Actor self, AttackForwardingInfo info)
 			: base(self, info)
@@ -146,6 +175,31 @@ namespace OpenRA.Mods.Shock.Traits
 			base.Created(self);
 		}
 
+		public override void AttackTarget(Target target, bool queued, bool allowMove, bool forceAttack = false)
+		{
+			if (MasterForward == Self)
+			{
+				currentactivity.target = target;
+				return;
+			}
+
+			base.AttackTarget(target, queued, allowMove, forceAttack);
+		}
+
+		public override Activity GetAttackActivity(Actor self, Target newTarget, bool allowMove, bool forceAttack)
+		{
+			if (MasterForward == null && !(charging && InUse))
+			{
+				currentactivity = new SetTarget(this, newTarget, allowMove);
+				return currentactivity;
+			}
+
+			if (Self.CurrentActivity == currentactivity)
+				return currentactivity;
+
+			return null;
+		}
+
 		protected override void Tick(Actor self)
 		{
 			if (MasterForward == Self && ForwardList.All(a => a.First.IsCharged()))
@@ -160,6 +214,12 @@ namespace OpenRA.Mods.Shock.Traits
 							ConditionTokens.Add(Pair.New(conditionManager.GrantCondition(self, f.Condition), f.Condition));
 						}
 					}
+				}
+
+				if (currentactivity.State == ActivityState.Done && !info.BurstsHangAround)
+				{
+					CleanUpForwarding();
+					base.StartCharge();
 				}
 
 				base.Tick(self);
@@ -208,15 +268,19 @@ namespace OpenRA.Mods.Shock.Traits
 			}
 
 			armtofire.CheckFire(self, facing, target);
-
-			CleanUpForwarding();
-			ForwardArmaments = armaments;
-			StartCharge();
 		}
+
+		public void FiredBurst(Actor self, Target target, Armament a)
+		{
+			CleanUpForwarding();
+			base.StartCharge();
+		}
+
+		protected override void StartCharge() { }
 
 		protected override bool CanAttack(Actor self, Target target)
 		{
-			if (!charging)
+			if (!charging && MasterForward == null && !InUse)
 			{
 				if (!IsTraitPaused && !IsTraitDisabled)
 				{
@@ -270,7 +334,7 @@ namespace OpenRA.Mods.Shock.Traits
 			charging = false;
 			MasterForward = null;
 			InUse = false;
-			StartCharge();
+			base.StartCharge();
 			Charging(Self);
 		}
 
@@ -322,7 +386,7 @@ namespace OpenRA.Mods.Shock.Traits
 			InUse = false;
 			charging = false;
 			MasterForward = null;
-			StartCharge();
+			base.StartCharge();
 			Charging(Self);
 		}
 
@@ -345,10 +409,11 @@ namespace OpenRA.Mods.Shock.Traits
 				if (forwardmastercount == info.ForwardMaximum)
 					continue;
 
-				if (Forward.InUse)
+				if (Forward.InUse || !Forward.Self.IsInWorld || Forward.MasterForward != null || Forward.MasterForward == Forward.Self
+					|| Forward.ForwardList.Count != 0 || Forward.ForwardMasterList.Count != 0 || Forward.charging || IsAiming)
 					continue;
 
-				if (!Forward.Self.IsInWorld)
+				if (Forward.Self.CurrentActivity is Forwarding || Forward.Self.CurrentActivity != null)
 					continue;
 
 				if (!Forward.charging && !Forward.IsTraitDisabled && !Forward.IsTraitPaused
@@ -362,6 +427,8 @@ namespace OpenRA.Mods.Shock.Traits
 					ForwardList.Add(Pair.New(Forward, ForwardActor));
 					ForwardMasterList.Add(Pair.New(Forward, ForwardActor));
 					forwardcount += 1;
+
+					Forward.Self.QueueActivity(new Forwarding(Forward, Self));
 
 					//Forward.Self.World.AddFrameEndTask(w => w.Add(Forward));
 				}

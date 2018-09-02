@@ -358,7 +358,7 @@ namespace OpenRA.Mods.Common.Traits
 				&& a.Weapon.IsValidAgainst(t, self.World, self));
 		}
 
-		public void AttackTarget(Target target, bool queued, bool allowMove, bool forceAttack = false)
+		public virtual void AttackTarget(Target target, bool queued, bool allowMove, bool forceAttack = false)
 		{
 			if (IsTraitDisabled || IsTraitPaused)
 				return;

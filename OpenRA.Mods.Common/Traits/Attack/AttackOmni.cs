@@ -32,7 +32,7 @@ namespace OpenRA.Mods.Common.Traits
 		// Some 3rd-party mods rely on this being public
 		public class SetTarget : Activity
 		{
-			readonly Target target;
+			public Target target;
 			readonly AttackOmni attack;
 			readonly bool allowMove;
 
