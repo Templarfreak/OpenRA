@@ -58,8 +58,9 @@ namespace OpenRA.Mods.Shock.Traits
 		[Desc("Range that this actor can forward to, or be forwarded to by, other actors.")]
 		public readonly WDist Range = new WDist(3072);
 
-		[Desc("Forward with Allies? BOTH Actors must be allowed to forward with allies in order for it to work.")]
-		public readonly bool AlliedForwarding = false;
+		[Desc("Can forward with any other Forwarders that share the same type and these stances. If only None, then can only Forward with self." +
+			"Otherwise, None does nothing.")]
+		public readonly Stance[] ForwardingStances = new Stance[] { Stance.None };
 
 		[Desc("If this is true, then weapons with Bursts won't actually \"finish\" until the entire burst is used up, thus the network" +
 			"remains active. This could theoretically keep the network active indefinitely as long as the burst never actually finishes, thus" +
@@ -85,7 +86,7 @@ namespace OpenRA.Mods.Shock.Traits
 		{
 			var retList = new List<Forward>();
 			foreach (var node in yaml.Nodes.Where(n => n.Key.StartsWith("Forward") && n.Key != "Forwards" && n.Key != "ForwardTypes" 
-			&& n.Key != "ForwardLimit" && n.Key != "ForwardMaximum" && n.Key != "ForwardWeapon"))
+			&& n.Key != "ForwardLimit" && n.Key != "ForwardMaximum" && n.Key != "ForwardWeapon" && n.Key != "ForwardingStances"))
 			{
 				var ret = Game.CreateObject<Forward>(node.Value.Value + "Forward");
 				FieldLoader.Load(ret, node.Value);
@@ -410,8 +411,21 @@ namespace OpenRA.Mods.Shock.Traits
 			if (forward == null)
 				return false;
 
-			// Determine what units to forward with.
-			if ((!info.AlliedForwarding || !forward.info.AlliedForwarding) && self.Owner != forward.Self.Owner)
+			// Determine what stances can be forwarded with.
+			if (self.Owner != forward.Self.Owner && self.Owner.Stances[forward.Self.Owner] == Stance.Ally && 
+				(info.ForwardingStances.All(s => s != Stance.Ally) || forward.info.ForwardingStances.All(s => s != Stance.Ally)))
+				return false;
+
+			if (self.Owner != forward.Self.Owner && self.Owner.Stances[forward.Self.Owner] == Stance.Enemy &&
+				(info.ForwardingStances.All(s => s != Stance.Enemy) || forward.info.ForwardingStances.All(s => s != Stance.Enemy)))
+				return false;
+
+			if (self.Owner != forward.Self.Owner && self.Owner.Stances[forward.Self.Owner] == Stance.Neutral &&
+				(info.ForwardingStances.All(s => s != Stance.Neutral) || forward.info.ForwardingStances.All(s => s != Stance.Neutral)))
+				return false;
+
+			if ((info.ForwardingStances.All(s => s == Stance.None) && self.Owner != forward.Self.Owner) ||
+				(forward.info.ForwardingStances.All(s => s == Stance.None) && self.Owner != forward.Self.Owner))
 				return false;
 
 			//If none of the ForwardTypes match, stop
