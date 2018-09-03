@@ -11,16 +11,19 @@
  */
 #endregion
 
+using System;
 using System.Linq;
 using System.Drawing;
 using System.Collections.Generic;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.Common.Graphics;
 using OpenRA.Primitives;
 using OpenRA.Traits;
-using OpenRA.Effects;
-using OpenRA.Graphics;
 using OpenRA.Activities;
+using OpenRA.GameRules;
+
+//using OpenRA.Mods.Common.Graphics;
+//using OpenRA.Effects;
+//using OpenRA.Graphics;
 
 /* Requires some base engine modifications. See the commit for more details. */
 
@@ -58,31 +61,10 @@ namespace OpenRA.Mods.Shock.Traits
 		[Desc("Forward with Allies? BOTH Actors must be allowed to forward with allies in order for it to work.")]
 		public readonly bool AlliedForwarding = false;
 
-		[Desc("If this is true, then weapons with Bursts won't actually \"finish\" until the entire burst is used up, this the network" +
+		[Desc("If this is true, then weapons with Bursts won't actually \"finish\" until the entire burst is used up, thus the network" +
 			"remains active. This could theoretically keep the network active indefinitely as long as the burst never actually finishes, thus" +
 			"never having to charge again.")]
 		public readonly bool BurstsHangAround = false;
-
-		[Desc("If true, a beam will be drawn between a Forwarder and whoever they are Forwarding to.")]
-		public readonly bool ForwardBeam = true;
-
-		[Desc("If ForwardBeam and this are true, two beams will be drawn akin to LaserZap.")]
-		public readonly bool SecondForwardBeam = true;
-
-		[Desc("The maximum duration (in ticks) of the Forwarding beam's existence. Fades out over lifetime.")]
-		public readonly int Duration = 30;
-
-		[Desc("The color of the beam that gets drawn between Forwarders that are connected.")]
-		public readonly Color ForwardBeamColor = Color.FromArgb(128, 0, 165, 255);
-
-		[Desc("Width of the first beam.")]
-		public readonly WDist ForwardBeamWidth = new WDist(250);
-
-		[Desc("The color of the beam that gets drawn between Forwarders that are connected.")]
-		public readonly Color SecondForwardBeamColor = Color.FromArgb(128, 0, 165, 255);
-
-		[Desc("Width of the second beam.")]
-		public readonly WDist SecondForwardBeamWidth = new WDist(400);
 
 		[Desc("Muzzle position relative to turret or body, (forward, right, up) triples.")]
 		public readonly WVec LocalOffset = new WVec(0,0,0);
@@ -90,12 +72,16 @@ namespace OpenRA.Mods.Shock.Traits
 		[Desc("Equivalent to sequence ZOffset. Controls Z sorting.")]
 		public readonly int ZOffset = 0;
 
+		[WeaponReference, FieldLoader.Require]
+		[Desc("The weapon used for the effect when an actor forwards to another actor. Note that this is NOT purely visual. It is still a real" +
+			"weapon. Do with that what you will. This weapon does not need to be in Armaments on this trait for it to work, though.")]
+		public readonly string ForwardWeapon = null;
+
 		static object LoadForwards(MiniYaml yaml)
 		{
 			var retList = new List<Forward>();
 			foreach (var node in yaml.Nodes.Where(n => n.Key.StartsWith("Forward") && n.Key != "Forwards" && n.Key != "ForwardTypes" 
-			&& n.Key != "ForwardLimit" && n.Key != "ForwardMaximum" && n.Key != "ForwardBeam" && n.Key != "ForwardBeamColor" 
-			&& n.Key != "ForwardBeamWidth" && n.Key != "ForwardBeam"))
+			&& n.Key != "ForwardLimit" && n.Key != "ForwardMaximum" && n.Key != "ForwardWeapon"))
 			{
 				var ret = Game.CreateObject<Forward>(node.Value.Value + "Forward");
 				FieldLoader.Load(ret, node.Value);
@@ -105,10 +91,28 @@ namespace OpenRA.Mods.Shock.Traits
 			return retList;
 		}
 
+		public WeaponInfo WeaponInfo { get; private set; }
+
+		public override void RulesetLoaded(Ruleset rules, ActorInfo ai)
+		{
+			WeaponInfo weaponInfo;
+
+			var weaponToLower = ForwardWeapon.ToLowerInvariant();
+			if (!rules.Weapons.TryGetValue(weaponToLower, out weaponInfo))
+				throw new YamlException("Weapons Ruleset does not contain an entry '{0}'".F(weaponToLower));
+
+			WeaponInfo = weaponInfo;
+
+			if (WeaponInfo.Burst > 1 && WeaponInfo.BurstDelays.Length > 1 && (WeaponInfo.BurstDelays.Length != WeaponInfo.Burst - 1))
+				throw new YamlException("Weapon '{0}' has an invalid number of BurstDelays, must be single entry or Burst - 1.".F(weaponToLower));
+
+			base.RulesetLoaded(rules, ai);
+		}
+
 		public override object Create(ActorInitializer init) { return new AttackForwarding(init.Self, this); }
 	}
 
-	public class AttackForwarding : AttackCharges, INotifyCreated, IEffect, INotifyBurstComplete
+	public class AttackForwarding : AttackCharges, INotifyCreated, INotifyBurstComplete //, IEffect
 	{
 		// Some 3rd-party mods rely on this being public
 		public class Forwarding : Activity
@@ -141,7 +145,6 @@ namespace OpenRA.Mods.Shock.Traits
 		//Is this "Prism Tower" forwarding its power somewhere else, or is attacking, already?
 		public bool InUse = false;
 
-		public bool BeamExists = false;
 		public bool ForwardingDone = true;
 
 		public Actor MasterForward = null;
@@ -157,6 +160,8 @@ namespace OpenRA.Mods.Shock.Traits
 		public List<Forward> Forwards;
 		SetTarget currentactivity = null;
 
+		WeaponInfo weap;
+
 		public AttackForwarding(Actor self, AttackForwardingInfo info)
 			: base(self, info)
 		{
@@ -164,6 +169,8 @@ namespace OpenRA.Mods.Shock.Traits
 			this.info = info;
 
 			Forwards = info.Forwards;
+
+			weap = info.WeaponInfo;
 		}
 
 		public List<Pair<AttackForwarding, Actor>> ViableForwards = new List<Pair<AttackForwarding, Actor>>();
@@ -225,10 +232,38 @@ namespace OpenRA.Mods.Shock.Traits
 				base.Tick(self);
 			}
 
-			if (MasterForward != Self && IsCharged() && info.ForwardBeam && !BeamExists && ForwardingDone && DelegateForward != null)
+			if (MasterForward != Self && IsCharged() && info.ForwardWeapon != null && ForwardingDone && DelegateForward != null)
 			{
-				self.World.AddFrameEndTask(w => w.Add(this));
-				BeamExists = true;
+				Func<WPos> muzzlePosition = () => self.CenterPosition + info.LocalOffset;
+
+				var args = new ProjectileArgs
+				{
+					Weapon = weap,
+					Facing = (DelegateForward.CenterPosition - Self.CenterPosition).Yaw.Facing,
+
+					DamageModifiers = !Self.IsDead ? Self.TraitsImplementing<IFirepowerModifier>()
+					.Select(a => a.GetFirepowerModifier()).ToArray() : new int[0],
+
+					InaccuracyModifiers = !Self.IsDead ? Self.TraitsImplementing<IInaccuracyModifier>()
+					.Select(a => a.GetInaccuracyModifier()).ToArray() : new int[0],
+
+					RangeModifiers = !Self.IsDead ? Self.TraitsImplementing<IRangeModifier>()
+					.Select(a => a.GetRangeModifier()).ToArray() : new int[0],
+
+					Source = Self.CenterPosition + info.LocalOffset,
+					CurrentSource = muzzlePosition,
+					SourceActor = Self,
+					PassiveTarget = DelegateForward.CenterPosition + DelegateOffset,
+					GuidedTarget = Target.FromPos(DelegateForward.CenterPosition + DelegateOffset)
+				};
+
+				if (args.Weapon.Projectile != null)
+				{
+					var projectile = args.Weapon.Projectile.Create(args);
+					if (projectile != null)
+						self.World.Add(projectile);
+				}
+
 				ForwardingDone = false;
 			}
 
@@ -429,8 +464,6 @@ namespace OpenRA.Mods.Shock.Traits
 					forwardcount += 1;
 
 					Forward.Self.QueueActivity(new Forwarding(Forward, Self));
-
-					//Forward.Self.World.AddFrameEndTask(w => w.Add(Forward));
 				}
 			}
 
@@ -455,40 +488,6 @@ namespace OpenRA.Mods.Shock.Traits
 				}
 
 				forwardmastercount = ForwardMasterList.Count();
-			}
-		}
-
-		public void Tick(World world)
-		{
-			if (++ticks >= info.Duration)
-			{
-				world.AddFrameEndTask(w => w.Remove(this));
-				BeamExists = false;
-				ticks = 0;
-			}
-		}
-
-		public IEnumerable<IRenderable> Render(WorldRenderer r)
-		{
-			if (MasterForward != Self && charging)
-			{
-				//var width = new WDist(500);
-				var dist = DelegateForward.CenterPosition - Self.CenterPosition;
-				var offsetdif = info.LocalOffset - DelegateOffset;
-				var color = Color.FromArgb(info.ForwardBeamColor.R, info.ForwardBeamColor.G, info.ForwardBeamColor.B);
-				var rc = Color.FromArgb((info.Duration - ticks) * info.ForwardBeamColor.A / info.Duration, color);
-
-				yield return new BeamRenderable(Self.CenterPosition + info.LocalOffset, info.ZOffset, dist + offsetdif, 0,
-					info.ForwardBeamWidth, rc);
-
-				if (info.SecondForwardBeam)
-				{
-					color = Color.FromArgb(info.SecondForwardBeamColor.R, info.ForwardBeamColor.G, info.SecondForwardBeamColor.B);
-					rc = Color.FromArgb((info.Duration - ticks) * info.SecondForwardBeamColor.A / info.Duration, color);
-
-					yield return new BeamRenderable(Self.CenterPosition + info.LocalOffset, info.ZOffset, dist + offsetdif,
-						0, info.SecondForwardBeamWidth, rc);
-				}
 			}
 		}
 	}

@@ -239,6 +239,8 @@ namespace OpenRA.Mods.Shock.Warheads
 			{
 				if (t.dothrow == true)
 				{
+					Func<WPos> muzzlePosition = () => loc.CenterPosition;
+
 					var args = new ProjectileArgs
 					{
 						Weapon = weapon,
@@ -255,6 +257,7 @@ namespace OpenRA.Mods.Shock.Warheads
 
 						Source = loc.CenterPosition,
 						SourceActor = firedBy,
+						CurrentSource = muzzlePosition,
 						GuidedTarget = t.target,
 						PassiveTarget = t.target.CenterPosition
 					};
