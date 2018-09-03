@@ -36,16 +36,6 @@ NAPOWR:
 	ScalePowerWithHealth:
 	PowerTooltip:
 	SelectionDecorations:
-    ApplyTint:
-        Level: 500
-        MaxLevel: 500
-        MixThreshold: 90
-        Spread: 1
-        Falloff: 90, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 3, 1, 0, 0
-        Darkest: 3
-        Brightest: 160
-        Color: 00FF00
-        Color2: 000000
 
 NAAPWR:
 	Inherits: ^Building
@@ -86,16 +76,6 @@ NAAPWR:
 	PowerTooltip:
 	SelectionDecorations:
 	ProvidesPrerequisite@buildingname:
-    ApplyTint:
-        Level: 500
-        MaxLevel: 500
-        MixThreshold: 90
-        Spread: 1
-        Falloff: 90, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 3, 1, 0, 0
-        Darkest: 3
-        Brightest: 160
-        Color: 00FF00
-        Color2: 000000
 
 NAHAND:
 	Inherits: ^Building

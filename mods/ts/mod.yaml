@@ -126,7 +126,6 @@ Chrome:
 Assemblies:
 	common|OpenRA.Mods.Common.dll
 	common|OpenRA.Mods.Cnc.dll
-    common|OpenRA.Mods.Tint.dll
 
 ChromeLayout:
 	common|chrome/ingame.yaml
