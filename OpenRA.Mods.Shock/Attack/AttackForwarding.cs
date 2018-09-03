@@ -66,6 +66,10 @@ namespace OpenRA.Mods.Shock.Traits
 			"never having to charge again.")]
 		public readonly bool BurstsHangAround = false;
 
+		[Desc("If this is true, the delay between bursts, regardless of what the weapon's actual bursts delays are, will always be at least" +
+			"ChargeLevel long.")]
+		public readonly bool BurstsWaitForCharge = false;
+
 		[Desc("Muzzle position relative to turret or body, (forward, right, up) triples.")]
 		public readonly WVec LocalOffset = new WVec(0,0,0);
 
@@ -128,7 +132,7 @@ namespace OpenRA.Mods.Shock.Traits
 
 			public override Activity Tick(Actor self)
 			{
-				if (attack.InUse == false && attack.MasterForward == null)
+				if (IsCanceled || attack.InUse == false && attack.Master == null)
 					return NextActivity;
 
 				return this;
@@ -147,10 +151,13 @@ namespace OpenRA.Mods.Shock.Traits
 
 		public bool ForwardingDone = true;
 
-		public Actor MasterForward = null;
+		public Actor Master = null;
+		public AttackForwarding MasterForward = null;
+		public Pair<AttackForwarding, Actor> SelfPair = new Pair<AttackForwarding, Actor>();
 		public Actor DelegateForward = null;
 		public WVec DelegateOffset;
-		int ticks;
+		int forwardcount = 0;
+		int forwardmastercount = 0;
 
 		//List of Actors currently forwarding to this actor, and of all actors forwarding to this actor period, through all forwards
 		//from all actors.
@@ -184,7 +191,7 @@ namespace OpenRA.Mods.Shock.Traits
 
 		public override void AttackTarget(Target target, bool queued, bool allowMove, bool forceAttack = false)
 		{
-			if (MasterForward == Self)
+			if (Master == Self)
 			{
 				currentactivity.target = target;
 				return;
@@ -195,7 +202,7 @@ namespace OpenRA.Mods.Shock.Traits
 
 		public override Activity GetAttackActivity(Actor self, Target newTarget, bool allowMove, bool forceAttack)
 		{
-			if (MasterForward == null && !(charging && InUse))
+			if (Master == null && !(charging && InUse))
 			{
 				currentactivity = new SetTarget(this, newTarget, allowMove);
 				return currentactivity;
@@ -209,7 +216,7 @@ namespace OpenRA.Mods.Shock.Traits
 
 		protected override void Tick(Actor self)
 		{
-			if (MasterForward == Self && ForwardList.All(a => a.First.IsCharged()))
+			if (Master == Self && ForwardList.All(a => a.First.IsCharged()))
 			{
 				if (info.Forwards != null)
 				{
@@ -232,7 +239,7 @@ namespace OpenRA.Mods.Shock.Traits
 				base.Tick(self);
 			}
 
-			if (MasterForward != Self && IsCharged() && info.ForwardWeapon != null && ForwardingDone && DelegateForward != null)
+			if (Master != Self && IsCharged() && info.ForwardWeapon != null && ForwardingDone && DelegateForward != null)
 			{
 				Func<WPos> muzzlePosition = () => self.CenterPosition + info.LocalOffset;
 
@@ -269,10 +276,10 @@ namespace OpenRA.Mods.Shock.Traits
 
 			if (!charging)
 			{
-				charging = MasterForward != null;
+				charging = Master != null;
 			}
 
-			if (charging && (MasterForward == null ? false : MasterForward != self) && ForwardList.All(a => a.First.IsCharged()))
+			if (charging && (Master == null ? false : Master != self) && ForwardList.All(a => a.First.IsCharged()))
 			{
 				Charging(self);
 			}
@@ -311,20 +318,27 @@ namespace OpenRA.Mods.Shock.Traits
 			base.StartCharge();
 		}
 
-		protected override void StartCharge() { }
+		protected override void StartCharge()
+		{
+			if (info.BurstsWaitForCharge)
+			{
+				base.StartCharge();
+			}
+		}
 
 		protected override bool CanAttack(Actor self, Target target)
 		{
-			if (!charging && MasterForward == null && !InUse)
+			if (!charging && Master == null && !InUse)
 			{
 				if (!IsTraitPaused && !IsTraitDisabled)
 				{
 					ForwardList = new List<Pair<AttackForwarding, Actor>>();
 					ForwardMasterList = new List<Pair<AttackForwarding, Actor>>();
 					InUse = true;
-					MasterForward = Self;
+					Master = Self;
+					MasterForward = this;
 					ForwardsInRange(Self);
-					RequestForward(self);
+					RequestForward(Self, this);
 				}
 			}
 
@@ -337,7 +351,7 @@ namespace OpenRA.Mods.Shock.Traits
 
 		public override void ResolveOrder(Actor self, Order order)
 		{
-			if (MasterForward == Self)
+			if (Master == Self)
 			{
 				if (order.OrderString != "Attack" && order.OrderString != "ForceAttack")
 				{
@@ -368,6 +382,7 @@ namespace OpenRA.Mods.Shock.Traits
 			ForwardMasterList = new List<Pair<AttackForwarding, Actor>>();
 			charging = false;
 			MasterForward = null;
+			Master = null;
 			InUse = false;
 			base.StartCharge();
 			Charging(Self);
@@ -421,14 +436,15 @@ namespace OpenRA.Mods.Shock.Traits
 			InUse = false;
 			charging = false;
 			MasterForward = null;
+			Master = null;
 			base.StartCharge();
 			Charging(Self);
 		}
 
-		protected void RequestForward(Actor master)
+		protected void RequestForward(Actor master, AttackForwarding masterforward)
 		{
-			var forwardcount = 0;
-			var forwardmastercount = 0;
+			forwardcount = 0;
+			forwardmastercount = 0;
 			ForwardList = new List<Pair<AttackForwarding, Actor>>();
 			ForwardMasterList = new List<Pair<AttackForwarding, Actor>>();
 			ForwardsInRange(Self);
@@ -444,7 +460,10 @@ namespace OpenRA.Mods.Shock.Traits
 				if (forwardmastercount == info.ForwardMaximum)
 					continue;
 
-				if (Forward.InUse || !Forward.Self.IsInWorld || Forward.MasterForward != null || Forward.MasterForward == Forward.Self
+				if (masterforward.forwardmastercount == masterforward.info.ForwardMaximum)
+					continue;
+
+				if (Forward.InUse || !Forward.Self.IsInWorld || Forward.Master != null || Forward.Master == Forward.Self
 					|| Forward.ForwardList.Count != 0 || Forward.ForwardMasterList.Count != 0 || Forward.charging || IsAiming)
 					continue;
 
@@ -457,11 +476,15 @@ namespace OpenRA.Mods.Shock.Traits
 					Forward.InUse = true;
 					Forward.charging = true;
 					Forward.MasterForward = MasterForward;
+					Forward.Master = Master;
 					Forward.DelegateForward = Self;
 					Forward.DelegateOffset = Forward.info.LocalOffset;
-					ForwardList.Add(Pair.New(Forward, ForwardActor));
+					var new_pair = Pair.New(Forward, ForwardActor);
+					Forward.SelfPair = new_pair;
+					ForwardList.Add(new_pair);
 					ForwardMasterList.Add(Pair.New(Forward, ForwardActor));
 					forwardcount += 1;
+					masterforward.forwardmastercount += 1;
 
 					Forward.Self.QueueActivity(new Forwarding(Forward, Self));
 				}
@@ -470,24 +493,18 @@ namespace OpenRA.Mods.Shock.Traits
 			foreach (var f in ForwardList)
 			{
 				var Forward = f.First;
-				Forward.RequestForward(master);
+				Forward.RequestForward(master, masterforward);
 
 				foreach (var fo in Forward.ForwardMasterList)
 				{
-					if (forwardmastercount == info.ForwardMaximum)
-						continue;
-
-					if (ForwardMasterList.Contains(fo))
+					if (Forward.forwardmastercount == masterforward.info.ForwardMaximum)
 						continue;
 
 					if (fo.Second != Self)
 					{
-						ForwardMasterList.Add(fo);
-						forwardmastercount += 1;
+						masterforward.ForwardMasterList.Add(fo);
 					}
 				}
-
-				forwardmastercount = ForwardMasterList.Count();
 			}
 		}
 	}

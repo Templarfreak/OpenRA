@@ -74,6 +74,9 @@ namespace OpenRA.Mods.Common.Traits
 			ChargeLevel = 0;
 		}
 
+		protected virtual void Selling(Actor self) { StartCharge(); }
+		protected virtual void Sold(Actor self) { }
+
 		protected virtual void Charging(Actor self)
 		{
 			var delta = charging ? info.ChargeRate : -info.DischargeRate;
@@ -89,7 +92,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyAttack.Attacking(Actor self, Target target, Armament a, Barrel barrel) { StartCharge(); }
 		void INotifyAttack.PreparingAttack(Actor self, Target target, Armament a, Barrel barrel) { }
-		void INotifySold.Selling(Actor self) { ChargeLevel = 0; }
-		void INotifySold.Sold(Actor self) { }
+		void INotifySold.Selling(Actor self) { Selling(self); }
+		void INotifySold.Sold(Actor self) { Sold(self); }
 	}
 }
