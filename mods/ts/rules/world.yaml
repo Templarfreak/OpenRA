@@ -11,6 +11,8 @@
 		UseExtendedIndex: true
 		ShroudPalette: shroud
 		FogPalette: shroud
+    TintLayer:
+        ZOffset: 10
 	Locomotor@FOOT:
 		Name: foot
 		Crushes: crate
