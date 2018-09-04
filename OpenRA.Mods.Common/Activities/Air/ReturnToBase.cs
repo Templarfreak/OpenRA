@@ -37,25 +37,32 @@ namespace OpenRA.Mods.Common.Activities
 			aircraftInfo = self.Info.TraitInfo<AircraftInfo>();
 		}
 
-		public static Actor ChooseResupplier(Actor self, bool unreservedOnly)
+		public Actor ChooseResupplier(Actor self, bool unreservedOnly)
 		{
-			var rearmBuildings = self.Info.TraitInfo<AircraftInfo>().RearmBuildings;
-			return self.World.ActorsHavingTrait<Reservable>()
-				.Where(a => a.Owner == self.Owner
-					&& rearmBuildings.Contains(a.Info.Name)
-					&& (!unreservedOnly || !Reservable.IsReserved(a)))
+			var rearmBuildings = aircraft.Info.RearmBuildings;
+			return self.World.Actors.Where(a => a.Owner == self.Owner
+				&& rearmBuildings.Contains(a.Info.Name)
+				&& (!unreservedOnly || !Reservable.IsReserved(a, aircraft)))
 				.ClosestTo(self);
+
+		//	var rearmBuildings = self.Info.TraitInfo<AircraftInfo>().RearmBuildings;
+		//	return self.World.ActorsHavingTrait<Reservable>()
+		//		.Where(a => a.Owner == self.Owner
+		//			&& rearmBuildings.Contains(a.Info.Name)
+		//			&& (!unreservedOnly || !Reservable.IsReserved(a, aircraft)))
+		//		.ClosestTo(self);
 		}
 
 		void Calculate(Actor self)
 		{
-			if (dest == null || dest.IsDead || Reservable.IsReserved(dest))
+			if (dest == null || dest.IsDead || Reservable.IsReserved(dest, aircraft))
 				dest = ChooseResupplier(self, true);
 
 			if (dest == null)
 				return;
 
-			var landPos = dest.CenterPosition;
+			aircraft.MakeReservation(dest);
+			var landPos = aircraft.reservation.Second;
 			var altitude = aircraftInfo.CruiseAltitude.Length;
 
 			// Distance required for descent.
@@ -121,18 +128,52 @@ namespace OpenRA.Mods.Common.Activities
 			if (!isCalculated)
 				Calculate(self);
 
+			if (dest == null || dest.IsDead || Reservable.IsReserved(dest, aircraft))
+				dest = ChooseResupplier(self, true);
+
 			if (dest == null || dest.IsDead)
 			{
 				var nearestResupplier = ChooseResupplier(self, false);
 
-				if (nearestResupplier != null)
-					return ActivityUtils.SequenceActivities(
-						new Fly(self, Target.FromActor(nearestResupplier), WDist.Zero, aircraft.Info.WaitDistanceFromResupplyBase),
-						new FlyCircle(self, aircraft.Info.NumberOfTicksToVerifyAvailableAirport),
-						this);
+				if (nearestResupplier == null && aircraft.Info.LandWhenIdle)
+				{
+					List<Activity> _landingProcedures = new List<Activity>();
+
+					var _turnRadius = CalculateTurnRadius(aircraftInfo.Speed);
+
+					_landingProcedures.Add(new Fly(self, Target.FromPos(w1), WDist.Zero, new WDist(_turnRadius * 3)));
+					_landingProcedures.Add(new Fly(self, Target.FromPos(w2)));
+
+					// Fix a problem when the airplane is send to resupply near the airport
+					_landingProcedures.Add(new Fly(self, Target.FromPos(w3), WDist.Zero, new WDist(_turnRadius / 2)));
+
+					if (ShouldLandAtBuilding(self, dest))
+					{
+						aircraft.MakeReservation(dest);
+						var landPos = aircraft.reservation.Second;
+
+						_landingProcedures.Add(new Land(self, Target.FromPos(landPos)));
+						_landingProcedures.Add(new ResupplyAircraft(self));
+					}
+				}
+				else if (nearestResupplier == null && !aircraft.Info.LandWhenIdle)
+					return null;
 				else
 				{
-					// Prevent an infinite loop in case we'd return to the activity that called ReturnToBase in the first place. Go idle instead.
+					var distanceFromResupplier = (nearestResupplier.CenterPosition - self.CenterPosition).HorizontalLength;
+					var distanceLength = aircraft.Info.WaitDistanceFromResupplyBase.Length;
+
+					// If no pad is available, move near one and wait
+					if (distanceFromResupplier > distanceLength)
+					{
+						var randomPosition = WVec.FromPDF(self.World.SharedRandom, 2) * distanceLength / 1024;
+
+						var target = Target.FromPos(nearestResupplier.CenterPosition + randomPosition);
+
+						return ActivityUtils.SequenceActivities(new Fly(self, target, WDist.Zero, aircraft.Info.WaitDistanceFromResupplyBase),
+							new FlyCircle(self, aircraft.Info.NumberOfTicksToVerifyAvailableAirport), this);
+					}
+
 					Cancel(self);
 					return NextActivity;
 				}
@@ -151,8 +192,9 @@ namespace OpenRA.Mods.Common.Activities
 			if (ShouldLandAtBuilding(self, dest))
 			{
 				aircraft.MakeReservation(dest);
+				var landPos = aircraft.reservation.Second;
 
-				landingProcedures.Add(new Land(self, Target.FromActor(dest)));
+				landingProcedures.Add(new Land(self, Target.FromPos(landPos)));
 				landingProcedures.Add(new ResupplyAircraft(self));
 			}
 

@@ -36,7 +36,7 @@ namespace OpenRA.Mods.Common.Activities
 			var rearmBuildings = aircraft.Info.RearmBuildings;
 			return self.World.Actors.Where(a => a.Owner == self.Owner
 				&& rearmBuildings.Contains(a.Info.Name)
-				&& (!unreservedOnly || !Reservable.IsReserved(a)))
+				&& (!unreservedOnly || !Reservable.IsReserved(a, aircraft)))
 				.ClosestTo(self);
 		}
 
@@ -50,7 +50,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceled)
 				return NextActivity;
 
-			if (dest == null || dest.IsDead || Reservable.IsReserved(dest))
+			if (dest == null || dest.IsDead || Reservable.IsReserved(dest, aircraft))
 				dest = ChooseResupplier(self, true);
 
 			var initialFacing = aircraft.Info.InitialFacing;
@@ -89,15 +89,15 @@ namespace OpenRA.Mods.Common.Activities
 				}
 			}
 
-			var exit = dest.Info.FirstExitOrDefault(null);
-			var offset = (exit != null) ? exit.SpawnOffset : WVec.Zero;
+			WPos landPos = WPos.Zero;
 
 			if (ShouldLandAtBuilding(self, dest))
 			{
 				aircraft.MakeReservation(dest);
+				landPos = aircraft.reservation.Second;
 
 				return ActivityUtils.SequenceActivities(
-					new HeliFly(self, Target.FromPos(dest.CenterPosition + offset)),
+					new HeliFly(self, Target.FromPos(landPos)),
 					new Turn(self, initialFacing),
 					new HeliLand(self, false),
 					new ResupplyAircraft(self),
@@ -105,7 +105,7 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			return ActivityUtils.SequenceActivities(
-				new HeliFly(self, Target.FromPos(dest.CenterPosition + offset)),
+				new HeliFly(self, Target.FromPos(landPos)),
 				NextActivity);
 		}
 

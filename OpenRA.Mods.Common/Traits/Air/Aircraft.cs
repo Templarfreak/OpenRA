@@ -78,6 +78,10 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Does this actor need to turn before landing?")]
 		public readonly bool TurnToLand = false;
 
+		[Desc("If this is true, then this aircraft will not kick off aircraft that have full ammo and health if they also " +
+			"have full ammo and health.")]
+		public readonly bool DontForceYield = true;
+
 		[Desc("Does this actor cancel its previous activity after resupplying?")]
 		public readonly bool AbortOnResupply = true;
 
@@ -155,10 +159,10 @@ namespace OpenRA.Mods.Common.Traits
 		static readonly Pair<CPos, SubCell>[] NoCells = { };
 
 		public readonly AircraftInfo Info;
-		readonly Actor self;
+		public Actor self { get; private set; }
 
 		ConditionManager conditionManager;
-		IDisposable reservation;
+		public Pair<DisposableAction, WPos> reservation;
 		IEnumerable<int> speedModifiers;
 
 		[Sync] public int Facing { get; set; }
@@ -322,9 +326,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.Repulsable)
 				return WVec.Zero;
 
-			if (reservation != null)
+			if (reservation.First != null)
 			{
-				var distanceFromReservationActor = (ReservedActor.CenterPosition - self.CenterPosition).HorizontalLength;
+				var distanceFromReservationActor = (reservation.Second - self.CenterPosition).HorizontalLength;
 				if (distanceFromReservationActor < Info.WaitDistanceFromResupplyBase.Length)
 					return WVec.Zero;
 			}
@@ -426,7 +430,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void AllowYieldingReservation()
 		{
-			if (reservation == null)
+			if (reservation.First == null)
 				return;
 
 			MayYieldReservation = true;
@@ -434,11 +438,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void UnReserve()
 		{
-			if (reservation == null)
+			if (reservation.First == null)
 				return;
 
-			reservation.Dispose();
-			reservation = null;
+			reservation.First.Dispose();
+			reservation = new Pair<DisposableAction, WPos>();
 			ReservedActor = null;
 			MayYieldReservation = false;
 
@@ -648,7 +652,7 @@ namespace OpenRA.Mods.Common.Traits
 			get
 			{
 				yield return new EnterAlliedActorTargeter<BuildingInfo>("Enter", 5,
-					target => AircraftCanEnter(target), target => !Reservable.IsReserved(target));
+					target => AircraftCanEnter(target), target => !Reservable.IsReserved(target, this));
 
 				yield return new AircraftMoveOrderTargeter(Info);
 			}
@@ -721,7 +725,7 @@ namespace OpenRA.Mods.Common.Traits
 					UnReserve();
 
 				var targetActor = order.Target.Actor;
-				if (Reservable.IsReserved(targetActor))
+				if (Reservable.IsReserved(targetActor, this))
 				{
 					if (!Info.CanHover)
 						self.QueueActivity(new ReturnToBase(self, Info.AbortOnResupply));
@@ -734,9 +738,20 @@ namespace OpenRA.Mods.Common.Traits
 
 					if (!Info.CanHover && !Info.VTOL)
 					{
-						self.QueueActivity(order.Queued, ActivityUtils.SequenceActivities(
-							new ReturnToBase(self, Info.AbortOnResupply, targetActor),
-							new ResupplyAircraft(self)));
+						MakeReservation(targetActor);
+
+						Action enter = () =>
+						{
+							var dock = reservation.Second;
+
+							self.QueueActivity(new Fly(self, Target.FromPos(dock)));
+							self.QueueActivity(new ReturnToBase(self, Info.AbortOnResupply, targetActor));
+							self.QueueActivity(new ResupplyAircraft(self));
+
+
+						};
+
+						self.QueueActivity(order.Queued, new CallFunc(enter));
 					}
 					else
 					{
@@ -744,10 +759,9 @@ namespace OpenRA.Mods.Common.Traits
 
 						Action enter = () =>
 						{
-							var exit = targetActor.Info.FirstExitOrDefault(null);
-							var offset = (exit != null) ? exit.SpawnOffset : WVec.Zero;
+							var dock = reservation.Second;
 
-							self.QueueActivity(new HeliFly(self, Target.FromPos(targetActor.CenterPosition + offset)));
+							self.QueueActivity(new HeliFly(self, Target.FromPos(dock)));
 							self.QueueActivity(new Turn(self, Info.InitialFacing));
 							self.QueueActivity(new HeliLand(self, false));
 							self.QueueActivity(new ResupplyAircraft(self));

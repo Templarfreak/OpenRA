@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Traits;
@@ -24,10 +25,12 @@ namespace OpenRA.Mods.Common.Traits
 	public class ReturnOnIdle : INotifyIdle
 	{
 		readonly AircraftInfo aircraftInfo;
+		readonly Aircraft aircraft;
 
 		public ReturnOnIdle(Actor self, ReturnOnIdleInfo info)
 		{
 			aircraftInfo = self.Info.TraitInfo<AircraftInfo>();
+			aircraft = self.Trait<Aircraft>();
 		}
 
 		void INotifyIdle.TickIdle(Actor self)
@@ -36,35 +39,77 @@ namespace OpenRA.Mods.Common.Traits
 			if (self.World.Map.DistanceAboveTerrain(self.CenterPosition).Length < aircraftInfo.MinAirborneAltitude)
 				return;
 
-			var resupplier = ReturnToBase.ChooseResupplier(self, true);
-			if (resupplier != null)
+
+			if (!aircraftInfo.CanHover)
 			{
-				self.QueueActivity(new ReturnToBase(self, aircraftInfo.AbortOnResupply, resupplier));
-				self.QueueActivity(new ResupplyAircraft(self));
+				var returntobase = new ReturnToBase(self, aircraftInfo.AbortOnResupply);
+				var resupplier = returntobase.ChooseResupplier(self, true);
+
+				if (resupplier != null)
+				{
+					aircraft.MakeReservation(resupplier);
+
+					self.QueueActivity(new ReturnToBase(self, aircraftInfo.AbortOnResupply, resupplier));
+					self.QueueActivity(new ResupplyAircraft(self));
+				}
+				else
+				{
+					CantLand(self);
+				}
 			}
 			else
 			{
-				// nowhere to land, pick something friendly and circle over it.
+				var returntobase = new HeliReturnToBase(self, aircraftInfo.AbortOnResupply);
+				var resupplier = returntobase.ChooseResupplier(self, true);
+				
 
-				// I'd prefer something we own
-				var someBuilding = self.World.ActorsHavingTrait<Building>()
-					.FirstOrDefault(a => a.Owner == self.Owner);
-
-				// failing that, something unlikely to shoot at us
-				if (someBuilding == null)
-					someBuilding = self.World.ActorsHavingTrait<Building>()
-						.FirstOrDefault(a => self.Owner.Stances[a.Owner] == Stance.Ally);
-
-				if (someBuilding == null)
+				if (resupplier != null)
 				{
-					// ... going down the garden to eat worms ...
-					self.QueueActivity(new FlyOffMap(self));
-					self.QueueActivity(new RemoveSelf());
-					return;
-				}
+					aircraft.MakeReservation(resupplier);
+					var dock = aircraft.reservation.Second;
 
+					self.QueueActivity(new HeliFly(self, Target.FromPos(dock)));
+					self.QueueActivity(new Turn(self, aircraftInfo.InitialFacing));
+					self.QueueActivity(new HeliLand(self, false));
+					self.QueueActivity(new ResupplyAircraft(self));
+				}
+				else
+				{
+					CantLand(self);
+				}
+			}
+		}
+
+		protected void CantLand(Actor self)
+		{
+			// nowhere to land, pick something friendly and circle over it.
+
+			// I'd prefer something we own
+			var someBuilding = self.World.ActorsHavingTrait<Building>()
+				.FirstOrDefault(a => a.Owner == self.Owner);
+
+			// failing that, something unlikely to shoot at us
+			if (someBuilding == null)
+				someBuilding = self.World.ActorsHavingTrait<Building>()
+					.FirstOrDefault(a => self.Owner.Stances[a.Owner] == Stance.Ally);
+
+			if (someBuilding == null)
+			{
+				// ... going down the garden to eat worms ...
+				self.QueueActivity(new FlyOffMap(self));
+				self.QueueActivity(new RemoveSelf());
+				return;
+			}
+
+			if (!aircraftInfo.CanHover)
+			{
 				self.QueueActivity(new Fly(self, Target.FromActor(someBuilding)));
 				self.QueueActivity(new FlyCircle(self));
+			}
+			else
+			{
+				self.QueueActivity(new HeliFly(self, Target.FromActor(someBuilding)));
+				self.QueueActivity(new HeliFlyCircle(self));
 			}
 		}
 	}

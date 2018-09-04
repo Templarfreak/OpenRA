@@ -938,3 +938,4 @@ mods/ra/rules/structures.yaml
 mods/ts/mod.yaml
 mods/ts/rules/nod-structures.yaml
 mods/ts/rules/world.yaml
+launch-game.cmd
