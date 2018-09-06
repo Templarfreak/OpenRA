@@ -24,12 +24,14 @@ namespace OpenRA.Mods.Common.Activities
 		readonly Target host;
 		readonly WDist closeEnough;
 		readonly Repairable repairable;
+		int fixed_cost = 0;
 
 		int remainingTicks;
 		bool played = false;
 
-		public Repair(Actor self, Actor host, WDist closeEnough)
+		public Repair(Actor self, Actor host, WDist closeEnough, int cost = -1)
 		{
+			fixed_cost = cost;
 			this.host = Target.FromActor(host);
 			this.closeEnough = closeEnough;
 			allRepairsUnits = host.TraitsImplementing<RepairsUnits>().ToArray();
@@ -103,6 +105,18 @@ namespace OpenRA.Mods.Common.Activities
 
 				// Cast to long to avoid overflow when multiplying by the health
 				var cost = Math.Max(1, (int)(((long)hpToRepair * unitCost * repairsUnits.Info.ValuePercentage) / (health.MaxHP * 100L)));
+
+				if (fixed_cost > -1)
+				{
+					var calccost = fixed_cost;
+
+					if (repairable.Info.FixedCostStillUsesValuePercentage)
+					{
+						calccost = fixed_cost * repairsUnits.Info.ValuePercentage;
+					}
+
+					cost = calccost;
+				}
 
 				if (!played)
 				{

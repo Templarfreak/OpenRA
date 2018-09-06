@@ -29,6 +29,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("The amount the unit will be repaired at each step. Use -1 for fallback behavior where HpPerStep from RepairUnit trait will be used.")]
 		public readonly int HpPerStep = -1;
 
+		[Desc("Amount of credits to charge per HP step. If this is -1, default cost calculation will be used.")]
+		public readonly int HPCostPerStep = -1;
+
+		[Desc("If this is true, then fixed cost will still scale by value percentage of the RepairsUnits actor.")]
+		public readonly bool FixedCostStillUsesValuePercentage = false;
+
+		[Desc("Amount of credits to charge per ammo restored.")]
+		public readonly int CostPerAmmo = 0;
+
 		public virtual object Create(ActorInitializer init) { return new Repairable(init.Self, this); }
 	}
 
@@ -124,10 +133,11 @@ namespace OpenRA.Mods.Common.Traits
 			// will need to be rewritten anyway, so this is OK for now.
 			self.QueueActivity(movement.MoveTo(self.World.Map.CellContaining(targetActor.CenterPosition), targetActor));
 			if (CanRearmAt(targetActor) && CanRearm())
-				self.QueueActivity(new Rearm(self));
+				self.QueueActivity(new Rearm(self, Info.CostPerAmmo));
 
 			// Add a CloseEnough range of 512 to ensure we're at the host actor
-			self.QueueActivity(new Repair(self, targetActor, new WDist(512)));
+
+			self.QueueActivity(new Repair(self, targetActor, new WDist(512), Info.HPCostPerStep));
 
 			var rp = targetActor.TraitOrDefault<RallyPoint>();
 			if (rp != null)
