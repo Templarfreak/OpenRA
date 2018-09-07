@@ -16,6 +16,7 @@ using OpenRA.Activities;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Pathfinder;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -45,6 +46,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Which resources it can harvest.")]
 		public readonly HashSet<string> Resources = new HashSet<string>();
+
+		[Desc("If this is true, then if the amount of a given resource stored in this harvester is greater than 0, then a condition of the name" +
+			"of the resource gets granted to the harvester for as long as it has it.")]
+		public readonly bool GrantResourceConditions = false;
 
 		[Desc("Percentage of maximum speed when fully loaded.")]
 		public readonly int FullyLoadedSpeed = 85;
@@ -77,7 +82,7 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	public class Harvester : IIssueOrder, IResolveOrder, IPips, IExplodeModifier, IOrderVoice,
-		ISpeedModifier, ISync, INotifyCreated, INotifyIdle, INotifyBlockingMove
+		ISpeedModifier, ISync, INotifyCreated, INotifyIdle, INotifyBlockingMove, ITick
 	{
 		public readonly HarvesterInfo Info;
 		readonly Mobile mobile;
@@ -87,6 +92,10 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyHarvesterAction[] notify;
 		bool idleSmart = true;
 		int idleDuration;
+
+		ConditionManager conditionManager;
+		List<Pair<int, string>> ConditionTokens = new List<Pair<int, string>>();
+		int null_token = ConditionManager.InvalidConditionToken;
 
 		[Sync] public bool LastSearchFailed;
 		[Sync] public Actor OwnerLinkedProc = null;
@@ -119,11 +128,45 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyCreated.Created(Actor self)
 		{
+			conditionManager = self.TraitOrDefault<ConditionManager>();
+
 			notify = self.TraitsImplementing<INotifyHarvesterAction>().ToArray();
 
 			// Note: This is queued in a FrameEndTask because otherwise the activity is dropped/overridden while moving out of a factory.
 			if (Info.SearchOnCreation)
 				self.World.AddFrameEndTask(w => self.QueueActivity(new FindResources(self)));
+		}
+
+		public void Tick(Actor self)
+		{
+			if (conditionManager != null && Info.GrantResourceConditions == true)
+			{
+				foreach (var r in Info.Resources)
+				{
+					if (contents.Any(c => c.Key.Type == r && c.Value > 0) && ConditionTokens.All(t => contents.Any(c => c.Key.Type != t.Second)))
+					{
+						if (ConditionTokens.All(t => t.Second != r))
+						{
+							ConditionTokens.Add(Pair.New(conditionManager.GrantCondition(self, r), r));
+						}
+					}
+					else if (contents.Any(c => c.Key.Type == r && c.Value == 0) || (contents.All(c => c.Key.Type != r) && contents != null
+						&& contents.Any(c => c.Key != null) && ConditionTokens.Any(t => t.First != null_token)) || contents.Count == 0)
+					{
+						if (ConditionTokens.Any(t => t.Second == r))
+						{
+							var revoked = ConditionTokens.First(t => t.Second == r);
+
+							if (revoked.First != null_token)
+							{
+								conditionManager.RevokeCondition(self, revoked.First);
+								ConditionTokens.Remove(revoked);
+							}
+						}
+					}
+				}
+			}
+
 		}
 
 		public void SetProcLines(Actor proc)

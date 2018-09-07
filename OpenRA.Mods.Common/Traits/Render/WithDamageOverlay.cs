@@ -20,6 +20,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 	{
 		public readonly string Image = "smoke_m";
 
+		[Desc("The palette to render this DamageOverlay in.")]
+		public readonly string Palette = null;
+
 		[SequenceReference("Image")] public readonly string IdleSequence = "idle";
 		[SequenceReference("Image")] public readonly string LoopSequence = "loop";
 		[SequenceReference("Image")] public readonly string EndSequence = "end";
@@ -28,6 +31,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 			"Leave empty to disable all filtering.")]
 		public readonly BitSet<DamageType> DamageTypes = default(BitSet<DamageType>);
 
+		[Desc("The chance that this overlay will just randomly happen again if it is in the correct damage state.")]
+		public readonly int OverlayChance = 0;
+
+		[Desc("How many ticks to wait before checking to randomly play the overlay again. ")]
+		public readonly int OverlayTick = 0;
+
 		[Desc("Trigger when Undamaged, Light, Medium, Heavy, Critical or Dead.")]
 		public readonly DamageState MinimumDamageState = DamageState.Heavy;
 		public readonly DamageState MaximumDamageState = DamageState.Dead;
@@ -35,10 +44,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 		public object Create(ActorInitializer init) { return new WithDamageOverlay(init.Self, this); }
 	}
 
-	public class WithDamageOverlay : INotifyDamage
+	public class WithDamageOverlay : INotifyDamage, ITick
 	{
 		readonly WithDamageOverlayInfo info;
 		readonly Animation anim;
+		[Sync] int tick;
+		[Sync] int chance;
 
 		bool isSmoking;
 
@@ -49,7 +60,31 @@ namespace OpenRA.Mods.Common.Traits.Render
 			var rs = self.Trait<RenderSprites>();
 
 			anim = new Animation(self.World, info.Image);
-			rs.Add(new AnimationWithOffset(anim, null, () => !isSmoking));
+			rs.Add(new AnimationWithOffset(anim, null, () => !isSmoking), info.Palette);
+		}
+
+		public void Tick(Actor self)
+		{
+			if (info.OverlayTick == 0 || info.OverlayChance == 0)
+				return;
+
+			var damage_state = Damage_State_Check(self);
+			tick++;
+
+			if (damage_state)
+				return;
+
+			if (tick >= info.OverlayTick)
+			{
+				chance = self.World.SharedRandom.Next(0, 100);
+				tick = 0;
+
+				if (chance > info.OverlayChance)
+				{
+					PlayAnim();
+				}
+			}
+
 		}
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
@@ -57,11 +92,37 @@ namespace OpenRA.Mods.Common.Traits.Render
 			if (!info.DamageTypes.IsEmpty && !e.Damage.DamageTypes.Overlaps(info.DamageTypes))
 				return;
 
-			if (isSmoking) return;
-			if (e.Damage.Value < 0) return;	/* getting healed */
-			if (e.DamageState < info.MinimumDamageState) return;
-			if (e.DamageState > info.MaximumDamageState) return;
+			var damage_state = Damage_State_Check(self, e);
 
+			if (damage_state)
+			{
+				return;
+			}
+
+			PlayAnim();
+		}
+
+		bool Damage_State_Check(Actor self, AttackInfo e = null)
+		{
+			if (e != null)
+			{
+				if (isSmoking) return true; 
+				if (e.Damage.Value < 0) return true;	/* getting healed */
+				if (e.DamageState < info.MinimumDamageState) return true;
+				if (e.DamageState > info.MaximumDamageState) return true;
+			}
+			else
+			{
+				if (isSmoking) return true;
+				if (self.GetDamageState() < info.MinimumDamageState) return true;
+				if (self.GetDamageState() > info.MaximumDamageState) return true;
+			}
+
+			return false;
+		}
+
+		void PlayAnim()
+		{
 			isSmoking = true;
 			anim.PlayThen(info.IdleSequence,
 				() => anim.PlayThen(info.LoopSequence,
