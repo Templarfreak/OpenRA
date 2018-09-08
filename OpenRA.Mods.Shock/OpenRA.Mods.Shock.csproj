@@ -89,6 +89,7 @@
     <Compile Include="Traits\Infiltration\GrantConditionOnInfiltration.cs" />
     <Compile Include="Traits\Player\StarportProductionQueue.cs" />
     <Compile Include="Traits\Sound\MovementSound.cs" />
+    <Compile Include="Traits\Warheads\DamagesCargoWarhead.cs" />
     <Compile Include="Traits\Warheads\CreateRadioactivityWarhead.cs" />
     <Compile Include="Traits\Warheads\FireShrapnelWarhead.cs" />
     <Compile Include="Traits\Warheads\WarheadAS.cs" />

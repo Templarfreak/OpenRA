@@ -80,7 +80,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly CargoInfo Info;
 		readonly Actor self;
-		readonly Stack<Actor> cargo = new Stack<Actor>();
+		public Stack<Actor> cargo = new Stack<Actor>();
 		readonly HashSet<Actor> reserves = new HashSet<Actor>();
 		readonly Dictionary<string, Stack<int>> passengerTokens = new Dictionary<string, Stack<int>>();
 		readonly Lazy<IFacing> facing;
@@ -461,6 +461,21 @@ namespace OpenRA.Mods.Common.Traits
 				}
 
 				initialized = true;
+			}
+
+			if (cargo.Any(c => c.IsDead))
+			{
+				var stack = cargo.Where(c => !c.IsDead);
+				Stack<Actor> new_stack = new Stack<Actor>();
+
+				foreach (var a in stack)
+				{
+					Unload(a);
+					new_stack.Push(a);
+				}
+
+				cargo = new_stack;
+				totalWeight = cargo.Sum(c => GetWeight(c));
 			}
 
 			var cell = self.World.Map.CellContaining(self.CenterPosition);
