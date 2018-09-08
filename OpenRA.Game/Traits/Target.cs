@@ -20,8 +20,10 @@ namespace OpenRA.Traits
 	{
 		public static readonly Target[] None = { };
 		public static readonly Target Invalid = new Target { type = TargetType.Invalid };
-		public static bool operator ==(Target me, Target other) { return me.Actor == other.Actor; }
-		public static bool operator !=(Target me, Target other) { return me.Actor != other.Actor; }
+		public static bool operator ==(Target me, Target other) { return (me.Actor == other.Actor) || (me.pos == other.pos) 
+				|| (me.pos == other.actor.CenterPosition) || (me.actor.CenterPosition == other.pos); }
+		public static bool operator !=(Target me, Target other) { return (me.Actor != other.Actor) || (me.pos != other.pos) 
+				|| (me.pos != other.actor.CenterPosition) || (me.actor.CenterPosition != other.pos); }
 		public override int GetHashCode() { return actor.GetHashCode() ^ type.GetHashCode() ^ pos.GetHashCode(); }
 
 		public override bool Equals(object obj)
