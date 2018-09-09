@@ -10,6 +10,7 @@
 #endregion
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Drawing;
 using OpenRA.Mods.Common.Activities;
@@ -94,7 +95,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IsCorrectCargoType(Actor target)
 		{
-			var ci = target.Info.TraitInfo<CargoInfo>();
+			var ci = target.Info.TraitInfos<CargoInfo>().First(c => c.Loadable);
 			return ci.Types.Contains(Info.CargoType);
 		}
 
@@ -105,7 +106,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool CanEnter(Actor target)
 		{
-			return CanEnter(target.TraitOrDefault<Cargo>());
+			return CanEnter(target.TraitsImplementing<Cargo>().FirstOrDefault(c => (c.Info.Loadable && c.HasSpace(Info.Weight))));
 		}
 
 		public string VoicePhraseForOrder(Actor self, Order order)

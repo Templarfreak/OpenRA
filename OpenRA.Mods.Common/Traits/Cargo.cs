@@ -40,6 +40,14 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("When this actor dies should all of its passengers be unloaded?")]
 		public readonly bool EjectOnDeath = false;
 
+		[Desc("Whether or not infantry loaded inside can be unloaded from this cargo hold. If this is false, all loaded units will die regardless" +
+			"of EjectOnDeath or EjectOnSell.")]
+		public readonly bool Unloadable = true;
+
+		[Desc("Whether or not infantry can be loaded into this cargo hold. InitialUnits are not subject to this, they will still be put in" +
+			"the cargo hold regardless of this.")]
+		public readonly bool Loadable = true;
+
 		[Desc("Terrain types that this actor is allowed to eject actors onto. Leave empty for all terrain types.")]
 		public readonly HashSet<string> UnloadTerrainTypes = new HashSet<string>();
 
@@ -192,7 +200,7 @@ namespace OpenRA.Mods.Common.Traits
 				self.CancelActivity();
 				if (aircraft != null)
 					self.QueueActivity(new HeliLand(self, true));
-				self.QueueActivity(new UnloadCargo(self, true));
+				self.QueueActivity(new UnloadCargo(self, this, true));
 			}
 		}
 
@@ -203,6 +211,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool CanUnload()
 		{
+			if (!Info.Unloadable)
+				return false;
+
 			if (checkTerrainType)
 			{
 				var terrainType = self.World.Map.GetTerrainInfo(self.Location).Type;
@@ -217,6 +228,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool CanLoad(Actor self, Actor a)
 		{
+			if (!Info.Loadable)
+				return false;
+
 			return (reserves.Contains(a) || HasSpace(GetWeight(a))) && self.IsAtGroundLevel();
 		}
 
@@ -412,8 +426,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Info.EjectOnSell || cargo == null)
 				return;
 
-			while (!IsEmpty(self))
-				SpawnPassenger(Unload(self));
+			if (Info.Unloadable)
+			{
+				while (!IsEmpty(self))
+					SpawnPassenger(Unload(self));
+			}
+
 		}
 
 		void SpawnPassenger(Actor passenger)

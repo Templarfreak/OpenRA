@@ -26,10 +26,10 @@ namespace OpenRA.Mods.Common.Activities
 		readonly INotifyUnload[] notifiers;
 		readonly bool unloadAll;
 
-		public UnloadCargo(Actor self, bool unloadAll)
+		public UnloadCargo(Actor self, Cargo cargo, bool unloadAll)
 		{
 			this.self = self;
-			cargo = self.Trait<Cargo>();
+			this.cargo = cargo;
 			notifiers = self.TraitsImplementing<INotifyUnload>().ToArray();
 			this.unloadAll = unloadAll;
 		}

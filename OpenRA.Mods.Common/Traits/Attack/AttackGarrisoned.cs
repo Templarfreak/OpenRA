@@ -175,9 +175,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var a in Armaments)
 			{
+				var new_target = target;
+
 				if (Info.PickRandomTargets && !ForcedAttack)
 				{
-					var new_target = Target.FromActor(a.Actor.TraitOrDefault<AutoTarget>().ScanForTarget(a.Actor, false));
+					new_target = Target.FromActor(a.Actor.TraitOrDefault<AutoTarget>().ScanForTarget(a.Actor, false));
 
 					if (new_target.Type == TargetType.Invalid)
 						new_target = target;
@@ -212,7 +214,7 @@ namespace OpenRA.Mods.Common.Traits
 					paxFacing[a.Actor].Facing = muzzleFacing;
 					paxPos[a.Actor].SetVisualPosition(a.Actor, pos + PortOffset(self, port));
 
-					var barrel = a.CheckFire(a.Actor, facing, target, true);
+					var barrel = a.CheckFire(a.Actor, facing, new_target, true);
 					if (barrel == null)
 						return;
 

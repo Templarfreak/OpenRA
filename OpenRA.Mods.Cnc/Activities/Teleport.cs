@@ -87,11 +87,16 @@ namespace OpenRA.Mods.Cnc.Activities
 				{
 					while (!cargo.IsEmpty(self))
 					{
-						var a = cargo.Unload(self);
+						//Regardless of kill cargo status, if we are not unloadable don't kill cargo.
+						if (!cargo.Info.Unloadable)
+						{
+							var a = cargo.Unload(self);
 
-						// Kill all the units that are unloaded into the void
-						// Kill() handles kill and death statistics
-						a.Kill(teleporter);
+							// Kill all the units that are unloaded into the void
+							// Kill() handles kill and death statistics
+							a.Kill(teleporter);
+						}
+
 					}
 				}
 			}

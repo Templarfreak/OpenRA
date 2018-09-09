@@ -22,10 +22,19 @@ namespace OpenRA.Mods.Common.Scripting
 	{
 		readonly Cargo cargo;
 
-		public TransportProperties(ScriptContext context, Actor self)
+		public TransportProperties(ScriptContext context, Actor self, int whichcargo = 0)
 			: base(context, self)
 		{
-			cargo = self.Trait<Cargo>();
+			var cargos = self.TraitsImplementing<Cargo>();
+
+			if (whichcargo == 0)
+			{
+				cargo = cargos.First();
+			}
+			else
+			{
+				cargo = cargos.ToList().ElementAt(whichcargo);
+			}
 		}
 
 		[Desc("Specifies whether transport has any passengers.")]
@@ -41,10 +50,20 @@ namespace OpenRA.Mods.Common.Scripting
 		public Actor UnloadPassenger() { return cargo.Unload(Self); }
 
 		[ScriptActorPropertyActivity]
-		[Desc("Command transport to unload passengers.")]
-		public void UnloadPassengers()
+		[Desc("Command transport to unload passengers from the specified cargo hold.")]
+		public void UnloadPassengers(Cargo cargo)
 		{
-			Self.QueueActivity(new UnloadCargo(Self, true));
+			Self.QueueActivity(new UnloadCargo(Self, cargo, true));
+		}
+
+		[ScriptActorPropertyActivity]
+		[Desc("Command transport to unload passengers from all cargo holds.")]
+		public void UnloadAllCargoPassengers()
+		{
+			foreach (var cargo in Self.TraitsImplementing<Cargo>())
+			{
+				Self.QueueActivity(new UnloadCargo(Self, cargo, true));
+			}
 		}
 	}
 }

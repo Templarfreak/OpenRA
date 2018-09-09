@@ -197,7 +197,7 @@ namespace OpenRA.Mods.Common.Scripting
 
 				if (cargo != null)
 				{
-					transport.QueueActivity(new UnloadCargo(transport, true));
+					transport.QueueActivity(new UnloadCargo(transport, cargo, true));
 					transport.QueueActivity(new WaitFor(() => cargo.IsEmpty(transport)));
 				}
 

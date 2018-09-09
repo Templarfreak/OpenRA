@@ -10,6 +10,7 @@
 #endregion
 
 using System;
+using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
 
@@ -27,7 +28,7 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			this.transport = transport;
 			this.maxTries = maxTries;
-			cargo = transport.Trait<Cargo>();
+			cargo = transport.TraitsImplementing<Cargo>().First(c => c.CanLoad(transport, self));
 			passenger = self.Trait<Passenger>();
 		}
 
@@ -65,7 +66,8 @@ namespace OpenRA.Mods.Common.Activities
 			return TryGetAlternateTargetInCircle(
 				self, passenger.Info.AlternateTransportScanRange,
 				t => { transport = t.Actor; cargo = t.Actor.Trait<Cargo>(); }, // update transport and cargo
-				a => { var c = a.TraitOrDefault<Cargo>(); return c != null && c.Info.Types.Contains(passenger.Info.CargoType) && (c.Unloading || c.CanLoad(a, self)); },
+				a => { var c = a.TraitsImplementing<Cargo>().First(t => t.Info.Loadable);
+					return c != null && c.Info.Types.Contains(passenger.Info.CargoType) && (c.Unloading || c.CanLoad(a, self)); },
 				new Func<Actor, bool>[] { a => a.Info.Name == type }); // Prefer transports of the same type
 		}
 	}
