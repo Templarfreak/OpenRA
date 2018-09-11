@@ -130,7 +130,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (self.Info.HasTraitInfo<ValuedInfo>())
 			{
-				var cost = self.Info.TraitInfo<ValuedInfo>().Cost;
+				var cost = self.TraitOrDefault<Valued>().payedfor == 0 ? self.Info.TraitInfo<ValuedInfo>().Cost : self.TraitOrDefault<Valued>().payedfor;
 				attackerStats.KillsCost += cost;
 				defenderStats.DeathsCost += cost;
 			}

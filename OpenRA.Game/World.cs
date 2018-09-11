@@ -30,6 +30,7 @@ namespace OpenRA
 		internal readonly TraitDictionary TraitDict = new TraitDictionary();
 		readonly SortedDictionary<uint, Actor> actors = new SortedDictionary<uint, Actor>();
 		readonly List<IEffect> effects = new List<IEffect>();
+		public readonly List<IWorldTick> worldtick = new List<IWorldTick>();
 		readonly List<IEffect> unpartitionedEffects = new List<IEffect>();
 		readonly List<ISync> syncedEffects = new List<ISync>();
 
@@ -305,6 +306,11 @@ namespace OpenRA
 				syncedEffects.Add(se);
 		}
 
+		public void Add(IWorldTick t)
+		{
+			worldtick.Add(t);
+		}
+
 		public void Remove(IEffect e)
 		{
 			effects.Remove(e);
@@ -368,6 +374,7 @@ namespace OpenRA
 				ActorsWithTrait<ITick>().DoTimed(x => x.Trait.Tick(x.Actor), "Trait");
 
 				effects.DoTimed(e => e.Tick(this), "Effect");
+				worldtick.DoTimed(t => t.Tick(this), "IWorldTick");
 			}
 
 			while (frameEndActions.Count != 0)

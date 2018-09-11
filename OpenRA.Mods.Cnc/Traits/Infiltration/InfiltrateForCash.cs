@@ -58,7 +58,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			var spyValue = infiltrator.Info.TraitInfoOrDefault<ValuedInfo>();
 
 			var toTake = Math.Min(info.Maximum, (targetResources.Cash + targetResources.Resources) * info.Percentage / 100);
-			var toGive = Math.Max(toTake, info.Minimum >= 0 ? info.Minimum : spyValue != null ? spyValue.Cost : 0);
+			var toGive = Math.Max(toTake, info.Minimum >= 0 ? info.Minimum : spyValue != null ? spyValue.GetFinalCost(infiltrator.Owner) : 0);
 
 			targetResources.TakeCash(toTake);
 			spyResources.GiveCash(toGive);

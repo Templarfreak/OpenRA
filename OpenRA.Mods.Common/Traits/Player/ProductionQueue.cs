@@ -130,6 +130,8 @@ namespace OpenRA.Mods.Common.Traits
 			CacheProducibles(playerActor);
 			allProducibles = producible.Where(a => a.Value.Buildable || a.Value.Visible).Select(a => a.Key);
 			buildableProducibles = producible.Where(a => a.Value.Buildable).Select(a => a.Key);
+
+
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -194,6 +196,10 @@ namespace OpenRA.Mods.Common.Traits
 
 				producible.Add(a, new ProductionState());
 				ttc.Add(a.Name, bi.Prerequisites, bi.BuildLimit, this);
+				foreach (var t in a.TraitInfos<ValuedInfo>())
+				{
+					playerActor.World.Add(t);
+				}
 			}
 		}
 
@@ -453,9 +459,9 @@ namespace OpenRA.Mods.Common.Traits
 
 					var valued = unit.TraitInfoOrDefault<ValuedInfo>();
 					float div = (float)((float)counttobuild / (float)bi.Count);
-					int result = (int)(valued.Cost * div);
+					int result = (int)(valued.GetFinalCost(self.Owner) * div);
 					var cost = valued != null ? result : 0;
-					var time = GetBuildTime(unit, bi);
+					var time = GetBuildTime(unit, bi, self.Owner);
 					var amountToBuild = Math.Min(fromLimit, order.ExtraData);
 
 					for (var n = 0; n < amountToBuild; n++)
@@ -523,6 +529,17 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var isBuilding = unit.HasTraitInfo<BuildingInfo>();
 
+				if (unit.TraitInfo<ValuedInfo>().heat.ContainsKey(Queue.Actor.Owner))
+				{
+					unit.TraitInfo<ValuedInfo>().heat[Queue.Actor.Owner] += unit.TraitInfo<ValuedInfo>().Heat;
+				}
+				else
+				{
+					unit.TraitInfo<ValuedInfo>().heat.Add(Queue.Actor.Owner, unit.TraitInfo<ValuedInfo>().Heat);
+				}
+
+				//var ai = unit.TraitInfo<ValuedInfo>().heat[Queue.Actor.Owner] += unit.TraitInfo<ValuedInfo>().Heat;
+
 				if (isBuilding && !hasPlayedSound)
 					hasPlayedSound = Game.Sound.PlayNotification(rules, self.Owner, "Speech", Info.ReadyAudio, self.Owner.Faction.InternalName);
 				else if (!isBuilding)
@@ -541,7 +558,7 @@ namespace OpenRA.Mods.Common.Traits
 			return hasPlayedSound;
 		}
 
-		public virtual int GetBuildTime(ActorInfo unit, BuildableInfo bi)
+		public virtual int GetBuildTime(ActorInfo unit, BuildableInfo bi, Player builder)
 		{
 			if (developerMode.FastBuild)
 				return 0;
@@ -550,7 +567,14 @@ namespace OpenRA.Mods.Common.Traits
 			if (time == -1)
 			{
 				var valued = unit.TraitInfoOrDefault<ValuedInfo>();
-				time = valued != null ? valued.Cost : 0;
+				if (valued.BuildtimeScalesByInflation)
+				{
+					time = valued != null ? valued.GetFinalCost(builder) : 0;
+				}
+				else
+				{
+					time = valued != null ? valued.Cost : 0;
+				}
 			}
 
 			time = time * bi.BuildDurationModifier * Info.BuildDurationModifier / 10000;
@@ -705,7 +729,7 @@ namespace OpenRA.Mods.Common.Traits
 			this.pm = pm;
 			ai = Queue.Actor.World.Map.Rules.Actors[Item];
 			bi = ai.TraitInfo<BuildableInfo>();
-			TotalTime = Math.Max(1, Queue.GetBuildTime(ai, bi));
+			TotalTime = Math.Max(1, Queue.GetBuildTime(ai, bi, Queue.Actor.Owner));
 			RemainingTime = TotalTime;
 		}
 
@@ -713,7 +737,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!Started)
 			{
-				var time = Queue.GetBuildTime(ai, bi);
+				var time = Queue.GetBuildTime(ai, bi, Queue.Actor.Owner);
 				if (time > 0)
 					RemainingTime = TotalTime = time;
 

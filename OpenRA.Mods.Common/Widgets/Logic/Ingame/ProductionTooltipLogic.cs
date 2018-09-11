@@ -70,7 +70,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var tooltip = actor.TraitInfos<TooltipInfo>().FirstOrDefault(info => info.EnabledByDefault);
 				var name = tooltip != null ? tooltip.Name : actor.Name;
 				var buildable = actor.TraitInfo<BuildableInfo>();
-				var cost = actor.TraitInfo<ValuedInfo>().Cost;
+				var vi = actor.TraitInfo<ValuedInfo>();
+				var cost = vi.GetFinalCost(player);
 
 				nameLabel.Text = name;
 
@@ -104,7 +105,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					powerSize = font.Measure(powerLabel.Text);
 				}
 
-				var buildTime = tooltipIcon.ProductionQueue == null ? 0 : tooltipIcon.ProductionQueue.GetBuildTime(actor, buildable);
+				var buildTime = tooltipIcon.ProductionQueue == null ? 0 : tooltipIcon.ProductionQueue.GetBuildTime(actor, buildable, player);
 				var timeMultiplier = pm != null && pm.PowerState != PowerState.Normal ? tooltipIcon.ProductionQueue.Info.LowPowerSlowdown : 1;
 
 				timeLabel.Text = formatBuildTime.Update(buildTime * timeMultiplier);

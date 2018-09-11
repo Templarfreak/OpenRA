@@ -64,9 +64,9 @@ namespace OpenRA.Mods.Common.Scripting
 			return a;
 		}
 
-		[Desc("Returns the build time (in ticks) of the requested unit type.",
+		[Desc("Returns the build time (in ticks) of the requested unit type per player.",
 			"An optional second value can be used to exactly specify the producing queue type.")]
-		public int BuildTime(string type, string queue = null)
+		public int BuildTime(string type, Player builder, string queue = null)
 		{
 			ActorInfo ai;
 			if (!Context.World.Map.Rules.Actors.TryGetValue(type, out ai))
@@ -84,7 +84,18 @@ namespace OpenRA.Mods.Common.Scripting
 				if (valued == null)
 					return 0;
 				else
-					time = valued.Cost;
+				{
+					if (valued.BuildtimeScalesByInflation)
+					{
+						time = valued.GetFinalCost(builder);
+					}
+					else
+					{
+						time = valued.Cost;
+					}
+				}
+	
+					
 			}
 
 			int pbi;
@@ -135,6 +146,19 @@ namespace OpenRA.Mods.Common.Scripting
 				throw new LuaException("Actor type '{0}' does not have the Valued trait required to get the Cost.".F(type));
 
 			return vi.Cost;
+		}
+
+		public int FinalCost(string type, Player owner)
+		{
+			ActorInfo ai;
+			if (!Context.World.Map.Rules.Actors.TryGetValue(type, out ai))
+				throw new LuaException("Unknown actor type '{0}'".F(type));
+
+			var vi = ai.TraitInfoOrDefault<ValuedInfo>();
+			if (vi == null)
+				throw new LuaException("Actor type '{0}' does not have the Valued trait required to get the Cost.".F(type));
+
+			return vi.GetFinalCost(owner);
 		}
 	}
 }

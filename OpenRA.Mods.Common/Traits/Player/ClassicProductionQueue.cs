@@ -142,12 +142,12 @@ namespace OpenRA.Mods.Common.Traits
 			return false;
 		}
 
-		public override int GetBuildTime(ActorInfo unit, BuildableInfo bi)
+		public override int GetBuildTime(ActorInfo unit, BuildableInfo bi, Player builder)
 		{
 			if (developerMode.FastBuild)
 				return 0;
 
-			var time = base.GetBuildTime(unit, bi);
+			var time = base.GetBuildTime(unit, bi, builder);
 
 			if (info.SpeedUp)
 			{

@@ -84,7 +84,7 @@
     <Compile Include="Graphics\RadBeamRenderable.cs" />
     <Compile Include="Graphics\Radioactivity.cs" />
     <Compile Include="Projectiles\RadBeam.cs" />
-    <Compile Include="Attack\AttackForwarding.cs" />
+    <Compile Include="Traits\Attack\AttackForwarding.cs" />
     <Compile Include="Traits\FireWeaponAtSelf.cs" />
     <Compile Include="Traits\Infiltration\GrantConditionOnInfiltration.cs" />
     <Compile Include="Traits\Player\StarportProductionQueue.cs" />

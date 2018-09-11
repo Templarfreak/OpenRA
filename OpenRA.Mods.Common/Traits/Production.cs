@@ -90,6 +90,7 @@ namespace OpenRA.Mods.Common.Traits
 			self.World.AddFrameEndTask(w =>
 			{
 				var newUnit = self.World.CreateActor(producee.Name, td);
+				newUnit.TraitOrDefault<Valued>().payedfor = newUnit.Info.TraitInfo<ValuedInfo>().GetFinalCost(newUnit.Owner);
 
 				var move = newUnit.TraitOrDefault<IMove>();
 				if (move != null)
