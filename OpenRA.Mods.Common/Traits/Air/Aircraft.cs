@@ -666,12 +666,12 @@ namespace OpenRA.Mods.Common.Traits
 			return null;
 		}
 
-		Order IIssueDeployOrder.IssueDeployOrder(Actor self)
+		Order IIssueDeployOrder.IssueDeployOrder(Actor self, bool queued)
 		{
 			if (!Info.RearmBuildings.Any())
 				return null;
 
-			return new Order("ReturnToBase", self, false);
+			return new Order("ReturnToBase", self, queued);
 		}
 
 		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self) { return Info.RearmBuildings.Any(); }
