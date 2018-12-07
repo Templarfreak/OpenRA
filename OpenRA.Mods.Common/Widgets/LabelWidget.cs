@@ -22,6 +22,7 @@ namespace OpenRA.Mods.Common.Widgets
 	public class LabelWidget : Widget
 	{
 		[Translate] public string Text = null;
+		public SliderWidget SliderReference = null;
 		public TextAlign Align = TextAlign.Left;
 		public TextVAlign VAlign = TextVAlign.Middle;
 		public string Font = ChromeMetrics.Get<string>("TextFont");
@@ -68,7 +69,18 @@ namespace OpenRA.Mods.Common.Widgets
 			if (!Game.Renderer.Fonts.TryGetValue(Font, out font))
 				throw new ArgumentException("Requested font '{0}' was not found.".F(Font));
 
-			var text = GetText();
+			string text = null;
+
+			if (SliderReference == null)
+			{
+				text = GetText();
+			}
+			else
+			{
+				int temp = (int)(SliderReference.Value);
+				text = temp.ToString();
+			}
+
 			if (text == null)
 				return;
 

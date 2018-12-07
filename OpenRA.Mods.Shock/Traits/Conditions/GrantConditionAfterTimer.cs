@@ -17,7 +17,7 @@ using OpenRA.Mods.Common.Effects;
 
 namespace OpenRA.Mods.Shock.Traits
 {
-	[Desc("If the actor is considered \"idle\", which results from various adjustable parameters, then they recieve the specified condition.")]
+	[Desc("After X time period, the condition is granted to the unit. It is also Pausable and Conditional.")]
 	class GrantConditionAfterTimerInfo : PausableConditionalTraitInfo, ITraitInfo
 	{
 		[FieldLoader.Require]
@@ -28,7 +28,7 @@ namespace OpenRA.Mods.Shock.Traits
 		[Desc("Wait this long before applying the condition.")]
 		public readonly int Timer = 0;
 
-		public override object Create(ActorInitializer init) { return new GrantConditionAfterTimer(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new GrantConditionAfterTimer(this); }
 	}
 
 	class GrantConditionAfterTimer : PausableConditionalTrait<GrantConditionAfterTimerInfo>, ITick, INotifyCreated
@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Shock.Traits
 
 		readonly GrantConditionAfterTimerInfo info;
 
-		public GrantConditionAfterTimer(Actor self, GrantConditionAfterTimerInfo info)
+		public GrantConditionAfterTimer(GrantConditionAfterTimerInfo info)
 			: base(info)
 		{
 			this.info = info;
@@ -61,10 +61,10 @@ namespace OpenRA.Mods.Shock.Traits
 					ConditionToken = conditionManager.RevokeCondition(self, ConditionToken);
 			}
 
-			if (ConditionToken == null_token && !IsTraitPaused)
+			if (ConditionToken == null_token && !IsTraitPaused && !IsTraitDisabled)
 				ticks++;
 
-			if (ticks >= info.Timer && !IsTraitPaused && !IsTraitDisabled)
+			if (ConditionToken == null_token && ticks >= info.Timer && !IsTraitPaused && !IsTraitDisabled)
 			{
 				ConditionToken = conditionManager.GrantCondition(self, info.Condition);
 				ticks = 0;

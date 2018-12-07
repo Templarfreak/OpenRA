@@ -109,7 +109,8 @@ namespace OpenRA
 			soundEngine.SetListenerPosition(position);
 		}
 
-		ISound Play(SoundType type, Player player, string name, bool headRelative, WPos pos, float volumeModifier = 1f, bool loop = false)
+		ISound Play(SoundType type, Player player, string name, bool headRelative, WPos pos, float volumeModifier = 1f, 
+			SoundChannel channel = SoundChannel.Generic, bool loop = false)
 		{
 			if (string.IsNullOrEmpty(name) || (DisableWorldSounds && type == SoundType.World))
 				return null;
@@ -119,7 +120,7 @@ namespace OpenRA
 
 			return soundEngine.Play2D(sounds[name],
 				loop, headRelative, pos,
-				InternalSoundVolume * volumeModifier, true);
+				InternalSoundVolume * volumeModifier, true, channel);
 		}
 
 		public void StopAudio()
@@ -138,18 +139,42 @@ namespace OpenRA
 		}
 
 		public bool DisableWorldSounds { get; set; }
+
 		public ISound Play(SoundType type, string name) { return Play(type, null, name, true, WPos.Zero, 1f); }
 		public ISound Play(SoundType type, string name, WPos pos) { return Play(type, null, name, false, pos, 1f); }
 		public ISound Play(SoundType type, string name, float volumeModifier) { return Play(type, null, name, true, WPos.Zero, volumeModifier); }
 		public ISound Play(SoundType type, string name, WPos pos, float volumeModifier) { return Play(type, null, name, false, pos, volumeModifier); }
+
+		public ISound Play(SoundType type, SoundChannel channel, string name) { return Play(type, null, name, true, WPos.Zero, 1f, channel); }
+		public ISound Play(SoundType type, SoundChannel channel, string name, WPos pos) { return Play(type, null, name, false, pos, 1f, channel); }
+		public ISound Play(SoundType type, SoundChannel channel, string name, float volumeModifier) { return Play(type, null, name, true, WPos.Zero, 
+			volumeModifier, channel); }
+		public ISound Play(SoundType type, SoundChannel channel, string name, WPos pos, float volumeModifier) { return Play(type, null, name, false, 
+			pos, volumeModifier, channel); }
+
 		public ISound PlayToPlayer(SoundType type, Player player, string name) { return Play(type, player, name, true, WPos.Zero, 1f); }
 		public ISound PlayToPlayer(SoundType type, Player player, string name, WPos pos) { return Play(type, player, name, false, pos, 1f); }
-		public ISound PlayLooped(SoundType type, string name) { return Play(type, null, name, true, WPos.Zero, 1f, true); }
-		public ISound PlayLooped(SoundType type, string name, WPos pos) { return Play(type, null, name, false, pos, 1f, true); }
+
+		public ISound PlayToPlayer(SoundType type, SoundChannel channel, Player player, string name) { return Play(type, player, name, true, WPos.Zero, 
+			1f, channel); }
+		public ISound PlayToPlayer(SoundType type, SoundChannel channel, Player player, string name, WPos pos) { return Play(type, player, name, false, 
+			pos, 1f, channel); }
+
+		public ISound PlayLooped(SoundType type, string name) { return Play(type, null, name, true, WPos.Zero, 1f, SoundChannel.Generic, true); }
+		public ISound PlayLooped(SoundType type, string name, WPos pos) { return Play(type, null, name, false, pos, 1f, SoundChannel.Generic, true); }
 		public ISound PlayLooped(SoundType type, string name, float volumeModifier) { return Play(type, null, name, true, WPos.Zero, 
-			volumeModifier, true); }
+			volumeModifier, SoundChannel.Generic, true); }
 		public ISound PlayLooped(SoundType type, string name, WPos pos, float volumeModifier) { return Play(type, null, name, false, pos, 
-			volumeModifier, true); }
+			volumeModifier, SoundChannel.Generic, true); }
+
+		public ISound PlayLooped(SoundType type, SoundChannel channel, string name) { return Play(type, null, name, true, WPos.Zero, 1f, 
+			channel, true); }
+		public ISound PlayLooped(SoundType type, SoundChannel channel, string name, WPos pos) { return Play(type, null, name, false, pos, 1f, 
+			channel, true); }
+		public ISound PlayLooped(SoundType type, SoundChannel channel, string name, float volumeModifier) { return Play(type, null, name, true, 
+			WPos.Zero, volumeModifier, channel, true); }
+		public ISound PlayLooped(SoundType type, SoundChannel channel, string name, WPos pos, float volumeModifier) { return Play(type, null, name, 
+			false, pos, volumeModifier, channel, true); }
 
 		public void PlayVideo(byte[] raw, int channels, int sampleBits, int sampleRate)
 		{
@@ -218,7 +243,7 @@ namespace OpenRA
 
 			Func<ISoundFormat, ISound> stream = soundFormat => soundEngine.Play2DStream(
 				soundFormat.GetPCMInputStream(), soundFormat.Channels, soundFormat.SampleBits, soundFormat.SampleRate,
-				false, true, WPos.Zero, MusicVolume);
+				false, true, WPos.Zero, MusicVolume, SoundChannel.Music);
 			music = LoadSound(m.Filename, stream);
 
 			if (music == null)
@@ -327,6 +352,21 @@ namespace OpenRA
 			}
 		}
 
+		public int MovePool
+		{
+			get
+			{
+				return (int)(Game.Settings.Sound.MovePool);
+			}
+
+			set
+			{
+				var limit = (int)(Game.Settings.Sound.MovePoolLimit);
+				Game.Settings.Sound.MovePool = value > limit ? limit : value;
+				soundEngine.SetMovePool(value > limit ? limit : value);
+			}
+		}
+
 		public float MusicSeekPosition
 		{
 			get { return music != null ? music.SeekPosition : 0; }
@@ -339,7 +379,7 @@ namespace OpenRA
 
 		// Returns true if played successfully
 		public bool PlayPredefined(SoundType soundType, Ruleset ruleset, Player p, Actor voicedActor, string type, string definition, string variant,
-			bool relative, WPos pos, float volumeModifier, bool attenuateVolume)
+			bool relative, WPos pos, float volumeModifier, bool attenuateVolume, SoundChannel channel = SoundChannel.Announcer)
 		{
 			if (ruleset == null)
 				throw new ArgumentNullException("ruleset");
@@ -392,7 +432,7 @@ namespace OpenRA
 			{
 				var sound = soundEngine.Play2D(sounds[name],
 					false, relative, pos,
-					InternalSoundVolume * volumeModifier, attenuateVolume);
+					InternalSoundVolume * volumeModifier, attenuateVolume, channel);
 				if (id != 0)
 				{
 					if (currentSounds.ContainsKey(id))

@@ -48,8 +48,17 @@ namespace OpenRA.Platforms.Default
 		const int GroupDistance = 2730;
 		const int GroupDistanceSqr = GroupDistance * GroupDistance;
 		const int PoolSize = 32;
+		const int MovePoolSize = 32;
+		int ModMovePoolSize = MovePoolSize;
+		const int VoicePoolSize = 14;
+		const int AnnouncePoolSize = 14;
+		const int MusicPoolSize = 4;
+		const int GlobalPoolSize = 32;
+		int PoolTotal = PoolSize + MovePoolSize + VoicePoolSize + AnnouncePoolSize + MusicPoolSize + GlobalPoolSize;
 
-		readonly Dictionary<uint, PoolSlot> sourcePool = new Dictionary<uint, PoolSlot>(PoolSize);
+		Dictionary<uint, PoolSlot> sourcePool = new Dictionary<uint, PoolSlot>(PoolSize + MovePoolSize + VoicePoolSize +
+			AnnouncePoolSize + MusicPoolSize + GlobalPoolSize);
+
 		float volume = 1f;
 
 		public float previousvolume = 0;
@@ -140,7 +149,7 @@ namespace OpenRA.Platforms.Default
 				throw new InvalidOperationException("Can't create OpenAL context");
 			ALC10.alcMakeContextCurrent(context);
 
-			for (var i = 0; i < PoolSize; i++)
+			for (var i = 0; i < PoolTotal; i++)
 			{
 				var source = 0U;
 				AL10.alGenSources(new IntPtr(1), out source);
@@ -154,15 +163,60 @@ namespace OpenRA.Platforms.Default
 			}
 		}
 
-		bool TryGetSourceFromPool(out uint source)
+		uint InitSound(KeyValuePair<uint, PoolSlot> kv)
+		{
+			uint source;
+			sourcePool[kv.Key].IsActive = true;
+			return source = kv.Key;
+		}
+
+		uint FreeSounds(KeyValuePair<uint, PoolSlot> kv)
+		{
+			var freeSource = kv.Key;
+			AL10.alSourceRewind(freeSource);
+			AL10.alSourcei(freeSource, AL10.AL_BUFFER, 0);
+			return freeSource;
+		}
+
+		bool CheckChannel(SoundChannel channel, KeyValuePair<uint, PoolSlot> kv)
+		{
+			var PoolPos = 0;
+			var MovePoolPos     = PoolSize;
+			var VoicePoolPos    = MovePoolPos     + ModMovePoolSize;
+			var AnnouncePoolPos = VoicePoolPos    + VoicePoolSize;
+			var MusicPoolPos    = AnnouncePoolPos + AnnouncePoolSize;
+			var GlobalPoolPos   = MusicPoolPos    + MusicPoolSize;
+
+			var M_PoolSize = ModMovePoolSize  + PoolSize;
+			var V_PoolSize = VoicePoolSize    + M_PoolSize;
+			var A_PoolSize = AnnouncePoolSize + V_PoolSize;
+			var X_PoolSize = MusicPoolSize    + A_PoolSize;
+
+			if ((channel == SoundChannel.Generic   && kv.Key > PoolPos         && kv.Key <=   PoolSize) ||
+				(channel == SoundChannel.Movement  && kv.Key > MovePoolPos     && kv.Key <= M_PoolSize) ||
+				(channel == SoundChannel.Voice     && kv.Key > VoicePoolPos    && kv.Key <= V_PoolSize) ||
+				(channel == SoundChannel.Announcer && kv.Key > AnnouncePoolPos && kv.Key <= A_PoolSize) ||
+				(channel == SoundChannel.Music     && kv.Key > MusicPoolPos    && kv.Key <= X_PoolSize) ||
+				(channel == SoundChannel.Global    && kv.Key > X_PoolSize))
+			{
+				return true;
+			}
+
+			return false;
+		}
+
+		bool TryGetSourceFromPool(out uint source, SoundChannel channel = 0)
 		{
 			foreach (var kv in sourcePool)
 			{
+
 				if (!kv.Value.IsActive)
 				{
-					sourcePool[kv.Key].IsActive = true;
-					source = kv.Key;
-					return true;
+					if (CheckChannel(channel, kv))
+					{
+						source = InitSound(kv);
+						return true;
+					}
 				}
 			}
 
@@ -170,12 +224,13 @@ namespace OpenRA.Platforms.Default
 			foreach (var kv in sourcePool)
 			{
 				var sound = kv.Value.Sound;
+
 				if (sound != null && sound.Complete)
 				{
-					var freeSource = kv.Key;
-					freeSources.Add(freeSource);
-					AL10.alSourceRewind(freeSource);
-					AL10.alSourcei(freeSource, AL10.AL_BUFFER, 0);
+					if (CheckChannel(channel, kv))
+					{
+						freeSources.Add(FreeSounds(kv));
+					}
 				}
 			}
 
@@ -203,7 +258,8 @@ namespace OpenRA.Platforms.Default
 			return new OpenAlSoundSource(data, data.Length, channels, sampleBits, sampleRate);
 		}
 
-		public ISound Play2D(ISoundSource soundSource, bool loop, bool relative, WPos pos, float volume, bool attenuateVolume)
+		public ISound Play2D(ISoundSource soundSource, bool loop, bool relative, WPos pos, float volume, bool attenuateVolume,
+			SoundChannel channel = 0)
 		{
 			if (soundSource == null)
 			{
@@ -227,6 +283,9 @@ namespace OpenRA.Platforms.Default
 					if (s.IsRelative != relative)
 						continue;
 
+					if (s.Sound.Channel == SoundChannel.Announcer)
+						continue;
+
 					++activeCount;
 					if (s.SoundSource != alSoundSource)
 						continue;
@@ -244,11 +303,11 @@ namespace OpenRA.Platforms.Default
 				}
 
 				// Attenuate a little bit based on number of active sounds:
-				atten = 0.66f * ((PoolSize - activeCount * 0.5f) / PoolSize);
+				atten = 0.66f * ((PoolTotal - activeCount * 0.5f) / PoolTotal);
 			}
 
 			uint source;
-			if (!TryGetSourceFromPool(out source))
+			if (!TryGetSourceFromPool(out source, channel))
 				return null;
 
 			if (allsoundscurrentvolume.ContainsKey(source))
@@ -265,16 +324,17 @@ namespace OpenRA.Platforms.Default
 			slot.FrameStarted = currFrame;
 			slot.IsRelative = relative;
 			slot.SoundSource = alSoundSource;
-			slot.Sound = new OpenAlSound(source, loop, relative, pos, volume * atten, alSoundSource.SampleRate, alSoundSource.Buffer);
+			slot.Sound = new OpenAlSound(source, loop, relative, pos, volume * atten, alSoundSource.SampleRate, alSoundSource.Buffer, channel);
 			return slot.Sound;
 		}
 
-		public ISound Play2DStream(Stream stream, int channels, int sampleBits, int sampleRate, bool loop, bool relative, WPos pos, float volume)
+		public ISound Play2DStream(Stream stream, int channels, int sampleBits, int sampleRate, bool loop, bool relative, WPos pos, float volume,
+			SoundChannel channel = SoundChannel.Global)
 		{
 			var currFrame = Game.LocalTick;
 
 			uint source;
-			if (!TryGetSourceFromPool(out source))
+			if (!TryGetSourceFromPool(out source, channel))
 				return null;
 
 			if (allsoundscurrentvolume.ContainsKey(source))
@@ -291,7 +351,7 @@ namespace OpenRA.Platforms.Default
 			slot.FrameStarted = currFrame;
 			slot.IsRelative = relative;
 			slot.SoundSource = null;
-			slot.Sound = new OpenAlAsyncLoadSound(source, loop, relative, pos, volume, channels, sampleBits, sampleRate, stream);
+			slot.Sound = new OpenAlAsyncLoadSound(source, loop, relative, pos, volume, channels, sampleBits, sampleRate, stream, channel);
 			return slot.Sound;
 		}
 
@@ -370,6 +430,27 @@ namespace OpenRA.Platforms.Default
 				allsoundscurrentvolume.Add(s, vol);
 			}
 
+		}
+
+		public void SetMovePool(int size)
+		{
+			Dictionary<uint, PoolSlot> temp_pool = new Dictionary<uint, PoolSlot>(sourcePool);
+
+			ModMovePoolSize = size;
+			PoolTotal = PoolSize + ModMovePoolSize + VoicePoolSize + AnnouncePoolSize + MusicPoolSize + GlobalPoolSize;
+
+			while (sourcePool.Count() < PoolTotal)
+			{
+				var source = 0U;
+				AL10.alGenSources(new IntPtr(1), out source);
+				if (AL10.alGetError() != AL10.AL_NO_ERROR)
+				{
+					Log.Write("sound", "Failed generating OpenAL source {0}", source);
+					return;
+				}
+
+				sourcePool.Add(source, new PoolSlot() { IsActive = false });
+			}
 		}
 
 		public void StopSound(ISound sound)
@@ -467,19 +548,22 @@ namespace OpenRA.Platforms.Default
 	{
 		public readonly uint Source;
 		protected readonly float SampleRate;
+		public SoundChannel channel;
 
-		public OpenAlSound(uint source, bool looping, bool relative, WPos pos, float volume, int sampleRate, uint buffer)
-			: this(source, looping, relative, pos, volume, sampleRate)
+		public OpenAlSound(uint source, bool looping, bool relative, WPos pos, float volume, int sampleRate, uint buffer, SoundChannel channel)
+			: this(source, looping, relative, pos, volume, sampleRate, channel)
 		{
+			this.channel = channel;
 			AL10.alSourcei(source, AL10.AL_BUFFER, (int)buffer);
 			AL10.alSourcePlay(source);
 		}
 
-		protected OpenAlSound(uint source, bool looping, bool relative, WPos pos, float volume, int sampleRate)
+		protected OpenAlSound(uint source, bool looping, bool relative, WPos pos, float volume, int sampleRate, SoundChannel channel)
 		{
 			Source = source;
 			SampleRate = sampleRate;
 			Volume = volume;
+			this.channel = channel;
 
 			AL10.alSourcef(source, AL10.AL_PITCH, 1f);
 			AL10.alSource3f(source, AL10.AL_POSITION, pos.X, pos.Y, pos.Z);
@@ -517,6 +601,18 @@ namespace OpenRA.Platforms.Default
 			}
 		}
 
+		public virtual SoundChannel Channel
+		{
+			get
+			{
+				return channel;
+			}
+			set
+			{
+				channel = value;
+			}
+		}
+
 		public void SetPosition(WPos pos)
 		{
 			AL10.alSource3f(Source, AL10.AL_POSITION, pos.X, pos.Y, pos.Z);
@@ -543,8 +639,8 @@ namespace OpenRA.Platforms.Default
 		readonly CancellationTokenSource cts = new CancellationTokenSource();
 		readonly Task playTask;
 
-		public OpenAlAsyncLoadSound(uint source, bool looping, bool relative, WPos pos, float volume, int channels, int sampleBits, int sampleRate, Stream stream)
-			: base(source, looping, relative, pos, volume, sampleRate)
+		public OpenAlAsyncLoadSound(uint source, bool looping, bool relative, WPos pos, float volume, int channels, int sampleBits, int sampleRate, Stream stream, SoundChannel channel)
+			: base(source, looping, relative, pos, volume, sampleRate, channel)
 		{
 			// Load a silent buffer into the source. Without this,
 			// attempting to change the state (i.e. play/pause) the source fails on some systems.

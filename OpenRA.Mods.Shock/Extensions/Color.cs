@@ -7,13 +7,14 @@ namespace Shock.Extensions
 	static class Blending
 	{
 		/// <summary>
-		/// Inputs 2 Colors. Blends using 
+		/// Inputs 2 Colors, including alpha channel. Blends using formula from https://en.wikipedia.org/wiki/Alpha_compositing#Alpha_blending
 		/// </summary>
 		public static Color BlendRGB(this Color color, Color backColor)
 		{
 			int outR = 0;
 			int outG = 0;
 			int outB = 0;
+
 
 			int outA = (color.A + backColor.A) * (1 - color.A);
 

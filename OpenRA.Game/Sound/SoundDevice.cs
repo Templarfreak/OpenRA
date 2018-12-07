@@ -18,8 +18,8 @@ namespace OpenRA
 	{
 		SoundDevice[] AvailableDevices();
 		ISoundSource AddSoundSourceFromMemory(byte[] data, int channels, int sampleBits, int sampleRate);
-		ISound Play2D(ISoundSource sound, bool loop, bool relative, WPos pos, float volume, bool attenuateVolume);
-		ISound Play2DStream(Stream stream, int channels, int sampleBits, int sampleRate, bool loop, bool relative, WPos pos, float volume);
+		ISound Play2D(ISoundSource sound, bool loop, bool relative, WPos pos, float volume, bool attenuateVolume, SoundChannel channel = 0);
+		ISound Play2DStream(Stream stream, int channels, int sampleBits, int sampleRate, bool loop, bool relative, WPos pos, float volume, SoundChannel channel = 0);
 		float Volume { get; set; }
 		void PauseSound(ISound sound, bool paused);
 		void StopSound(ISound sound);
@@ -27,6 +27,7 @@ namespace OpenRA
 		void StopAllSounds();
 		void SetListenerPosition(WPos position);
 		void SetSoundVolume(float volume, ISound music, ISound video);
+		void SetMovePool(int size);
 	}
 
 	public class SoundDevice
@@ -43,11 +44,22 @@ namespace OpenRA
 
 	public interface ISoundSource : IDisposable { }
 
+	public enum SoundChannel
+	{
+		Generic = 0,
+		Movement = 1,
+		Voice = 2,
+		Announcer = 3,
+		Music = 4,
+		Global = 5,
+	}
+
 	public interface ISound
 	{
 		float Volume { get; set; }
 		float SeekPosition { get; }
 		bool Complete { get; }
 		void SetPosition(WPos pos);
+		SoundChannel Channel { get; set; }
 	}
 }

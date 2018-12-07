@@ -47,7 +47,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var type = Info.VoiceSet.ToLowerInvariant();
 			var volume = Info.Volume;
-			return Game.Sound.PlayPredefined(SoundType.World, self.World.Map.Rules, null, self, type, phrase, variant, true, WPos.Zero, volume, true);
+			return Game.Sound.PlayPredefined(SoundType.World, self.World.Map.Rules, null, self, type, phrase, variant, true, WPos.Zero, volume, true, SoundChannel.Voice);
 		}
 
 		bool IVoiced.PlayVoiceLocal(Actor self, string phrase, string variant, float volume)

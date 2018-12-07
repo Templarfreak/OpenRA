@@ -314,6 +314,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			BindSliderPref(panel, "MUSIC_VOLUME", ss, "MusicVolume");
 			BindSliderPref(panel, "VIDEO_VOLUME", ss, "VideoVolume");
 
+			BindSliderPref(panel, "MOVE_POOL", ss, "MovePool");
+
 			var muteCheckbox = panel.Get<CheckboxWidget>("MUTE_SOUND");
 			var muteCheckboxOnClick = muteCheckbox.OnClick;
 			muteCheckbox.OnClick = () =>
@@ -331,6 +333,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				panel.Get<SliderWidget>("SOUND_VOLUME").OnChange += x => Game.Sound.SoundVolume = x;
 				panel.Get<SliderWidget>("MUSIC_VOLUME").OnChange += x => Game.Sound.MusicVolume = x;
 				panel.Get<SliderWidget>("VIDEO_VOLUME").OnChange += x => Game.Sound.VideoVolume = x;
+
+				var widget = panel.Get<SliderWidget>("MOVE_POOL");
+				widget.MinimumValue = ss.MovePoolMin;
+				widget.Value = widget.Value.Clamp(ss.MovePoolMin, ss.MovePoolLimit);
+				widget.MaximumValue = ss.MovePoolLimit;
+
+				widget.OnChange += x => Game.Sound.MovePool = (int)(x);
+
+				panel.Get<LabelWidget>("MOVE_SPECIFIC").SliderReference = widget;
+				panel.Get<LabelWidget>("MOVE_SPECIFIC").Draw();
 			}
 
 			var devices = Game.Sound.AvailableDevices();
@@ -359,6 +371,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				ss.SoundVolume = dss.SoundVolume;
 				ss.MusicVolume = dss.MusicVolume;
 				ss.VideoVolume = dss.VideoVolume;
+				ss.MovePool = dss.MovePool;
 				ss.CashTicks = dss.CashTicks;
 				ss.Mute = dss.Mute;
 				ss.Device = dss.Device;
@@ -369,6 +382,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				Game.Sound.MusicVolume = ss.MusicVolume;
 				panel.Get<SliderWidget>("VIDEO_VOLUME").Value = ss.VideoVolume;
 				Game.Sound.VideoVolume = ss.VideoVolume;
+				panel.Get<SliderWidget>("MOVE_POOL").Value = ss.MovePool;
+				Game.Sound.MovePool = (int)(ss.MovePool);
 				Game.Sound.UnmuteAudio();
 				soundDevice = Game.Sound.AvailableDevices().First();
 			};

@@ -17,7 +17,7 @@ using OpenRA.Graphics;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public enum TrendType : byte { Upward, Downward, Static }
+	public enum TrendType : byte { Upward, Downward, Static, Random }
 
 	[Desc("How much the unit is worth.")]
 	public class ValuedInfo : ITraitInfo, IWorldTick, IRulesetLoaded
@@ -72,8 +72,9 @@ namespace OpenRA.Mods.Common.Traits
 			" a new trend every TrendInterval.")]
 		public readonly bool UseTrends = false;
 
-		[Desc("The defualt Trend type, that it starts with.")]
-		public readonly TrendType DefaultTrend = TrendType.Static;
+		[Desc("The defualt Trend type, that it starts with. Options are Upward, Downward, Static, and Random. Random will pick a random starting" +
+			"trend.")]
+		public readonly TrendType StartingTrend = TrendType.Static;
 
 		[Desc("Interval to pick a new trend at. use two numbers for a random range.")]
 		public readonly int[] TrendInterval = { 0 };
@@ -141,18 +142,17 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (TrendInterval.Count() > 2)
 				{
-					throw new YamlException("TrendIntervals on {0} cannot be greater than 2!".F(info));
+					throw new YamlException("TrendIntervals on {0} cannot be greater than 2!".F(info.Name));
 				}
 
 				if (TrendInterval[0] > TrendInterval[1])
 				{
-					throw new YamlException("TrendIntervals on {0} must be in increasing order!".F(info));
+					throw new YamlException("TrendIntervals on {0} must be in increasing order!".F(info.Name));
 				}
 			}
 
 			DownwardTrend = RandomHeat.Where(i => i <= 0).ToList();
 			UpwardTrend = RandomHeat.Where(i => i >= 0).ToList();
-
 		}
 
 		public void Tick(World world)
@@ -183,7 +183,19 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (!currenttrend.ContainsKey(h.Key))
 				{
-					currenttrend.Add(h.Key, DefaultTrend);
+					if (StartingTrend == TrendType.Random)
+					{
+						var new_trend = world.SharedRandom.Next(0, 2);
+						var trend = new_trend == 0 ? TrendType.Upward : new_trend == 1 ?
+								TrendType.Downward : new_trend == 2 ? TrendType.Static : TrendType.Static;
+
+						currenttrend.Add(h.Key, trend);
+					}
+					else
+					{
+						currenttrend.Add(h.Key, StartingTrend);
+					}
+					
 				}
 			}
 
@@ -328,18 +340,22 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!heat.ContainsKey(p))
 			{
-				heat.Add(p, 0);
+				heat.Add(p, StartingHeat);
 			}
 
-			return (Cost + (int)(heat[p] * Inflation) < MinCost) ? MinCost : (Cost + (int)(heat[p] * Inflation) > MaxCost) 
-				? MaxCost : Cost + (int)(heat[p] * Inflation);
+
+			var cost = Cost + (int)(heat[p] * Inflation);
+			var clamp = Math.Min(cost, MaxCost);
+			clamp = Math.Max(clamp, MinCost);
+
+			return clamp;
 		}
 
 		public int GetCurrentInflation(Player p)
 		{
 			if (!heat.ContainsKey(p))
 			{
-				heat.Add(p, 0);
+				heat.Add(p, StartingHeat);
 			}
 
 			return (int)(heat[p] * Inflation);

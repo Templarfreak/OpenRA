@@ -23,9 +23,9 @@ namespace OpenRA.Mods.Shock.Traits.Sound
 		[FieldLoader.Require]
 		public readonly string[] SoundFiles = null;
 
-		[Desc("Add tags here than all units within GroupRadius that share these same tags will truncate their sounds in favor of the World actor" +
-			"playing one single \"group\" sound appropriate for them. This requires the World Actor to have the GroupMovementSound trait.")]
-		public readonly string[] GroupMovement = null;
+		//[Desc("Add tags here than all units within GroupRadius that share these same tags will truncate their sounds in favor of the World actor" +
+		//	"playing one single \"group\" sound appropriate for them. This requires the World Actor to have the GroupMovementSound trait.")]
+		//public readonly string[] GroupMovement = null;
 
 		public readonly int GroupRadius = 0;
 
@@ -45,8 +45,6 @@ namespace OpenRA.Mods.Shock.Traits.Sound
 
 	class MovementSound : ConditionalTrait<MovementSoundInfo>, ITick, INotifyRemovedFromWorld
 	{
-		GlobalMovementSound w_msound;
-
 		readonly bool loop;
 		HashSet<ISound> currentSounds = new HashSet<ISound>();
 		WPos cachedPosition;
@@ -62,15 +60,6 @@ namespace OpenRA.Mods.Shock.Traits.Sound
 		public MovementSound(Actor self, MovementSoundInfo info)
 			: base(info)
 		{
-			var layers = self.World.WorldActor.TraitsImplementing<GlobalMovementSound>();
-			w_msound = layers.First();
-
-			if (w_msound != null)
-			{
-				w_msound.Groups.Add(self, info.GroupMovement.ToList());
-			}
-
-
 			delay = Util.RandomDelay(self.World, info.Delay);
 			loop = Info.Interval.Length == 0 || (Info.Interval.Length == 1 && Info.Interval[0] == 0);
 		}
@@ -120,11 +109,6 @@ namespace OpenRA.Mods.Shock.Traits.Sound
 		{
 			var playalone = true;
 
-			if (w_msound != null)
-			{
-				playalone = w_msound.PlaySingleSounds(self);
-			}
-
 			if (moving && playalone)
 			{
 				var sound = Info.SoundFiles.RandomOrDefault(Game.CosmeticRandom);
@@ -135,16 +119,16 @@ namespace OpenRA.Mods.Shock.Traits.Sound
 					cachedPosition = self.CenterPosition;
 					if (loop)
 					{
-						s = Game.Sound.PlayLooped(SoundType.World, sound, cachedPosition, Info.Volume);
+						s = Game.Sound.PlayLooped(SoundType.World, SoundChannel.Movement, sound, cachedPosition, Info.Volume);
 					}
 					else
 					{
-						s = Game.Sound.Play(SoundType.World, sound, self.CenterPosition, Info.Volume);
+						s = Game.Sound.Play(SoundType.World, SoundChannel.Movement, sound, self.CenterPosition, Info.Volume);
 					}
 				}
 				else
-					s = loop ? Game.Sound.PlayLooped(SoundType.World, sound, Info.Volume) :
-						Game.Sound.Play(SoundType.World, sound, Info.Volume);
+					s = loop ? Game.Sound.PlayLooped(SoundType.World, SoundChannel.Movement, sound, Info.Volume) :
+						Game.Sound.Play(SoundType.World, SoundChannel.Movement, sound, Info.Volume);
 
 				currentSounds.Add(s);
 			}

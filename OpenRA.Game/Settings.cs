@@ -153,6 +153,9 @@ namespace OpenRA
 		public float SoundVolume = 0.5f;
 		public float MusicVolume = 0.5f;
 		public float VideoVolume = 0.5f;
+		public float MovePool = 0.25f;
+		public int MovePoolMin = 32;
+		public int MovePoolLimit = 128;
 
 		public bool Shuffle = false;
 		public bool Repeat = false;
