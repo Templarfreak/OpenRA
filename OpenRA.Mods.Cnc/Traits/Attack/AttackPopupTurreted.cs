@@ -56,7 +56,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public override object Create(ActorInitializer init) { return new AttackPopupTurreted(init, this); }
 	}
 
-	class AttackPopupTurreted : AttackTurreted, INotifyBuildComplete, INotifyIdle, IDamageModifier
+	class AttackPopupTurreted : AttackTurreted, INotifyIdle, IDamageModifier
 	{
 		enum PopupState { Open, Rotating, Transitioning, Closed }
 
@@ -79,10 +79,23 @@ namespace OpenRA.Mods.Cnc.Traits
 			startclosed = info.StartClosed;
 		}
 
+		protected override void Created(Actor self)
+		{
+			base.Created(self);
+
+			// Map placed actors are created in the closed state
+			if (skippedMakeAnimation)
+			{
+				state = PopupState.Closed;
+				wsb.PlayCustomAnimationRepeating(self, info.ClosedIdleSequence);
+				turret.DesiredFacing = null;
+			}
+		}
+
 		protected override bool CanAttack(Actor self, Target target)
 		{
 			//we want to stop it from turning completely if WaitUntilSurfaced is true until the PopupState == Open. Well, it can turn during this too.
-			if ((state == PopupState.Transitioning && info.WaitUntilSurfaced == true) || !building.BuildComplete)
+			if (state == PopupState.Transitioning && info.WaitUntilSurfaced == true)
 				return false;
 
 			if (state == PopupState.Open || info.WaitUntilSurfaced == false)
@@ -119,7 +132,7 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		void INotifyIdle.TickIdle(Actor self)
 		{
-			if (startclosed && building.BuildComplete)
+			if (startclosed)
 			{
 				state = PopupState.Closed;
 				wsb.PlayCustomAnimationRepeating(self, info.ClosedIdleSequence);
@@ -145,16 +158,6 @@ namespace OpenRA.Mods.Cnc.Traits
 					wsb.PlayCustomAnimationRepeating(self, info.ClosedIdleSequence);
 					turret.DesiredFacing = null;
 				});
-			}
-		}
-
-		void INotifyBuildComplete.BuildingComplete(Actor self)
-		{
-			if (skippedMakeAnimation)
-			{
-				state = PopupState.Closed;
-				wsb.PlayCustomAnimationRepeating(self, info.ClosedIdleSequence);
-				turret.DesiredFacing = null;
 			}
 		}
 

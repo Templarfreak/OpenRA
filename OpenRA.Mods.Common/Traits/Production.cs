@@ -10,9 +10,9 @@
 #endregion
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -35,18 +35,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		public string Faction { get; private set; }
 
-		Building building;
-
 		public Production(ActorInitializer init, ProductionInfo info)
 			: base(info)
 		{
 			rp = Exts.Lazy(() => init.Self.IsDead ? null : init.Self.TraitOrDefault<RallyPoint>());
 			Faction = init.Contains<FactionInit>() ? init.Get<FactionInit, string>() : init.Self.Owner.Faction.InternalName;
-		}
-
-		void INotifyCreated.Created(Actor self)
-		{
-			building = self.TraitOrDefault<Building>();
 		}
 
 		public virtual void DoProduction(Actor self, ActorInfo producee, ExitInfo exitinfo, string productionType, TypeDictionary inits)
@@ -114,26 +107,24 @@ namespace OpenRA.Mods.Common.Traits
 
 				var notifyOthers = self.World.ActorsWithTrait<INotifyOtherProduction>();
 				foreach (var notify in notifyOthers)
-					notify.Trait.UnitProducedByOther(notify.Actor, self, newUnit, productionType);
-
-				foreach (var t in newUnit.TraitsImplementing<INotifyBuildComplete>())
-					t.BuildingComplete(newUnit);
+					notify.Trait.UnitProducedByOther(notify.Actor, self, newUnit, productionType, td);
 			});
 		}
 
-		public virtual ExitInfo SelectExit(Actor self, ActorInfo producee, string productionType, Func<ExitInfo, bool> p)
+
+		protected virtual Exit SelectExit(Actor self, ActorInfo producee, string productionType, Func<Exit, bool> p)
 		{
-			return self.RandomExitOrDefault(productionType, p);
+			return self.RandomExitOrDefault(self.World, productionType, p);
 		}
 
-		protected ExitInfo SelectExit(Actor self, ActorInfo producee, string productionType)
+		protected Exit SelectExit(Actor self, ActorInfo producee, string productionType)
 		{
-			return SelectExit(self, producee, productionType, e => CanUseExit(self, producee, e));
+			return SelectExit(self, producee, productionType, e => CanUseExit(self, producee, e.Info));
 		}
 
 		public virtual bool Produce(Actor self, ActorInfo producee, string productionType, int count, TypeDictionary inits)
 		{
-			if (IsTraitDisabled || IsTraitPaused || Reservable.IsReserved(self) || (building != null && building.Locked))
+			if (IsTraitDisabled || IsTraitPaused || Reservable.IsReserved(self))
 				return false;
 
 			// Pick a spawn/exit point pair
@@ -143,7 +134,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				for (var i = 0; i < count; i++)
 				{
-					DoProduction(self, producee, exit, productionType, inits);
+					DoProduction(self, producee, exit.Info, productionType, inits);
 				}
 
 				return true;

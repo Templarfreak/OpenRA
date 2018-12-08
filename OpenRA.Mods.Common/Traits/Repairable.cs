@@ -20,7 +20,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("This actor can be sent to a structure for repairs.")]
-	class RepairableInfo : ITraitInfo, Requires<HealthInfo>, Requires<IMoveInfo>
+	class RepairableInfo : ITraitInfo, Requires<IHealthInfo>, Requires<IMoveInfo>
 	{
 		public readonly HashSet<string> RepairBuildings = new HashSet<string> { "fix" };
 
@@ -41,19 +41,23 @@ namespace OpenRA.Mods.Common.Traits
 		public virtual object Create(ActorInitializer init) { return new Repairable(init.Self, this); }
 	}
 
-	class Repairable : IIssueOrder, IResolveOrder, IOrderVoice
+	class Repairable : IIssueOrder, IResolveOrder, IOrderVoice, INotifyCreated
 	{
 		public readonly RepairableInfo Info;
-		readonly Health health;
+		readonly IHealth health;
 		readonly IMove movement;
-		readonly AmmoPool[] ammoPools;
+		Rearmable rearmable;
 
 		public Repairable(Actor self, RepairableInfo info)
 		{
 			Info = info;
-			health = self.Trait<Health>();
+			health = self.Trait<IHealth>();
 			movement = self.Trait<IMove>();
-			ammoPools = self.TraitsImplementing<AmmoPool>().ToArray();
+		}
+
+		void INotifyCreated.Created(Actor self)
+		{
+			rearmable = self.TraitOrDefault<Rearmable>();
 		}
 
 		public IEnumerable<IOrderTargeter> Orders
@@ -79,7 +83,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool CanRearmAt(Actor target)
 		{
-			return Info.RepairBuildings.Contains(target.Info.Name);
+			return rearmable != null && rearmable.Info.RearmActors.Contains(target.Info.Name);
 		}
 
 		bool CanRepair()
@@ -89,7 +93,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool CanRearm()
 		{
-			return ammoPools.Any(x => !x.AutoReloads && !x.FullAmmo());
+			return rearmable != null && rearmable.RearmableAmmoPools.Any(p => !p.FullAmmo());
 		}
 
 		public string VoicePhraseForOrder(Actor self, Order order)
@@ -106,6 +110,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (order.Target.Type != TargetType.Actor)
 					return;
 
+				// Aircraft handle Repair orders directly in the Aircraft trait
+				if (self.Info.HasTraitInfo<AircraftInfo>())
+					return;
+
 				if (!CanRepairAt(order.Target.Actor) || (!CanRepair() && !CanRearm()))
 					return;
 
@@ -113,7 +121,7 @@ namespace OpenRA.Mods.Common.Traits
 					self.CancelActivity();
 
 				self.SetTargetLine(order.Target, Color.Green);
-				self.QueueActivity(new WaitForTransport(self, ActivityUtils.SequenceActivities(new MoveAdjacentTo(self, order.Target),
+				self.QueueActivity(new WaitForTransport(self, ActivityUtils.SequenceActivities(movement.MoveToTarget(self, order.Target),
 					new CallFunc(() => AfterReachActivities(self, order, movement)))));
 
 				TryCallTransport(self, order.Target, new CallFunc(() => AfterReachActivities(self, order, movement)));
@@ -133,7 +141,8 @@ namespace OpenRA.Mods.Common.Traits
 			// will need to be rewritten anyway, so this is OK for now.
 			self.QueueActivity(movement.MoveTo(self.World.Map.CellContaining(targetActor.CenterPosition), targetActor));
 			if (CanRearmAt(targetActor) && CanRearm())
-				self.QueueActivity(new Rearm(self, Info.CostPerAmmo));
+				self.QueueActivity(new Rearm(self, targetActor, new WDist(512), Info.CostPerAmmo));
+
 
 			// Add a CloseEnough range of 512 to ensure we're at the host actor
 

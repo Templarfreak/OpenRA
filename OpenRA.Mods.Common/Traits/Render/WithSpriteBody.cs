@@ -44,7 +44,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 		}
 	}
 
-	public class WithSpriteBody : PausableConditionalTrait<WithSpriteBodyInfo>, INotifyDamageStateChanged, INotifyBuildComplete, IAutoMouseBounds
+	public class WithSpriteBody : PausableConditionalTrait<WithSpriteBodyInfo>, INotifyDamageStateChanged, IAutoMouseBounds
 	{
 		public readonly Animation DefaultAnimation;
 		readonly RenderSprites rs;
@@ -70,7 +70,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 			if (info.StartSequence != null)
 				PlayCustomAnimation(init.Self, info.StartSequence,
-					() => PlayCustomAnimationRepeating(init.Self, info.Sequence));
+					() => DefaultAnimation.PlayRepeating(NormalizeSequence(init.Self, info.Sequence)));
 			else
 				DefaultAnimation.PlayRepeating(NormalizeSequence(init.Self, info.Sequence));
 		}
@@ -80,15 +80,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 			return RenderSprites.NormalizeSequence(DefaultAnimation, self.GetDamageState(), sequence);
 		}
 
-		protected virtual void OnBuildComplete(Actor self)
+		protected override void TraitEnabled(Actor self)
 		{
 			DefaultAnimation.PlayRepeating(NormalizeSequence(self, Info.Sequence));
-		}
-
-		// TODO: Get rid of INotifyBuildComplete in favor of using the condition system
-		void INotifyBuildComplete.BuildingComplete(Actor self)
-		{
-			OnBuildComplete(self);
 		}
 
 		public void PlayCustomAnimation(Actor self, string name, Action after = null)
@@ -103,8 +97,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 
 		public void PlayCustomAnimationRepeating(Actor self, string name)
 		{
-			var sequence = NormalizeSequence(self, name);
-			DefaultAnimation.PlayThen(sequence, () => PlayCustomAnimationRepeating(self, sequence));
+			DefaultAnimation.PlayRepeating(NormalizeSequence(self, name));
 		}
 
 		public void PlayCustomAnimationBackwards(Actor self, string name, Action after = null)

@@ -84,9 +84,32 @@ namespace OpenRA.Mods.Common.UpdateRules
 				new RemoveCanUndeployFromGrantConditionOnDeploy(),
 			}),
 
-			new UpdatePath("playtest-20180729", new UpdateRule[]
+			new UpdatePath("playtest-20180729", "release-20180923", new UpdateRule[0]),
+
+			new UpdatePath("release-20180923", new UpdateRule[]
 			{
 				// Bleed only changes here
+				new AddCarryableHarvester(),
+				new RenameEditorTilesetFilter(),
+				new DefineNotificationDefaults(),
+				new MergeRearmAndRepairAnimation(),
+				new MergeCaptureTraits(),
+				new RemovedNotifyBuildComplete(),
+				new LowPowerSlowdownToModifier(),
+				new ChangeTakeOffSoundAndLandingSound(),
+				new RemoveHealthPercentageRing(),
+				new RenameCrateActionNotification(),
+				new RemoveRepairBuildingsFromAircraft(),
+				new AddRearmable(),
+				new MergeAttackPlaneAndHeli(),
+				new RemovedDemolishLocking(),
+				new RequireProductionType(),
+				new CloakRequiresConditionToPause(),
+				new ExtractHackyAIModules(),
+				new RemoveNegativeDamageFullHealthCheck(),
+				new RemoveResourceExplodeModifier(),
+				new DefineLevelUpImageDefault(),
+				new RemovedAutoCarryallCircleTurnSpeed(),
 			})
 		};
 

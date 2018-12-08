@@ -77,3 +77,8 @@ Player:
 			medic: 3
 			repair: 3
 		SquadSize: 20
+	GrantConditionOnBotOwner@test:
+		Condition: enable-test-ai
+		Bots: test
+	HarvesterBotModule:
+		RequiresCondition: enable-test-ai

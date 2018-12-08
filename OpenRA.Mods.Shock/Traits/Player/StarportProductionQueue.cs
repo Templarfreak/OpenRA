@@ -107,10 +107,10 @@ namespace OpenRA.Mods.Shock.Traits
 			return new TraitPair<Production>(self, unpaused != null ? unpaused : traits.FirstOrDefault());
 		}
 
-		protected override void BeginProduction(ProductionItem item)
-		{
-			Queue.Add(item);
-		}
+		//protected override void BeginProduction(ProductionItem item)
+		//{
+		//	Queue.Add(item);
+		//}
 
 		protected override void CancelProduction(ProductionItem item, uint numberToCancel)
 		{
@@ -294,7 +294,7 @@ namespace OpenRA.Mods.Shock.Traits
 
 						for (var i = 0; i < StarportList.Count; i++)
 						{
-							FinishProduction();
+							EndProduction(Queue[i]);
 						}
 						self.Owner.World.AddFrameEndTask(w => FinishStarport(StarportList.Count));
 						return;
@@ -367,7 +367,8 @@ namespace OpenRA.Mods.Shock.Traits
 			{
 				if (!mostLikelyProducerTrait.IsTraitPaused && mostLikelyProducerTrait.Produce(self, unit, type, count, inits))
 				{
-					FinishProduction();
+					var item = Queue.FirstOrDefault(a => a.Item == unit.Name);
+					EndProduction(item);
 					return true;
 				}
 				else
@@ -392,14 +393,14 @@ namespace OpenRA.Mods.Shock.Traits
 			return true;
 		}
 
-		public override bool AddProductionItem(ProductionQueue Queue, int count, string order, int cost, PowerManager aplayerpower, Ruleset rules,
+		public override bool AddProductionItem(ProductionQueue Queue, int count, Order order, int cost, PowerManager aplayerpower, Ruleset rules,
 			ActorInfo unit, int time = 0, bool hasPlayedSound = true)
 		{
 			var bi = unit.TraitInfo<BuildableInfo>();
 			var type = developerMode.AllTech ? Info.Type : (bi.BuildAtProductionType ?? Info.Type);
 			var starport = info.StarportDelivery;
 
-			BeginProduction(new ProductionItem(Queue, count, order, cost, aplayerpower, () => self.World.AddFrameEndTask(_ =>
+			BeginProduction(new ProductionItem(Queue, count, order.OrderString, cost, aplayerpower, () => self.World.AddFrameEndTask(_ =>
 			{
 				var isBuilding = unit.HasTraitInfo<BuildingInfo>();
 
@@ -417,7 +418,7 @@ namespace OpenRA.Mods.Shock.Traits
 					else if (!hasPlayedSound && !starport && time > 0)
 						hasPlayedSound = Game.Sound.PlayNotification(rules, self.Owner, "Speech", Info.BlockedAudio, self.Owner.Faction.InternalName);
 				}
-			})));
+			})), !order.Queued);
 			return hasPlayedSound;
 		}
 	}

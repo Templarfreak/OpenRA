@@ -41,8 +41,9 @@ engineer:
 	Mobile:
 		Speed: 31
 	EngineerRepair:
+	CaptureManager:
 	Captures:
-		CaptureTypes: building, husk
+		CaptureTypes: building
 		PlayerExperience: 50
 	-RevealOnFire:
 	Voiced:
@@ -156,7 +157,7 @@ fremen:
 		CloakDelay: 85
 		UncloakOn: Attack, Unload, Infiltrate, Demolish, Dock, Damage, Heal
 		IsPlayerPalette: true
-		RequiresCondition: !cloak-force-disabled
+		PauseOnCondition: cloak-force-disabled
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
@@ -272,7 +273,7 @@ saboteur:
 		CloakSound: STEALTH1.WAV
 		UncloakOn: Attack, Unload, Infiltrate, Demolish, Move, Damage, Heal
 		IsPlayerPalette: true
-		RequiresCondition: !cloak-force-disabled
+		PauseOnCondition: cloak-force-disabled
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical

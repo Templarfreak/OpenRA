@@ -14,6 +14,7 @@ using System.Drawing;
 using OpenRA.Activities;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Activities;
+using OpenRA.Mods.Common.AI;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -71,8 +72,8 @@ namespace OpenRA.Mods.Common.Traits
 	public interface IDemolishableInfo : ITraitInfoInterface { bool IsValidTarget(ActorInfo actorInfo, Actor saboteur); }
 	public interface IDemolishable
 	{
-		void Demolish(Actor self, Actor saboteur);
 		bool IsValidTarget(Actor self, Actor saboteur);
+		void Demolish(Actor self, Actor saboteur, int delay);
 	}
 
 	// Type tag for crush class bits
@@ -106,9 +107,6 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[RequireExplicitImplementation]
-	public interface INotifyBuildComplete { void BuildingComplete(Actor self); }
-
-	[RequireExplicitImplementation]
 	public interface INotifyDamageStateChanged { void DamageStateChanged(Actor self, AttackInfo e); }
 
 	[RequireExplicitImplementation]
@@ -134,16 +132,17 @@ namespace OpenRA.Mods.Common.Traits
 	public interface INotifyBurstComplete { void FiredBurst(Actor self, Target target, Armament a); }
 	public interface INotifyChat { bool OnChat(string from, string message); }
 	public interface INotifyProduction { void UnitProduced(Actor self, Actor other, CPos exit); }
-	public interface INotifyOtherProduction { void UnitProducedByOther(Actor self, Actor producer, Actor produced, string productionType); }
+	public interface INotifyOtherProduction { void UnitProducedByOther(Actor self, Actor producer, Actor produced, string productionType, TypeDictionary init); }
 	public interface INotifyDelivery { void IncomingDelivery(Actor self); void Delivered(Actor self); }
 	public interface INotifyDocking { void Docked(Actor self, Actor harvester); void Undocked(Actor self, Actor harvester); }
 	public interface INotifyParachute { void OnParachute(Actor self); void OnLanded(Actor self, Actor ignore); }
-	public interface INotifyCapture { void OnCapture(Actor self, Actor captor, Player oldOwner, Player newOwner); }
+
+	[RequireExplicitImplementation]
+	public interface INotifyCapture { void OnCapture(Actor self, Actor captor, Player oldOwner, Player newOwner, BitSet<CaptureType> captureTypes); }
 	public interface INotifyDiscovered { void OnDiscovered(Actor self, Player discoverer, bool playNotification); }
 	public interface IRenderActorPreviewInfo : ITraitInfo { IEnumerable<IActorPreview> RenderPreview(ActorPreviewInitializer init); }
 	public interface ICruiseAltitudeInfo : ITraitInfo { WDist GetCruiseAltitude(); }
 
-	public interface IExplodeModifier { bool ShouldExplode(Actor self); }
 	public interface IHuskModifier { string HuskActor(Actor self); }
 
 	public interface ISeedableResource { void Seed(Actor self); }
@@ -311,7 +310,12 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[RequireExplicitImplementation]
-	public interface INotifyRearm { void Rearming(Actor host, Actor other); }
+	public interface INotifyRearm
+	{
+		void RearmingStarted(Actor host, Actor other);
+		void Rearming(Actor host, Actor other);
+		void RearmingFinished(Actor host, Actor other);
+	}
 
 	[RequireExplicitImplementation]
 	public interface IRenderInfantrySequenceModifier
@@ -354,6 +358,12 @@ namespace OpenRA.Mods.Common.Traits
 	public interface IGainsExperienceModifier { int GetGainsExperienceModifier(); }
 
 	[RequireExplicitImplementation]
+	public interface ICreatesShroudModifier { int GetCreatesShroudModifier(); }
+
+	[RequireExplicitImplementation]
+	public interface IRevealsShroudModifier { int GetRevealsShroudModifier(); }
+
+	[RequireExplicitImplementation]
 	public interface ICustomMovementLayer
 	{
 		byte Index { get; }
@@ -394,6 +404,7 @@ namespace OpenRA.Mods.Common.Traits
 		Activity MoveToTarget(Actor self, Target target);
 		Activity MoveIntoTarget(Actor self, Target target);
 		Activity VisualMove(Actor self, WPos fromPos, WPos toPos);
+		int EstimatedMoveDuration(Actor self, WPos fromPos, WPos toPos);
 		CPos NearestMoveableCell(CPos target);
 		bool IsMoving { get; set; }
 		bool IsMovingVertically { get; set; }
@@ -436,4 +447,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	[RequireExplicitImplementation]
 	public interface IPreventsShroudReset { bool PreventShroudReset(Actor self); }
+
+	[RequireExplicitImplementation]
+	public interface IBotTick { void BotTick(IBot bot); }
 }

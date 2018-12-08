@@ -13,8 +13,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Mods.Common.Activities;
-using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Support;
 using OpenRA.Traits;
@@ -162,9 +160,6 @@ namespace OpenRA.Mods.Common.AI
 		[Desc("Terrain types which are considered water for base building purposes.")]
 		public readonly HashSet<string> WaterTerrainTypes = new HashSet<string> { "Water" };
 
-		[Desc("Avoid enemy actors nearby when searching for a new resource patch. Should be somewhere near the max weapon range.")]
-		public readonly WDist HarvesterEnemyAvoidanceRadius = WDist.FromCells(8);
-
 		[Desc("Production queues AI uses for producing units.")]
 		public readonly HashSet<string> UnitQueues = new HashSet<string> { "Vehicle", "Infantry", "Plane", "Ship", "Aircraft" };
 
@@ -191,11 +186,6 @@ namespace OpenRA.Mods.Common.AI
 
 		[Desc("What buildings should the AI have a maximum limit to build.")]
 		public readonly Dictionary<string, int> BuildingLimits = null;
-
-		// TODO Update OpenRA.Utility/Command.cs#L300 to first handle lists and also read nested ones
-		[Desc("Tells the AI how to use its support powers.")]
-		[FieldLoader.LoadUsing("LoadDecisions")]
-		public readonly List<SupportPowerDecision> SupportPowerDecisions = new List<SupportPowerDecision>();
 
 		[Desc("Actor types that can capture other actors (via `Captures` or `ExternalCaptures`).",
 			"Leave this empty to disable capturing.")]
@@ -230,17 +220,6 @@ namespace OpenRA.Mods.Common.AI
 			return FieldLoader.Load<BuildingCategories>(categories.Value);
 		}
 
-		static object LoadDecisions(MiniYaml yaml)
-		{
-			var ret = new List<SupportPowerDecision>();
-			var decisions = yaml.Nodes.FirstOrDefault(n => n.Key == "SupportPowerDecisions");
-			if (decisions != null)
-				foreach (var d in decisions.Value.Nodes)
-					ret.Add(new SupportPowerDecision(d.Value));
-
-			return ret;
-		}
-
 		string IBotInfo.Type { get { return Type; } }
 
 		string IBotInfo.Name { get { return Name; } }
@@ -250,6 +229,7 @@ namespace OpenRA.Mods.Common.AI
 
 	public sealed class HackyAI : ITick, IBot, INotifyDamage
 	{
+		// DEPRECATED: Modules should use World.LocalRandom.
 		public MersenneTwister Random { get; private set; }
 		public readonly HackyAIInfo Info;
 
@@ -266,8 +246,12 @@ namespace OpenRA.Mods.Common.AI
 		public List<Squad> Squads = new List<Squad>();
 		public Player Player { get; private set; }
 
+		readonly Queue<Order> orders = new Queue<Order>();
+
 		readonly Func<Actor, bool> isEnemyUnit;
 		readonly Predicate<Actor> unitCannotBeOrdered;
+
+		IBotTick[] tickModules;
 
 		CPos initialBaseCenter;
 		PowerManager playerPower;
@@ -276,19 +260,12 @@ namespace OpenRA.Mods.Common.AI
 
 		BitArray resourceTypeIndices;
 
-		AIHarvesterManager harvManager;
-		AISupportPowerManager supportPowerManager;
-
 		List<BaseBuilder> builders = new List<BaseBuilder>();
 
 		List<Actor> unitsHangingAroundTheBase = new List<Actor>();
 
 		// Units that the ai already knows about. Any unit not on this list needs to be given a role.
 		List<Actor> activeUnits = new List<Actor>();
-
-		// Harvesters are usually listed under ExcludeFromSquads, so they're not included in the activeUnits list, but still needed in AIHarvesterManager.
-		// TODO: Consider adding an explicit UnitsCommonNames.Harvester category.
-		List<Actor> harvesters = new List<Actor>();
 
 		public const int FeedbackTime = 30; // ticks; = a bit over 1s. must be >= netlag.
 
@@ -302,8 +279,6 @@ namespace OpenRA.Mods.Common.AI
 		int minAttackForceDelayTicks;
 		int minCaptureDelayTicks;
 		readonly int maximumCaptureTargetOptions;
-
-		readonly Queue<Order> orders = new Queue<Order>();
 
 		public HackyAI(HackyAIInfo info, ActorInitializer init)
 		{
@@ -323,12 +298,6 @@ namespace OpenRA.Mods.Common.AI
 			maximumCaptureTargetOptions = Math.Max(1, Info.MaximumCaptureTargetOptions);
 		}
 
-		public static void BotDebug(string s, params object[] args)
-		{
-			if (Game.Settings.Debug.BotDebug)
-				Game.Debug(s, args);
-		}
-
 		// Called by the host's player creation code
 		public void Activate(Player p)
 		{
@@ -336,9 +305,7 @@ namespace OpenRA.Mods.Common.AI
 			IsEnabled = true;
 			playerPower = p.PlayerActor.TraitOrDefault<PowerManager>();
 			playerResource = p.PlayerActor.Trait<PlayerResources>();
-
-			harvManager = new AIHarvesterManager(this, p);
-			supportPowerManager = new AISupportPowerManager(this, p);
+			tickModules = p.PlayerActor.TraitsImplementing<IBotTick>().ToArray();
 
 			foreach (var building in Info.BuildingQueues)
 				builders.Add(new BaseBuilder(this, building, p, playerPower, playerResource));
@@ -363,6 +330,12 @@ namespace OpenRA.Mods.Common.AI
 				resourceTypeIndices.Set(tileset.GetTerrainIndex(t.TerrainType), true);
 		}
 
+		void IBot.QueueOrder(Order order)
+		{
+			orders.Enqueue(order);
+		}
+
+		// DEPRECATED: Modules should use IBot.QueueOrder instead
 		public void QueueOrder(Order order)
 		{
 			orders.Enqueue(order);
@@ -443,22 +416,22 @@ namespace OpenRA.Mods.Common.AI
 				CountBuildingByCommonName(Info.BuildingCommonNames.Barracks, Player) == 0;
 		}
 
-		// For mods like RA (number of building must match the number of aircraft)
+		// For mods like RA (number of RearmActors must match the number of aircraft)
 		bool HasAdequateAirUnitReloadBuildings(ActorInfo actorInfo)
 		{
 			var aircraftInfo = actorInfo.TraitInfoOrDefault<AircraftInfo>();
 			if (aircraftInfo == null)
 				return true;
 
-			// If the aircraft has at least 1 AmmoPool and defines 1 or more RearmBuildings, check if we have enough of those
-			var hasAmmoPool = actorInfo.TraitInfos<AmmoPoolInfo>().Any();
-			if (hasAmmoPool && aircraftInfo.RearmBuildings.Count > 0)
-			{
-				var countOwnAir = CountActorsWithTrait<IPositionable>(actorInfo.Name, Player);
-				var countBuildings = aircraftInfo.RearmBuildings.Sum(b => CountActorsWithTrait<Building>(b, Player));
-				if (countOwnAir >= countBuildings)
-					return false;
-			}
+			// If actor isn't Rearmable, it doesn't need a RearmActor to reload
+			var rearmableInfo = actorInfo.TraitInfoOrDefault<RearmableInfo>();
+			if (rearmableInfo == null)
+				return true;
+
+			var countOwnAir = CountActorsWithTrait<IPositionable>(actorInfo.Name, Player);
+			var countBuildings = rearmableInfo.RearmActors.Sum(b => CountActorsWithTrait<Building>(b, Player));
+			if (countOwnAir >= countBuildings)
+				return false;
 
 			return true;
 		}
@@ -549,10 +522,17 @@ namespace OpenRA.Mods.Common.AI
 
 			AssignRolesToIdleUnits(self);
 			SetRallyPointsForNewProductionBuildings(self);
-			supportPowerManager.TryToUseSupportPower(self);
 
 			foreach (var b in builders)
 				b.Tick();
+
+			// TODO: Add an option to include this in CheckSyncAroundUnsyncedCode.
+			// Checking sync for this is too expensive to include it by default,
+			// so it should be implemented as separate sub-option checkbox.
+			using (new PerfSample("tick_bots"))
+				foreach (var t in tickModules)
+					if (t.IsTraitEnabled())
+						t.BotTick(this);
 
 			var ordersToIssueThisTick = Math.Min((orders.Count + Info.MinOrderQuotientPerTick - 1) / Info.MinOrderQuotientPerTick, orders.Count);
 			for (var i = 0; i < ordersToIssueThisTick; i++)
@@ -601,7 +581,6 @@ namespace OpenRA.Mods.Common.AI
 
 			activeUnits.RemoveAll(unitCannotBeOrdered);
 			unitsHangingAroundTheBase.RemoveAll(unitCannotBeOrdered);
-			harvesters.RemoveAll(unitCannotBeOrdered);
 
 			if (--rushTicks <= 0)
 			{
@@ -620,7 +599,6 @@ namespace OpenRA.Mods.Common.AI
 			{
 				assignRolesTicks = Info.AssignRolesInterval;
 				FindNewUnits(self);
-				harvManager.Tick(harvesters);
 				InitializeBase(self, true);
 			}
 
@@ -656,7 +634,12 @@ namespace OpenRA.Mods.Common.AI
 			if (!Info.CapturingActorTypes.Any() || Player.WinState != WinState.Undefined)
 				return;
 
-			var capturers = unitsHangingAroundTheBase.Where(a => a.IsIdle && Info.CapturingActorTypes.Contains(a.Info.Name)).ToArray();
+			var capturers = unitsHangingAroundTheBase
+				.Where(a => a.IsIdle && Info.CapturingActorTypes.Contains(a.Info.Name))
+				.Select(a => new TraitPair<CaptureManager>(a, a.TraitOrDefault<CaptureManager>()))
+				.Where(tp => tp.Trait != null)
+				.ToArray();
+
 			if (capturers.Length == 0)
 				return;
 
@@ -674,48 +657,24 @@ namespace OpenRA.Mods.Common.AI
 					if (target.Info == null)
 						return false;
 
-					var capturable = target.Actor.TraitOrDefault<Capturable>();
-					if (capturable == null)
+					var captureManager = target.Actor.TraitOrDefault<CaptureManager>();
+					if (captureManager == null)
 						return false;
 
-					return capturers.Any(capturer => capturable.CanBeTargetedBy(capturer, target.Actor.Owner));
-				})
-				.OrderByDescending(target => target.Actor.GetSellValue())
-				.Take(maximumCaptureTargetOptions);
-
-			var externalCapturableTargetOptions = targetOptions
-				.Select(a => new CaptureTarget<ExternalCapturableInfo>(a, "ExternalCaptureActor"))
-				.Where(target =>
-				{
-					if (target.Info == null)
-						return false;
-
-					var externalCapturable = target.Actor.TraitOrDefault<ExternalCapturable>();
-					if (externalCapturable == null)
-						return false;
-
-					return capturers.Any(capturer => externalCapturable.CanBeTargetedBy(capturer, target.Actor.Owner));
+					return capturers.Any(tp => captureManager.CanBeTargetedBy(target.Actor, tp.Actor, tp.Trait));
 				})
 				.OrderByDescending(target => target.Actor.GetSellValue())
 				.Take(maximumCaptureTargetOptions);
 
 			if (Info.CapturableActorTypes.Any())
-			{
 				capturableTargetOptions = capturableTargetOptions.Where(target => Info.CapturableActorTypes.Contains(target.Actor.Info.Name.ToLowerInvariant()));
-				externalCapturableTargetOptions = externalCapturableTargetOptions.Where(target => Info.CapturableActorTypes.Contains(target.Actor.Info.Name.ToLowerInvariant()));
-			}
 
-			if (!capturableTargetOptions.Any() && !externalCapturableTargetOptions.Any())
+			if (!capturableTargetOptions.Any())
 				return;
 
-			var capturesCapturers = capturers.Where(a => a.Info.HasTraitInfo<CapturesInfo>());
-			var externalCapturers = capturers.Except(capturesCapturers).Where(a => a.Info.HasTraitInfo<ExternalCapturesInfo>());
-
-			foreach (var capturer in capturesCapturers)
-				QueueCaptureOrderFor(capturer, GetCapturerTargetClosestToOrDefault(capturer, capturableTargetOptions));
-
-			foreach (var capturer in externalCapturers)
-				QueueCaptureOrderFor(capturer, GetCapturerTargetClosestToOrDefault(capturer, externalCapturableTargetOptions));
+			var capturesCapturers = capturers.Where(tp => tp.Actor.Info.HasTraitInfo<CapturesInfo>());
+			foreach (var tp in capturesCapturers)
+				QueueCaptureOrderFor(tp.Actor, GetCapturerTargetClosestToOrDefault(tp.Actor, capturableTargetOptions));
 		}
 
 		void QueueCaptureOrderFor<TTargetType>(Actor capturer, CaptureTarget<TTargetType> target) where TTargetType : class, ITraitInfoInterface
@@ -730,7 +689,7 @@ namespace OpenRA.Mods.Common.AI
 				return;
 
 			QueueOrder(new Order(target.OrderString, capturer, Target.FromActor(target.Actor), true));
-			BotDebug("AI ({0}): Ordered {1} to capture {2}", Player.ClientIndex, capturer, target.Actor);
+			AIUtils.BotDebug("AI ({0}): Ordered {1} to capture {2}", Player.ClientIndex, capturer, target.Actor);
 			activeUnits.Remove(capturer);
 		}
 
@@ -743,13 +702,10 @@ namespace OpenRA.Mods.Common.AI
 		void FindNewUnits(Actor self)
 		{
 			var newUnits = self.World.ActorsHavingTrait<IPositionable>()
-				.Where(a => a.Owner == Player && !activeUnits.Contains(a) && !harvesters.Contains(a));
+				.Where(a => a.Owner == Player && !activeUnits.Contains(a));
 
 			foreach (var a in newUnits)
 			{
-				if (a.Info.HasTraitInfo<HarvesterInfo>())
-					harvesters.Add(a);
-
 				if (Info.UnitsCommonNames.Mcv.Contains(a.Info.Name) || Info.UnitsCommonNames.ExcludeFromSquads.Contains(a.Info.Name))
 					continue;
 
@@ -872,7 +828,7 @@ namespace OpenRA.Mods.Common.AI
 
 			if (!possibleRallyPoints.Any())
 			{
-				BotDebug("Bot Bug: No possible rallypoint near {0}", producer.Location);
+				AIUtils.BotDebug("Bot Bug: No possible rallypoint near {0}", producer.Location);
 				return producer.Location;
 			}
 
@@ -947,7 +903,7 @@ namespace OpenRA.Mods.Common.AI
 		void BuildUnit(string category, bool buildRandom)
 		{
 			// Pick a free queue
-			var queue = FindQueues(category).FirstOrDefault(q => q.CurrentItem() == null);
+			var queue = FindQueues(category).FirstOrDefault(q => !q.AllQueued().Any());
 			if (queue == null)
 				return;
 
@@ -973,7 +929,7 @@ namespace OpenRA.Mods.Common.AI
 
 		void BuildUnit(string category, string name)
 		{
-			var queue = FindQueues(category).FirstOrDefault(q => q.CurrentItem() == null);
+			var queue = FindQueues(category).FirstOrDefault(q => !q.AllQueued().Any());
 			if (queue == null)
 				return;
 
@@ -995,7 +951,7 @@ namespace OpenRA.Mods.Common.AI
 			{
 				if (e.DamageState > DamageState.Light && e.PreviousDamageState <= DamageState.Light && !rb.RepairActive)
 				{
-					BotDebug("Bot noticed damage {0} {1}->{2}, repairing.",
+					AIUtils.BotDebug("Bot noticed damage {0} {1}->{2}, repairing.",
 						self, e.PreviousDamageState, e.DamageState);
 					QueueOrder(new Order("RepairBuilding", self.Owner.PlayerActor, Target.FromActor(self), false));
 				}

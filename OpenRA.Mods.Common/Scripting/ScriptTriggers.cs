@@ -278,7 +278,7 @@ namespace OpenRA.Mods.Common.Scripting
 			}
 		}
 
-		public void OnCapture(Actor self, Actor captor, Player oldOwner, Player newOwner)
+		void INotifyCapture.OnCapture(Actor self, Actor captor, Player oldOwner, Player newOwner, BitSet<CaptureType> captureTypes)
 		{
 			if (world.Disposing)
 				return;
@@ -405,7 +405,7 @@ namespace OpenRA.Mods.Common.Scripting
 			}
 		}
 
-		public void UnitProducedByOther(Actor self, Actor producee, Actor produced, string productionType)
+		public void UnitProducedByOther(Actor self, Actor producee, Actor produced, string productionType, TypeDictionary init)
 		{
 			if (world.Disposing)
 				return;

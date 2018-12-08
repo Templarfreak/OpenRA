@@ -15,7 +15,6 @@ using System.Drawing;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Activities;
-using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -463,6 +462,12 @@ namespace OpenRA.Mods.Common.Traits
 		public Activity VisualMove(Actor self, WPos fromPos, WPos toPos)
 		{
 			return VisualMove(self, fromPos, toPos, self.Location);
+		}
+
+		public int EstimatedMoveDuration(Actor self, WPos fromPos, WPos toPos)
+		{
+			var speed = MovementSpeedForCell(self, self.Location);
+			return speed > 0 ? (toPos - fromPos).Length / speed : 0;
 		}
 
 		public CPos NearestMoveableCell(CPos target)

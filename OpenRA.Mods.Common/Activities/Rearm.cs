@@ -9,23 +9,27 @@
  */
 #endregion
 
-using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.Common.Traits.Render;
+using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
 {
 	public class Rearm : Activity
 	{
-		readonly AmmoPool[] ammoPools;
 		int fixed_cost = 0;
 
-		public Rearm(Actor self, int cost = 0)
+		readonly Target host;
+		readonly WDist closeEnough;
+		readonly Rearmable rearmable;
+
+		public Rearm(Actor self, Actor host, WDist closeEnough, int cost = 0)
 		{
 			fixed_cost = cost;
-			ammoPools = self.TraitsImplementing<AmmoPool>().Where(p => !p.AutoReloads).ToArray();
+			this.host = Target.FromActor(host);
+			this.closeEnough = closeEnough;
+			rearmable = self.Trait<Rearmable>();
 		}
 
 		protected override void OnFirstRun(Actor self)
@@ -33,8 +37,30 @@ namespace OpenRA.Mods.Common.Activities
 			// Reset the ReloadDelay to avoid any issues with early cancellation
 			// from previous reload attempts (explicit order, host building died, etc).
 			// HACK: this really shouldn't be managed from here
-			foreach (var pool in ammoPools)
+			foreach (var pool in rearmable.RearmableAmmoPools)
 				pool.RemainingTicks = pool.Info.ReloadDelay;
+
+			if (host.Type == TargetType.Invalid)
+				return;
+
+			foreach (var notify in host.Actor.TraitsImplementing<INotifyRearm>())
+				notify.RearmingStarted(host.Actor, self);
+		}
+
+		protected override void OnLastRun(Actor self)
+		{
+			if (host.Type == TargetType.Invalid)
+				return;
+
+			foreach (var notify in host.Actor.TraitsImplementing<INotifyRearm>())
+				notify.RearmingFinished(host.Actor, self);
+		}
+
+		protected override void OnActorDispose(Actor self)
+		{
+			// If the actor died (or will be disposed directly) this tick, Activity.TickOuter won't be ticked again,
+			// so we need to run OnLastRun directly (otherwise it would be skipped completely).
+			OnLastRun(self);
 		}
 
 		public override Activity Tick(Actor self)
@@ -42,19 +68,18 @@ namespace OpenRA.Mods.Common.Activities
 			if (IsCanceled)
 				return NextActivity;
 
-			// HACK: check if we are on the helipad/airfield/etc.
-			var hostBuilding = self.World.ActorMap.GetActorsAt(self.Location)
-				.FirstOrDefault(a => a.Info.HasTraitInfo<BuildingInfo>());
+			if (host.Type == TargetType.Invalid)
+				return NextActivity;
 
-			if (hostBuilding == null || !hostBuilding.IsInWorld)
+			if (closeEnough.LengthSquared > 0 && !host.IsInRange(self.CenterPosition, closeEnough))
 				return NextActivity;
 
 			var complete = true;
-			foreach (var pool in ammoPools)
+			foreach (var pool in rearmable.RearmableAmmoPools)
 			{
 				if (!pool.FullAmmo())
 				{
-					Reload(self, hostBuilding, pool);
+					Reload(self, host.Actor, pool);
 					complete = false;
 				}
 			}
@@ -62,35 +87,29 @@ namespace OpenRA.Mods.Common.Activities
 			return complete ? NextActivity : this;
 		}
 
-		void Reload(Actor self, Actor hostBuilding, AmmoPool ammoPool)
+		void DoReload(Actor self, Actor host, AmmoPool ammoPool)
 		{
 			if (--ammoPool.RemainingTicks <= 0)
 			{
-				if (fixed_cost != 0)
-				{
-					if (self.Owner.PlayerActor.Trait<PlayerResources>().TakeCash(fixed_cost, true))
-					{
-						foreach (var host in hostBuilding.TraitsImplementing<INotifyRearm>())
-							host.Rearming(hostBuilding, self);
+				foreach (var notify in host.TraitsImplementing<INotifyRearm>())
+					notify.Rearming(host, self);
 
-						ammoPool.RemainingTicks = ammoPool.Info.ReloadDelay;
-						if (!string.IsNullOrEmpty(ammoPool.Info.RearmSound))
-							Game.Sound.PlayToPlayer(SoundType.World, self.Owner, ammoPool.Info.RearmSound, self.CenterPosition);
+				ammoPool.RemainingTicks = ammoPool.Info.ReloadDelay;
 
-						ammoPool.GiveAmmo(self, ammoPool.Info.ReloadCount);
-					}
-				}
-				else if (fixed_cost == 0)
-				{
-					foreach (var host in hostBuilding.TraitsImplementing<INotifyRearm>())
-						host.Rearming(hostBuilding, self);
+				if (!string.IsNullOrEmpty(ammoPool.Info.RearmSound))
+					Game.Sound.PlayToPlayer(SoundType.World, self.Owner, ammoPool.Info.RearmSound, self.CenterPosition);
+			}
+		}
 
-					ammoPool.RemainingTicks = ammoPool.Info.ReloadDelay;
-					if (!string.IsNullOrEmpty(ammoPool.Info.RearmSound))
-						Game.Sound.PlayToPlayer(SoundType.World, self.Owner, ammoPool.Info.RearmSound, self.CenterPosition);
-
-					ammoPool.GiveAmmo(self, ammoPool.Info.ReloadCount);
-				}
+		void Reload(Actor self, Actor host, AmmoPool ammoPool)
+		{
+			if (fixed_cost != 0 && self.Owner.PlayerActor.Trait<PlayerResources>().TakeCash(fixed_cost, true))
+			{
+				DoReload(self, host, ammoPool);
+			}
+			else if (fixed_cost == 0)
+			{
+				DoReload(self, host, ammoPool);
 			}
 		}
 	}

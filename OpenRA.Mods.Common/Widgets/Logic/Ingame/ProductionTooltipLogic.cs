@@ -13,8 +13,6 @@ using System;
 using System.Drawing;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Support;
-using OpenRA.Traits;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
@@ -71,7 +69,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var name = tooltip != null ? tooltip.Name : actor.Name;
 				var buildable = actor.TraitInfo<BuildableInfo>();
 				var vi = actor.TraitInfo<ValuedInfo>();
-				var cost = vi.GetFinalCost(player);
+				var cost = vi != null ? vi.GetFinalCost(player) : 0;
 
 				nameLabel.Text = name;
 
@@ -106,10 +104,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				}
 
 				var buildTime = tooltipIcon.ProductionQueue == null ? 0 : tooltipIcon.ProductionQueue.GetBuildTime(actor, buildable, player);
-				var timeMultiplier = pm != null && pm.PowerState != PowerState.Normal ? tooltipIcon.ProductionQueue.Info.LowPowerSlowdown : 1;
+				var timeModifier = pm != null && pm.PowerState != PowerState.Normal ? tooltipIcon.ProductionQueue.Info.LowPowerModifier : 100;
 
-				timeLabel.Text = formatBuildTime.Update(buildTime * timeMultiplier);
-				timeLabel.TextColor = (pm != null && pm.PowerState != PowerState.Normal && tooltipIcon.ProductionQueue.Info.LowPowerSlowdown > 1) ? Color.Red : Color.White;
+				timeLabel.Text = formatBuildTime.Update((buildTime * timeModifier) / 100);
+				timeLabel.TextColor = (pm != null && pm.PowerState != PowerState.Normal && tooltipIcon.ProductionQueue.Info.LowPowerModifier > 100) ? Color.Red : Color.White;
 				var timeSize = font.Measure(timeLabel.Text);
 
 				costLabel.Text = cost.ToString();

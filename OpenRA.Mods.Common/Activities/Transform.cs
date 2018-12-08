@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Traits.Render;
@@ -56,8 +55,7 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Prevent deployment in bogus locations
 			var transforms = self.TraitOrDefault<Transforms>();
-			var building = self.TraitOrDefault<Building>();
-			if ((transforms != null && !transforms.CanDeploy()) || (building != null && !building.Lock()))
+			if (transforms != null && !transforms.CanDeploy())
 			{
 				Cancel(self, true);
 				return NextActivity;
@@ -119,7 +117,7 @@ namespace OpenRA.Mods.Common.Activities
 				if (Faction != null)
 					init.Add(new FactionInit(Faction));
 
-				var health = self.TraitOrDefault<Health>();
+				var health = self.TraitOrDefault<IHealth>();
 				if (health != null)
 				{
 					// Cast to long to avoid overflow when multiplying by the health

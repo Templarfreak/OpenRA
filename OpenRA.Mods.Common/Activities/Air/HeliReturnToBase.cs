@@ -19,6 +19,8 @@ namespace OpenRA.Mods.Common.Activities
 	public class HeliReturnToBase : Activity
 	{
 		readonly Aircraft aircraft;
+		readonly RepairableInfo repairableInfo;
+		readonly Rearmable rearmable;
 		readonly bool alwaysLand;
 		readonly bool abortOnResupply;
 		Actor dest;
@@ -26,6 +28,8 @@ namespace OpenRA.Mods.Common.Activities
 		public HeliReturnToBase(Actor self, bool abortOnResupply, Actor dest = null, bool alwaysLand = true)
 		{
 			aircraft = self.Trait<Aircraft>();
+			repairableInfo = self.Info.TraitInfoOrDefault<RepairableInfo>();
+			rearmable = self.TraitOrDefault<Rearmable>();
 			this.alwaysLand = alwaysLand;
 			this.abortOnResupply = abortOnResupply;
 			this.dest = dest;
@@ -33,9 +37,11 @@ namespace OpenRA.Mods.Common.Activities
 
 		public Actor ChooseResupplier(Actor self, bool unreservedOnly)
 		{
-			var rearmBuildings = aircraft.Info.RearmBuildings;
+			if (rearmable == null)
+				return null;
+
 			return self.World.Actors.Where(a => a.Owner == self.Owner
-				&& rearmBuildings.Contains(a.Info.Name)
+				&& rearmable.Info.RearmActors.Contains(a.Info.Name)
 				&& (!unreservedOnly || !Reservable.IsReserved(a, aircraft)))
 				.ClosestTo(self);
 		}
@@ -90,6 +96,8 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			WPos landPos = WPos.Zero;
+			var exit = dest.FirstExitOrDefault(null);
+			var offset = exit != null ? exit.Info.SpawnOffset : WVec.Zero;
 
 			if (ShouldLandAtBuilding(self, dest))
 			{
@@ -97,7 +105,7 @@ namespace OpenRA.Mods.Common.Activities
 				landPos = aircraft.reservation.Second;
 
 				return ActivityUtils.SequenceActivities(
-					new HeliFly(self, Target.FromPos(landPos)),
+					new HeliFly(self, Target.FromPos(landPos + offset)),
 					new Turn(self, initialFacing),
 					new HeliLand(self, false),
 					new ResupplyAircraft(self),
@@ -105,7 +113,7 @@ namespace OpenRA.Mods.Common.Activities
 			}
 
 			return ActivityUtils.SequenceActivities(
-				new HeliFly(self, Target.FromPos(landPos)),
+				new HeliFly(self, Target.FromPos(landPos + offset)),
 				NextActivity);
 		}
 
@@ -114,11 +122,11 @@ namespace OpenRA.Mods.Common.Activities
 			if (alwaysLand)
 				return true;
 
-			if (aircraft.Info.RepairBuildings.Contains(dest.Info.Name) && self.GetDamageState() != DamageState.Undamaged)
+			if (repairableInfo != null && repairableInfo.RepairBuildings.Contains(dest.Info.Name) && self.GetDamageState() != DamageState.Undamaged)
 				return true;
 
-			return aircraft.Info.RearmBuildings.Contains(dest.Info.Name) && self.TraitsImplementing<AmmoPool>()
-					.Any(p => !p.AutoReloads && !p.FullAmmo());
+			return rearmable != null && rearmable.Info.RearmActors.Contains(dest.Info.Name)
+					&& rearmable.RearmableAmmoPools.Any(p => !p.FullAmmo());
 		}
 	}
 }

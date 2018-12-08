@@ -24,6 +24,9 @@ namespace OpenRA.Mods.D2k.Traits
 		//[Desc("Z-Offset of this Terrain Layer.")]
 		//public readonly int LayerZOffset = 40;
 
+		[Desc("The hitpoints, which can be reduced by the DamagesConcreteWarhead.")]
+		public readonly int MaxStrength = 9000;
+
 		public object Create(ActorInitializer init) { return new BuildableTerrainLayer(init.Self, this); }
 	}
 
@@ -32,6 +35,7 @@ namespace OpenRA.Mods.D2k.Traits
 		readonly BuildableTerrainLayerInfo info;
 		readonly Dictionary<CPos, Sprite> dirty = new Dictionary<CPos, Sprite>();
 		readonly Map map;
+		readonly CellLayer<int> strength;
 
 		TerrainSpriteLayer render;
 		Theater theater;
@@ -41,6 +45,7 @@ namespace OpenRA.Mods.D2k.Traits
 		{
 			this.info = info;
 			map = self.World.Map;
+			strength = new CellLayer<int>(self.World.Map);
 		}
 
 		public void WorldLoaded(World w, WorldRenderer wr)
@@ -52,11 +57,29 @@ namespace OpenRA.Mods.D2k.Traits
 		public void AddTile(CPos cell, TerrainTile tile)
 		{
 			map.CustomTerrain[cell] = map.Rules.TileSet.GetTerrainIndex(tile);
+			strength[cell] = info.MaxStrength;
 
 			// Terrain tiles define their origin at the topleft
 			var s = theater.TileSprite(tile);
 
 			dirty[cell] = new Sprite(s.Sheet, s.Bounds, s.ZRamp, s.Offset, s.Channel, s.BlendMode);
+		}
+
+		public void HitTile(CPos cell, int damage)
+		{
+			if (strength[cell] == 0)
+				return;
+
+			strength[cell] = strength[cell] - damage;
+			if (strength[cell] < 1)
+				RemoveTile(cell);
+		}
+
+		public void RemoveTile(CPos cell)
+		{
+			map.CustomTerrain[cell] = byte.MaxValue;
+			strength[cell] = 0;
+			dirty[cell] = null;
 		}
 
 		void ITickRender.TickRender(WorldRenderer wr, Actor self)

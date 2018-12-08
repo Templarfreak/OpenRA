@@ -13,7 +13,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Activities;
-using OpenRA.Network;
 using OpenRA.Primitives;
 using OpenRA.Traits;
 
@@ -119,7 +118,7 @@ namespace OpenRA.Mods.Common.Traits
 				ticks = info.SpawnInterval;
 
 				var toSpawn = Math.Max(0, info.Minimum - crates)
-					+ (crates < info.Maximum ? 1 : 0);
+					+ (crates < info.Maximum && info.Maximum > info.Minimum ? 1 : 0);
 
 				for (var n = 0; n < toSpawn; n++)
 					SpawnCrate(self);

@@ -106,10 +106,9 @@ MIG:
 		LocalOffset: 0,-640,0, 0,640,0
 		LocalYaw: -40, 24
 		PauseOnCondition: !ammo
-	AttackPlane:
+	AttackAircraft:
 		FacingTolerance: 20
 	Aircraft:
-		RearmBuildings: afld, afld.ukraine
 		CruiseAltitude: 2560
 		InitialFacing: 192
 		TurnSpeed: 4
@@ -138,6 +137,8 @@ MIG:
 		Interval: 2
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
+	Rearmable:
+		RearmActors: afld, afld.ukraine
 
 YAK:
 	Inherits: ^Plane
@@ -172,10 +173,9 @@ YAK:
 		LocalOffset: 256,213,0
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo
-	AttackPlane:
+	AttackAircraft:
 		FacingTolerance: 20
 	Aircraft:
-		RearmBuildings: afld, afld.ukraine
 		CruiseAltitude: 2560
 		InitialFacing: 192
 		TurnSpeed: 4
@@ -204,6 +204,8 @@ YAK:
 		Prerequisites: aircraft.upgraded
 	Selectable:
 		DecorationBounds: 30,28,0,2
+	Rearmable:
+		RearmActors: afld, afld.ukraine
 
 TRAN:
 	Inherits: ^Helicopter
@@ -227,7 +229,6 @@ TRAN:
 		Range: 6c0
 		Type: GroundPosition
 	Aircraft:
-		InitialFacing: 224
 		TurnSpeed: 5
 		Speed: 128
 		LandableTerrainTypes: Clear,Rough,Road,Ore,Beach,Gems
@@ -289,12 +290,10 @@ HELI:
 		Weapon: HellfireAG
 		LocalOffset: 0,213,-85, 0,-213,-85
 		PauseOnCondition: !ammo
-	AttackHeli:
+	AttackAircraft:
 		FacingTolerance: 20
 	Aircraft:
-		RearmBuildings: hpad
 		LandWhenIdle: false
-		InitialFacing: 224
 		TurnSpeed: 4
 		Speed: 149
 	AutoTarget:
@@ -320,6 +319,8 @@ HELI:
 		Prerequisites: aircraft.upgraded
 	Selectable:
 		DecorationBounds: 36,28
+	Rearmable:
+		RearmActors: hpad
 
 HIND:
 	Inherits: ^Helicopter
@@ -354,12 +355,10 @@ HIND:
 		LocalOffset: 85,213,-85, 85,-213,-85
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo
-	AttackHeli:
+	AttackAircraft:
 		FacingTolerance: 20
 	Aircraft:
-		RearmBuildings: hpad
 		LandWhenIdle: false
-		InitialFacing: 224
 		TurnSpeed: 4
 		Speed: 112
 	AutoTarget:
@@ -386,6 +385,8 @@ HIND:
 		Prerequisites: aircraft.upgraded
 	Selectable:
 		DecorationBounds: 38,32
+	Rearmable:
+		RearmActors: hpad
 
 U2:
 	Inherits: ^NeutralPlane

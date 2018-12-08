@@ -42,6 +42,7 @@ namespace OpenRA
 		public Session LobbyInfo { get { return OrderManager.LobbyInfo; } }
 
 		public readonly MersenneTwister SharedRandom;
+		public readonly MersenneTwister LocalRandom;
 		public readonly IModelCache ModelCache;
 
 		public Player[] Players = new Player[0];
@@ -171,6 +172,7 @@ namespace OpenRA
 			Map = map;
 			Timestep = orderManager.LobbyInfo.GlobalSettings.Timestep;
 			SharedRandom = new MersenneTwister(orderManager.LobbyInfo.GlobalSettings.RandomSeed);
+			LocalRandom = new MersenneTwister();
 
 			ModelCache = modData.ModelSequenceLoader.CacheModels(map, modData, map.Rules.ModelSequences);
 
@@ -362,12 +364,7 @@ namespace OpenRA
 			{
 				WorldTick++;
 
-				using (new PerfSample("tick_idle"))
-					foreach (var ni in ActorsWithTrait<INotifyIdle>())
-						if (ni.Actor.IsIdle)
-							ni.Trait.TickIdle(ni.Actor);
-
-				using (new PerfSample("tick_activities"))
+				using (new PerfSample("tick_actors"))
 					foreach (var a in actors.Values)
 						a.Tick();
 

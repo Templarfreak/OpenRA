@@ -11,7 +11,6 @@
 
 using System;
 using System.IO;
-using System.Linq;
 using OpenRA.Network;
 using OpenRA.Traits;
 
@@ -128,8 +127,8 @@ namespace OpenRA
 									{
 										if (flags.HasField(OrderFields.TargetIsCell))
 										{
-											var cell = new CPos(r.ReadInt32(), r.ReadInt32(), r.ReadByte());
-											var subCell = (SubCell)r.ReadInt32();
+											var cell = new CPos(r.ReadInt32());
+											var subCell = (SubCell)r.ReadByte();
 											if (world != null)
 												target = Target.FromCell(world, cell, subCell);
 										}
@@ -146,7 +145,7 @@ namespace OpenRA
 
 						var targetString = flags.HasField(OrderFields.TargetString) ? r.ReadString() : null;
 						var queued = flags.HasField(OrderFields.Queued);
-						var extraLocation = flags.HasField(OrderFields.ExtraLocation) ? new CPos(r.ReadInt32(), r.ReadInt32(), r.ReadByte()) : CPos.Zero;
+						var extraLocation = flags.HasField(OrderFields.ExtraLocation) ? new CPos(r.ReadInt32()) : CPos.Zero;
 						var extraData = flags.HasField(OrderFields.ExtraData) ? r.ReadUInt32() : 0;
 
 						if (world == null)
@@ -231,9 +230,9 @@ namespace OpenRA
 			return new Order("Command", null, false) { IsImmediate = true, TargetString = text };
 		}
 
-		public static Order StartProduction(Actor subject, string item, int count)
+		public static Order StartProduction(Actor subject, string item, int count, bool queued = true)
 		{
-			return new Order("StartProduction", subject, false) { ExtraData = (uint)count, TargetString = item };
+			return new Order("StartProduction", subject, queued) { ExtraData = (uint)count, TargetString = item };
 		}
 
 		public static Order PauseProduction(Actor subject, string item, bool pause)
@@ -311,7 +310,7 @@ namespace OpenRA
 						if (fields.HasField(OrderFields.TargetIsCell))
 						{
 							w.Write(Target.SerializableCell.Value);
-							w.Write((int)Target.SerializableSubCell);
+							w.Write((byte)Target.SerializableSubCell);
 						}
 						else
 							w.Write(Target.SerializablePos);

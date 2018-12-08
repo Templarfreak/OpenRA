@@ -43,7 +43,7 @@ DOG:
 		StandSequences: stand
 	IgnoresDisguise:
 	DetectCloaked:
-		CloakTypes: Cloak, Hijacker
+		CloakTypes: Cloak, Thief
 	Voiced:
 		VoiceSet: DogVoice
 	-TakeCover:
@@ -127,6 +127,7 @@ E2:
 	Explodes:
 		Weapon: UnitExplodeSmall
 		EmptyWeapon: UnitExplodeSmall
+		DamageSource: Killer
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
 
@@ -239,9 +240,23 @@ E6:
 		PipType: Yellow
 	EngineerRepair:
 	RepairsBridges:
-	ExternalCaptures:
+	CaptureManager:
+	GrantConditionOnPrerequisite@GLOBALREUSABLEENGINEER:
+		Condition: global-reusable-engineers
+		Prerequisites: global-reusable-engineers
+	Captures:
+		RequiresCondition: !global-reusable-engineers
 		CaptureTypes: building
 		PlayerExperience: 25
+		CaptureDelay: 200
+	Captures@REUSABLE:
+		RequiresCondition: global-reusable-engineers
+		CaptureTypes: building
+		PlayerExperience: 25
+		CaptureDelay: 375
+		ConsumedByCapture: False
+		EnterCursor: ability
+		EnterBlockedCursor: move-blocked
 	Voiced:
 		VoiceSet: EngineerVoice
 	Selectable:
@@ -274,6 +289,7 @@ SPY:
 		DisguisedCondition: disguise
 	Infiltrates:
 		Types: SpyInfiltrate
+		Notification: BuildingInfiltrated
 		PlayerExperience: 50
 	AutoTarget:
 		InitialStance: HoldFire
@@ -293,7 +309,7 @@ SPY:
 		RequiresCondition: disguise
 	IgnoresDisguise:
 	DetectCloaked:
-		CloakTypes: Cloak, Hijacker
+		CloakTypes: Cloak, Thief
 	Armament:
 		Weapon: SilencedPPK
 	AttackFrontal:
@@ -356,10 +372,11 @@ E7:
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
 		StandSequences: stand
-	AnnounceOnBuild:
+	VoiceAnnouncement:
+		Voice: Build
 	AnnounceOnKill:
 	DetectCloaked:
-		CloakTypes: Cloak, Hijacker
+		CloakTypes: Cloak, Thief
 	Voiced:
 		VoiceSet: TanyaVoice
 	ProducibleWithLevel:
@@ -429,8 +446,14 @@ MECH:
 		ForceTargetStances: None
 	AttackFrontal:
 		Voice: Move
+	CaptureManager:
 	Captures:
 		CaptureTypes: husk
+		PlayerExperience: 25
+	Infiltrates:
+		Types: Husk
+		ValidStances: Ally
+		EnterCursor: goldwrench
 		PlayerExperience: 25
 	WithInfantryBody:
 		IdleSequences: idle
@@ -499,44 +522,29 @@ GNRL:
 
 THF:
 	Inherits: ^Soldier
-	Valued:
-		Cost: 400
-	Tooltip:
-		Name: Thief
-	RevealsShroud:
-		Range: 5c0
-	Passenger:
-		PipType: Blue
-	Infiltrates:
-		PlayerExperience: 50
-	Voiced:
-		VoiceSet: ThiefVoice
-	WithInfantryBody:
-		IdleSequences: idle
-		StandSequences: stand
-	Buildable:
-		Description: Steals enemy credits.\n  Unarmed
-
-HIJACKER:
-	Inherits: ^Soldier
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 110
 		Prerequisites: ~barr, fix, ~techlevel.medium
-		Description: Hijacks enemy vehicles.\n  Unarmed
+		Description: Steals enemy credits.\nHijacks enemy vehicles.\n  Unarmed
 	Valued:
 		Cost: 500
 	Tooltip:
-		Name: Hijacker
+		Name: Thief
 	Health:
 		HP: 5000
 	RevealsShroud:
 		Range: 5c0
 	Passenger:
 		PipType: Blue
+	CaptureManager:
 	Captures:
 		CaptureTypes: vehicle
+		PlayerExperience: 50
+	Infiltrates:
+		Types: ThiefInfiltrate
+		Notification: BuildingInfiltrated
 		PlayerExperience: 50
 	Voiced:
 		VoiceSet: ThiefVoice
@@ -550,9 +558,9 @@ HIJACKER:
 		InitialDelay: 250
 		CloakDelay: 120
 		UncloakOn: Attack, Unload, Infiltrate, Demolish, Move
-		CloakTypes: Cloak, Hijacker
+		CloakTypes: Cloak, Thief
 		IsPlayerPalette: true
-		RequiresCondition: !cloak-force-disabled
+		PauseOnCondition: cloak-force-disabled
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
@@ -644,12 +652,12 @@ SNIPER:
 		UncloakSound:
 		UncloakOn: Attack, Unload, Infiltrate, Demolish, Move
 		IsPlayerPalette: true
-		RequiresCondition: !cloak-force-disabled
+		PauseOnCondition: cloak-force-disabled
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
 	DetectCloaked:
-		CloakTypes: Cloak, Hijacker
+		CloakTypes: Cloak, Thief
 		Range: 6c0
 	-MustBeDestroyed:
 	ProducibleWithLevel:

@@ -19,7 +19,7 @@ namespace OpenRA.Mods.Common.Activities
 {
 	public class Repair : Activity
 	{
-		readonly Health health;
+		readonly IHealth health;
 		readonly RepairsUnits[] allRepairsUnits;
 		readonly Target host;
 		readonly WDist closeEnough;
@@ -35,7 +35,7 @@ namespace OpenRA.Mods.Common.Activities
 			this.host = Target.FromActor(host);
 			this.closeEnough = closeEnough;
 			allRepairsUnits = host.TraitsImplementing<RepairsUnits>().ToArray();
-			health = self.TraitOrDefault<Health>();
+			health = self.TraitOrDefault<IHealth>();
 			repairable = self.TraitOrDefault<Repairable>();
 		}
 
@@ -100,7 +100,8 @@ namespace OpenRA.Mods.Common.Activities
 
 			if (remainingTicks == 0)
 			{
-				var unitCost = self.Info.TraitInfo<ValuedInfo>().Cost;
+				var valued = self.Info.TraitInfoOrDefault<ValuedInfo>();
+				var unitCost = valued != null ? valued.Cost : 0;
 				var hpToRepair = repairable != null && repairable.Info.HpPerStep > 0 ? repairable.Info.HpPerStep : repairsUnits.Info.HpPerStep;
 
 				// Cast to long to avoid overflow when multiplying by the health
@@ -150,6 +151,13 @@ namespace OpenRA.Mods.Common.Activities
 
 			foreach (var depot in host.Actor.TraitsImplementing<INotifyRepair>())
 				depot.AfterRepair(host.Actor, self);
+		}
+
+		protected override void OnActorDispose(Actor self)
+		{
+			// If the actor died (or will be disposed directly) this tick, Activity.TickOuter won't be ticked again,
+			// so we need to run OnLastRun directly (otherwise it would be skipped completely).
+			OnLastRun(self);
 		}
 	}
 }

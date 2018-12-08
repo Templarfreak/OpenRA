@@ -17,7 +17,6 @@ using OpenRA.Graphics;
 using OpenRA.Mods.Common.Lint;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Network;
-using OpenRA.Traits;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
@@ -42,6 +41,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly IEnumerable<Player> players;
 		readonly World world;
 		readonly WorldRenderer worldRenderer;
+
+		readonly string clickSound = ChromeMetrics.Get<string>("ClickSound");
 
 		[ObjectCreator.UseCtor]
 		public ObserverStatsLogic(World world, ModData modData, WorldRenderer worldRenderer, Widget widget,
@@ -128,7 +129,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					{
 						if (statsHotkeys[i].IsActivatedBy(e))
 						{
-							Game.Sound.PlayNotification(modData.DefaultRules, null, "Sounds", "ClickSound", null);
+							Game.Sound.PlayNotification(modData.DefaultRules, null, "Sounds", clickSound, null);
 							statsDropDownOptions[i].OnClick();
 							return true;
 						}
@@ -137,6 +138,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 				return false;
 			});
+
+			if (logicArgs.TryGetValue("ClickSound", out yaml))
+				clickSound = yaml.Value;
 		}
 
 		void ClearStats()

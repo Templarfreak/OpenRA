@@ -2,10 +2,10 @@ Player:
 	HackyAI@RushAI:
 		Name: Rush AI
 		Type: rush
-		MinimumExcessPower: 20
+		MinimumExcessPower: 60
+		MaximumExcessPower: 160
 		ExcessPowerIncrement: 40
 		ExcessPowerIncreaseThreshold: 4
-		MaximumExcessPower: 160
 		BuildingCommonNames:
 			ConstructionYard: fact
 			Refinery: proc
@@ -45,85 +45,39 @@ Player:
 			stek: 1%
 			fix: 0.1%
 			dome: 10%
+			mslo: 1%
 		UnitsToBuild:
 			e1: 65%
-			e2: 25%
-			e3: 40%
+			e2: 15%
+			e3: 30%
 			e4: 15%
 			dog: 15%
 			shok: 15%
 			harv: 10%
 			apc: 30%
-			jeep: 40%
+			jeep: 20%
 			arty: 15%
 			v2rl: 40%
-			ftrk: 50%
-			1tnk: 70%
-			2tnk: 25%
+			ftrk: 30%
+			1tnk: 50%
+			2tnk: 50%
 			3tnk: 50%
-			4tnk: 10%
-			ttnk: 10%
+			4tnk: 25%
+			ttnk: 25%
 			stnk: 5%
 		UnitLimits:
 			dog: 4
 			harv: 8
+			jeep: 4
+			ftrk: 4
 		SquadSize: 20
-		SupportPowerDecisions:
-			spyplane:
-				OrderName: SovietSpyPlane
-				MinimumAttractiveness: 1
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: None
-					CheckRadius: 5c0
-			paratroopers:
-				OrderName: SovietParatroopers
-				MinimumAttractiveness: 5
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: None
-					CheckRadius: 8c0
-				Consideration@2:
-					Against: Enemy
-					Types: Water
-					Attractiveness: -5
-					TargetMetric: None
-					CheckRadius: 8c0
-			parabombs:
-				OrderName: UkraineParabombs
-				MinimumAttractiveness: 1
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: None
-					CheckRadius: 5c0
-			nukepower:
-				OrderName: NukePowerInfoOrder
-				MinimumAttractiveness: 3000
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: Value
-					CheckRadius: 5c0
-				Consideration@2:
-					Against: Ally
-					Types: Air, Ground, Water
-					Attractiveness: -10
-					TargetMetric: Value
-					CheckRadius: 7c0
 	HackyAI@NormalAI:
 		Name: Normal AI
 		Type: normal
-		MinimumExcessPower: 40
+		MinimumExcessPower: 60
+		MaximumExcessPower: 200
 		ExcessPowerIncrement: 40
 		ExcessPowerIncreaseThreshold: 4
-		MaximumExcessPower: 200
 		BuildingCommonNames:
 			ConstructionYard: fact
 			Refinery: proc
@@ -152,7 +106,7 @@ Player:
 			stek: 1
 			fix: 1
 		BuildingFractions:
-			proc: 10%
+			proc: 15%
 			tent: 1%
 			barr: 1%
 			kenn: 0.5%
@@ -176,23 +130,23 @@ Player:
 			mslo: 1%
 		UnitsToBuild:
 			e1: 65%
-			e2: 25%
-			e3: 40%
+			e2: 15%
+			e3: 30%
 			e4: 15%
 			dog: 15%
 			shok: 15%
-			harv: 10%
+			harv: 15%
 			apc: 30%
-			jeep: 40%
+			jeep: 20%
 			arty: 15%
 			v2rl: 40%
-			ftrk: 50%
-			1tnk: 70%
-			2tnk: 25%
+			ftrk: 30%
+			1tnk: 40%
+			2tnk: 50%
 			3tnk: 50%
-			4tnk: 15%
-			ttnk: 15%
-			stnk: 10%
+			4tnk: 25%
+			ttnk: 25%
+			stnk: 5%
 			heli: 30%
 			hind: 30%
 			mig: 30%
@@ -205,63 +159,16 @@ Player:
 		UnitLimits:
 			dog: 4
 			harv: 8
+			jeep: 4
+			ftrk: 4
 		SquadSize: 40
-		SupportPowerDecisions:
-			spyplane:
-				OrderName: SovietSpyPlane
-				MinimumAttractiveness: 1
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: None
-					CheckRadius: 5c0
-			paratroopers:
-				OrderName: SovietParatroopers
-				MinimumAttractiveness: 5
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: None
-					CheckRadius: 8c0
-				Consideration@2:
-					Against: Enemy
-					Types: Water
-					Attractiveness: -5
-					TargetMetric: None
-					CheckRadius: 8c0
-			parabombs:
-				OrderName: UkraineParabombs
-				MinimumAttractiveness: 1
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: None
-					CheckRadius: 5c0
-			nukepower:
-				OrderName: NukePowerInfoOrder
-				MinimumAttractiveness: 3000
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: Value
-					CheckRadius: 5c0
-				Consideration@2:
-					Against: Ally
-					Types: Air, Ground, Water
-					Attractiveness: -10
-					TargetMetric: Value
-					CheckRadius: 7c0
 	HackyAI@TurtleAI:
 		Name: Turtle AI
 		Type: turtle
-		MinimumExcessPower: 50
+		MinimumExcessPower: 60
+		MaximumExcessPower: 250
 		ExcessPowerIncrement: 50
 		ExcessPowerIncreaseThreshold: 4
-		MaximumExcessPower: 250
 		BuildingCommonNames:
 			ConstructionYard: fact
 			Refinery: proc
@@ -315,23 +222,23 @@ Player:
 			mslo: 1%
 		UnitsToBuild:
 			e1: 65%
-			e2: 25%
-			e3: 40%
+			e2: 15%
+			e3: 30%
 			e4: 15%
 			dog: 15%
 			shok: 15%
-			harv: 10%
+			harv: 15%
 			apc: 30%
-			jeep: 40%
+			jeep: 20%
 			arty: 15%
 			v2rl: 40%
 			ftrk: 50%
-			1tnk: 70%
-			2tnk: 25%
+			1tnk: 50%
+			2tnk: 50%
 			3tnk: 50%
-			4tnk: 20%
-			ttnk: 20%
-			stnk: 15%
+			4tnk: 25%
+			ttnk: 25%
+			stnk: 10%
 			heli: 30%
 			hind: 30%
 			mig: 30%
@@ -344,63 +251,16 @@ Player:
 		UnitLimits:
 			dog: 4
 			harv: 8
+			jeep: 4
+			ftrk: 4
 		SquadSize: 10
-		SupportPowerDecisions:
-			spyplane:
-				OrderName: SovietSpyPlane
-				MinimumAttractiveness: 1
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: None
-					CheckRadius: 5c0
-			paratroopers:
-				OrderName: SovietParatroopers
-				MinimumAttractiveness: 5
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: None
-					CheckRadius: 8c0
-				Consideration@2:
-					Against: Enemy
-					Types: Water
-					Attractiveness: -5
-					TargetMetric: None
-					CheckRadius: 8c0
-			parabombs:
-				OrderName: UkraineParabombs
-				MinimumAttractiveness: 1
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: None
-					CheckRadius: 5c0
-			nukepower:
-				OrderName: NukePowerInfoOrder
-				MinimumAttractiveness: 3000
-				Consideration@1:
-					Against: Enemy
-					Types: Structure
-					Attractiveness: 1
-					TargetMetric: Value
-					CheckRadius: 5c0
-				Consideration@2:
-					Against: Ally
-					Types: Air, Ground, Water
-					Attractiveness: -10
-					TargetMetric: Value
-					CheckRadius: 7c0
 	HackyAI@NavalAI:
 		Name: Naval AI
 		Type: naval
-		MinimumExcessPower: 20
+		MinimumExcessPower: 60
+		MaximumExcessPower: 200
 		ExcessPowerIncrement: 40
 		ExcessPowerIncreaseThreshold: 4
-		MaximumExcessPower: 200
 		BuildingCommonNames:
 			ConstructionYard: fact
 			Refinery: proc
@@ -429,7 +289,7 @@ Player:
 			stek: 1
 			fix: 1
 		BuildingFractions:
-			proc: 29%
+			proc: 30%
 			dome: 1%
 			weap: 1%
 			hpad: 20%
@@ -461,7 +321,9 @@ Player:
 		UnitLimits:
 			harv: 8
 		SquadSize: 1
-		SupportPowerDecisions:
+	SupportPowerBotModule:
+		RequiresCondition: enable-rush-ai || enable-normal-ai || enable-turtle-ai || enable-naval-ai
+		Decisions:
 			spyplane:
 				OrderName: SovietSpyPlane
 				MinimumAttractiveness: 1
@@ -510,3 +372,17 @@ Player:
 					Attractiveness: -10
 					TargetMetric: Value
 					CheckRadius: 7c0
+	GrantConditionOnBotOwner@rush:
+		Condition: enable-rush-ai
+		Bots: rush
+	GrantConditionOnBotOwner@normal:
+		Condition: enable-normal-ai
+		Bots: normal
+	GrantConditionOnBotOwner@turtle:
+		Condition: enable-turtle-ai
+		Bots: turtle
+	GrantConditionOnBotOwner@naval:
+		Condition: enable-naval-ai
+		Bots: naval
+	HarvesterBotModule:
+		RequiresCondition: enable-rush-ai || enable-normal-ai || enable-turtle-ai || enable-naval-ai

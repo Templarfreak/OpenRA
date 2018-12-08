@@ -72,20 +72,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			selectedOwner = editorLayer.Players.Players.Values.First();
 			Func<PlayerReference, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
 			{
-				var item = ScrollItemWidget.Setup(template, () => selectedOwner == option, () =>
-				{
-					selectedOwner = option;
-
-					ownersDropDown.Text = selectedOwner.Name;
-					ownersDropDown.TextColor = selectedOwner.Color.RGB;
-
-					InitializeActorPreviews();
-				});
+				var item = ScrollItemWidget.Setup(template, () => selectedOwner == option, () => SelectOwner(option));
 
 				item.Get<LabelWidget>("LABEL").GetText = () => option.Name;
 				item.GetColor = () => option.Color.RGB;
 
 				return item;
+			};
+
+			editorLayer.OnPlayerRemoved = () =>
+			{
+				if (editorLayer.Players.Players.Values.Any(p => p.Name == selectedOwner.Name))
+					return;
+				SelectOwner(editorLayer.Players.Players.Values.First());
 			};
 
 			ownersDropDown.OnClick = () =>
@@ -109,7 +108,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (!a.HasTraitInfo<IRenderActorPreviewInfo>())
 					continue;
 
-				var editorData = a.TraitInfoOrDefault<EditorTilesetFilterInfo>();
+				var editorData = a.TraitInfoOrDefault<MapEditorDataInfo>();
 
 				// Actor must be included in at least one category
 				if (editorData == null || editorData.Categories == null)
@@ -199,6 +198,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				actorCategorySelector.AttachPanel(CreateCategoriesPanel());
 			};
 
+			InitializeActorPreviews();
+		}
+
+		void SelectOwner(PlayerReference option)
+		{
+			selectedOwner = option;
+			ownersDropDown.Text = option.Name;
+			ownersDropDown.TextColor = option.Color.RGB;
 			InitializeActorPreviews();
 		}
 

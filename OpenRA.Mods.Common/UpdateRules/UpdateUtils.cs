@@ -221,10 +221,10 @@ namespace OpenRA.Mods.Common.UpdateRules
 							yield return manualStep;
 		}
 
-		public static string FormatMessageList(IEnumerable<string> messages, int indent = 0)
+		public static string FormatMessageList(IEnumerable<string> messages, int indent = 0, string separator = "*")
 		{
 			var prefix = string.Concat(Enumerable.Repeat("   ", indent));
-			return string.Join("\n", messages.Select(m => prefix + " * {0}".F(m.Replace("\n", "\n   " + prefix))));
+			return string.Join("\n", messages.Select(m => prefix + " {0} {1}".F(separator, m.Replace("\n", "\n   " + prefix))));
 		}
 	}
 
@@ -318,7 +318,7 @@ namespace OpenRA.Mods.Common.UpdateRules
 
 		public static MiniYamlNode LastChildMatching(this MiniYamlNode node, string match, bool includeRemovals = true)
 		{
-			return node.ChildrenMatching(match, includeRemovals).LastOrDefault();
+			return node.ChildrenMatching(match, includeRemovals: includeRemovals).LastOrDefault();
 		}
 
 		public static void RenameChildrenMatching(this MiniYamlNode node, string match, string newKey, bool preserveSuffix = true, bool includeRemovals = true)
