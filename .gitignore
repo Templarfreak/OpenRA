@@ -939,3 +939,7 @@ mods/ts/mod.yaml
 mods/ts/rules/nod-structures.yaml
 mods/ts/rules/world.yaml
 launch-game.cmd
+*.tmp
+*.ttf
+OpenRA.Mods.Common/backup mods/mods/common/OpenRA.Mods.Common.dll
+OpenRA.Mods.Common/backup mods/mods/common/OpenRA.Mods.Common.pdb

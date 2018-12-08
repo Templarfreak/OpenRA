@@ -10,6 +10,7 @@
 #endregion
 
 using System.Linq;
+using System.Collections.Generic;
 using OpenRA.Activities;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Activities;
@@ -57,8 +58,12 @@ namespace OpenRA.Mods.Cnc.Traits
 
 	class ProductionAirdrop : Production
 	{
+		readonly ProductionAirdropInfo info;
 		public ProductionAirdrop(ActorInitializer init, ProductionAirdropInfo info)
-			: base(init, info) { }
+			: base(init, info)
+		{
+			this.info = info;
+		}
 
 		public override bool Produce(Actor self, ActorInfo producee, string productionType, int count, TypeDictionary inits)
 		{

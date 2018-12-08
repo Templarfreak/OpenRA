@@ -327,7 +327,7 @@ namespace OpenRA.Mods.Shock.Traits
 		{
 			var mostLikelyProducerTrait = MostLikelyProducer().Trait;
 
-			var exit = mostLikelyProducerTrait.SelectExit(self, producee, productionType, e => mostLikelyProducerTrait.CanUseExit(self, producee, e));
+			var exit = mostLikelyProducerTrait.SelectExit(self, producee, productionType, e => mostLikelyProducerTrait.CanUseExit(self, producee, e.Info));
 			if (exit != null)
 			{
 				return true;

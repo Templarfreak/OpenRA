@@ -32,7 +32,7 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var before = item.RemainingTime;
-			item.Tick(playerResources);
+			item.Tick(PlayerResources);
 
 			if (item.RemainingTime == before)
 				return;

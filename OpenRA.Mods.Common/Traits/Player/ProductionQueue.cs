@@ -677,7 +677,7 @@ namespace OpenRA.Mods.Common.Traits
 		public virtual void FinishStarport(int index) { }
 		public virtual void NotifyStarport() { }
 
-		public virtual void BeginProduction(ProductionItem item, bool hasPriority)
+		protected virtual void BeginProduction(ProductionItem item, bool hasPriority)
 		{
 			if (Queue.Any(i => i.Item == item.Item && i.Infinite))
 				return;

@@ -67,9 +67,6 @@ namespace OpenRA.Mods.Shock.Traits
 			if (attackBase.IsTraitDisabled)
 				return;
 
-			if (building != null && !building.BuildComplete)
-				return;
-
 			var localoffset = body != null
 				? body.LocalToWorld(info.LocalOffset.Rotate(body.QuantizeOrientation(self, self.Orientation)))
 				: info.LocalOffset;

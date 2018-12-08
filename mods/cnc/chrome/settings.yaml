@@ -323,6 +323,26 @@ Container@SETTINGS_PANEL:
 							Width: 250
 							Height: 20
 							Ticks: 7
+						Label@MOVEMENT_LABEL:
+							X: PARENT_RIGHT - WIDTH - 300
+							Y: 127
+							Width: 95
+							Height: 25
+							Align: Right
+							Text: Move Sound Pool:
+						Label@MOVE_SPECIFIC:
+							X: PARENT_RIGHT - WIDTH - 270
+							Y: 127
+							Width: 95
+							Height: 25
+							Align: Right
+							Text:
+						Slider@MOVE_POOL:
+							X: PARENT_RIGHT - WIDTH - 15
+							Y: 133
+							Width: 250
+							Height: 20
+							Ticks: 5
 						Label@AUDIO_DEVICE_LABEL:
 							X: 190 - WIDTH - 5
 							Y: 244

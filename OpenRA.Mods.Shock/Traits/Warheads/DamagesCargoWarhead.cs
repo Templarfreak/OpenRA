@@ -91,7 +91,7 @@ namespace OpenRA.Mods.Shock.Warheads
 								var distance = activeShapes.Min(t => t.Info.Type.DistanceFromEdge(pos, cargo_unit));
 								var localModifiers = damageModifiers.Append(GetDamageFalloff(distance.Length));
 
-								DoImpact(victim, firedBy, localModifiers);
+								DoImpact(victim.CenterPosition, firedBy, localModifiers);
 							}
 
 						}
