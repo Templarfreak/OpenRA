@@ -14,6 +14,7 @@ using System.Linq;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Traits;
+using OpenRA.Support;
 
 namespace OpenRA.Mods.Common.Traits
 {
@@ -29,6 +30,10 @@ namespace OpenRA.Mods.Common.Traits
 		[GrantedConditionReference]
 		[Desc("The condition to grant after deploying and revoke before undeploying.")]
 		public readonly string DeployedCondition = null;
+
+		[ConsumedConditionReference]
+		[Desc("Boolean expression defining the condition to force unit to undeploy, if deployed.")]
+		public readonly BooleanExpression UndeployOnCondition = null;
 
 		[Desc("The terrain types that this actor can deploy on. Leave empty to allow any.")]
 		public readonly HashSet<string> AllowedTerrainTypes = new HashSet<string>();
@@ -113,6 +118,19 @@ namespace OpenRA.Mods.Common.Traits
 					Undeploy(true);
 					break;
 			}
+		}
+
+		public override IEnumerable<VariableObserver> GetVariableObservers()
+		{
+			foreach (var observer in base.GetVariableObservers())
+				yield return observer;
+			if (Info.UndeployOnCondition != null)
+				yield return new VariableObserver(UndeployConditionsChanged, Info.UndeployOnCondition.Variables);
+		}
+		void UndeployConditionsChanged(Actor self, IReadOnlyDictionary<string, int> conditions)
+		{
+			if (Info.UndeployOnCondition.Evaluate(conditions))
+				Undeploy();
 		}
 
 		public IEnumerable<IOrderTargeter> Orders

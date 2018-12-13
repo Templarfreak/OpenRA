@@ -74,13 +74,13 @@
     <Folder Include="Traits\World\Sound\" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Experimental\GrantTimedCondition.cs" />
     <Compile Include="Experimental\hp.cs" />
     <Compile Include="Extensions\Dictionary.cs" />
     <Compile Include="Extensions\Color.cs" />
     <Compile Include="Graphics\Tint.cs" />
     <Compile Include="Primitives\double2.cs" />
     <Compile Include="Primitives\double3.cs" />
-    <Compile Include="Traits\Conditions\GrantConditionAfterTimer.cs" />
     <Compile Include="Traits\Conditions\GrantConditionOnIdle.cs" />
     <Compile Include="Traits\DamagedByRadioactivity.cs" />
     <Compile Include="Graphics\RadBeamRenderable.cs" />
