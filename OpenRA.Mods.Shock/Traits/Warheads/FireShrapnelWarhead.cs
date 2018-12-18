@@ -97,6 +97,7 @@ namespace OpenRA.Mods.Shock.Warheads
 			public ShrapnelType picked;
 			public TargetType type;
 			public Target target;
+			public Target point;
 			public int oghits;
 			public int hits;
 			public bool dothrow = true;
@@ -170,6 +171,7 @@ namespace OpenRA.Mods.Shock.Warheads
 					if (weapon.IsValidAgainst(tpos, firedBy.World, firedBy))
 					{
 						shrapnelTarget.target = tpos;
+						shrapnelTarget.point = tpos;
 						shrapnelTarget.picked = ShrapnelType.Terrain;
 						shrapnelTarget.type = TargetType.Terrain;
 					}
@@ -190,6 +192,8 @@ namespace OpenRA.Mods.Shock.Warheads
 						if (Hits[ind] < TargetHits || TargetHits == 0)
 						{
 							shrapnelTarget.target = Target.FromActor(targetActor.Current);
+							shrapnelTarget.point = Target.FromCell(target.Actor.World, 
+								new CPos(shrapnelTarget.target.CenterPosition.X, shrapnelTarget.target.CenterPosition.Y));
 							shrapnelTarget.picked = ShrapnelType.Outer;
 							shrapnelTarget.type = TargetType.Actor;
 							shrapnelTarget.dothrow = true;
@@ -203,6 +207,8 @@ namespace OpenRA.Mods.Shock.Warheads
 						Hits.Add(1);
 
 						shrapnelTarget.target = Target.FromActor(targetActor.Current);
+						shrapnelTarget.point = Target.FromCell(target.Actor.World,
+							new CPos(shrapnelTarget.target.CenterPosition.X, shrapnelTarget.target.CenterPosition.Y));
 						shrapnelTarget.picked = ShrapnelType.Outer;
 						shrapnelTarget.type = TargetType.Actor;
 						shrapnelTarget.dothrow = true;
@@ -241,6 +247,22 @@ namespace OpenRA.Mods.Shock.Warheads
 				{
 					Func<WPos> muzzlePosition = () => loc.CenterPosition;
 
+					var targ = t.target;
+					var targpoint = t.point;
+
+					if ((!targ.IsValidFor(firedBy) && !targpoint.IsValidFor(firedBy)) || 
+						(targ.Type == TargetType.Invalid && targpoint.Type == TargetType.Invalid))
+						continue;
+
+					if (!targ.IsValidFor(firedBy) && targpoint.IsValidFor(firedBy))
+					{
+						targ = targpoint;
+					}
+					else if (!targpoint.IsValidFor(firedBy) && targ.IsValidFor(firedBy))
+					{
+						targpoint = targ;
+					}
+
 					var args = new ProjectileArgs
 					{
 						Weapon = weapon,
@@ -258,8 +280,8 @@ namespace OpenRA.Mods.Shock.Warheads
 						Source = loc.CenterPosition,
 						SourceActor = firedBy,
 						CurrentSource = muzzlePosition,
-						GuidedTarget = t.target,
-						PassiveTarget = t.target.CenterPosition
+						GuidedTarget = targ,
+						PassiveTarget = targpoint.CenterPosition
 					};
 
 					if (args.Weapon.Projectile != null)
