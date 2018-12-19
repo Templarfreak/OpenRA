@@ -554,7 +554,7 @@ namespace OpenRA.Mods.Common.Traits
 		public virtual bool AddProductionItem(ProductionQueue Queue, int count, Order order, int cost, PowerManager PlayerPower, Ruleset rules,
 			ActorInfo unit, int time = 0, bool hasPlayedSound = false)
 		{
-			BeginProduction(new ProductionItem(Queue, count, order.OrderString, cost, PlayerPower, () => self.World.AddFrameEndTask(_ =>
+			BeginProduction(new ProductionItem(Queue, count, order.TargetString, cost, PlayerPower, () => self.World.AddFrameEndTask(_ =>
 			{
 				var isBuilding = unit.HasTraitInfo<BuildingInfo>();
 
