@@ -199,6 +199,7 @@ namespace OpenRA.Mods.Shock.Warheads
 							shrapnelTarget.dothrow = true;
 
 							Hits[ind] += 1;
+							targetActor.MoveNext();
 						}
 					}
 					else
@@ -212,11 +213,12 @@ namespace OpenRA.Mods.Shock.Warheads
 						shrapnelTarget.picked = ShrapnelType.Outer;
 						shrapnelTarget.type = TargetType.Actor;
 						shrapnelTarget.dothrow = true;
+
+						targetActor.MoveNext();
 					}
 				}
 
 				shrapnelTargets.Add(shrapnelTarget);
-				targetActor.MoveNext();
 
 			}
 
