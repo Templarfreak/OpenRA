@@ -944,3 +944,8 @@ launch-game.cmd
 OpenRA.Mods.Common/backup mods/mods/common/OpenRA.Mods.Common.dll
 OpenRA.Mods.Common/backup mods/mods/common/OpenRA.Mods.Common.pdb
 OpenRA.Mods.Shock/Experimental/GrantTimedCondition.cs
+mods/common/OpenRA.Game.exe
+*.exe
+mods/common/OpenRA.Game.exe
+*.yaml
+*.exe

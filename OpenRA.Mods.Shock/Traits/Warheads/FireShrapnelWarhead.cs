@@ -181,7 +181,7 @@ namespace OpenRA.Mods.Shock.Warheads
 					shrapnelTarget.dothrow = false;
 				}
 
-				if (world.SharedRandom.Next(100) <= AimChance)
+				if (world.SharedRandom.Next(100) <= AimChance && targetActor.Current != null)
 				{
 					int ind = 0;
 
@@ -192,7 +192,7 @@ namespace OpenRA.Mods.Shock.Warheads
 						if (Hits[ind] < TargetHits || TargetHits == 0)
 						{
 							shrapnelTarget.target = Target.FromActor(targetActor.Current);
-							shrapnelTarget.point = Target.FromCell(target.Actor.World, 
+							shrapnelTarget.point = Target.FromCell(shrapnelTarget.target.Actor.World, 
 								new CPos(shrapnelTarget.target.CenterPosition.X, shrapnelTarget.target.CenterPosition.Y));
 							shrapnelTarget.picked = ShrapnelType.Outer;
 							shrapnelTarget.type = TargetType.Actor;
@@ -207,7 +207,7 @@ namespace OpenRA.Mods.Shock.Warheads
 						Hits.Add(1);
 
 						shrapnelTarget.target = Target.FromActor(targetActor.Current);
-						shrapnelTarget.point = Target.FromCell(target.Actor.World,
+						shrapnelTarget.point = Target.FromCell(shrapnelTarget.target.Actor.World,
 							new CPos(shrapnelTarget.target.CenterPosition.X, shrapnelTarget.target.CenterPosition.Y));
 						shrapnelTarget.picked = ShrapnelType.Outer;
 						shrapnelTarget.type = TargetType.Actor;
@@ -216,6 +216,7 @@ namespace OpenRA.Mods.Shock.Warheads
 				}
 
 				shrapnelTargets.Add(shrapnelTarget);
+				targetActor.MoveNext();
 
 			}
 
@@ -266,7 +267,7 @@ namespace OpenRA.Mods.Shock.Warheads
 					var args = new ProjectileArgs
 					{
 						Weapon = weapon,
-						Facing = (t.target.CenterPosition - loc.CenterPosition).Yaw.Facing,
+						Facing = (targ.CenterPosition - loc.CenterPosition).Yaw.Facing,
 
 						DamageModifiers = !firedBy.IsDead ? firedBy.TraitsImplementing<IFirepowerModifier>()
 					.Select(a => a.GetFirepowerModifier()).ToArray() : new int[0],
