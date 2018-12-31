@@ -39,8 +39,8 @@ namespace OpenRA.Mods.Shock.Warheads
 		//[Desc("Should the shrapnel hit the direct target?")]
 		//public readonly bool AllowDirectHit = false;
 
-		[Desc("Instead of what this is normally for in WarheadAS, this is used to determine the radius from the target to search for other targets.")]
-		public WDist TargetSearchRadius = WDist.FromCells(1);
+		[Desc("Radius from the target that the main weapon detonates on to search for other targets.")]
+		public WDist ShrapnelSearchRadius = WDist.FromCells(1024);
 
 		//Cluster Missile Settings
 
@@ -59,11 +59,6 @@ namespace OpenRA.Mods.Shock.Warheads
 
 		[Desc("Hits for OriginalTargetHits carry over between Bursts.")]
 		public readonly bool CarryOverOriginalHits = true;
-
-		[Desc("Needed to have classic Reaper-style Cluster Missiles, but to also allow for detonation-on-target-style like the original FireShrapnel by Graion." +
-			" If this is off, Airburst-style *will not work, period.* The missile will detonate in the air and then no Clusters will be made because there are no ValidImpact"
-			+ " targets. This makes the system not care about ValidImpact targets.")]
-		public readonly bool IsAirburst = false;
 
 		//End
 
@@ -124,17 +119,10 @@ namespace OpenRA.Mods.Shock.Warheads
 					? world.SharedRandom.Next(Amount[0], Amount[1])
 					: Amount[0];
 
-//	This check actually makes Airburst projectiles with this Warhead impossible, which is very important for recreating the Reaper.
-//	So we add the Airburst check to allow both options to be possible, but sacrifice the benefits we get from it if Airburst is on (Unsure of 
-//	how much benefit it really is).
+			if (!IsValidImpact(loc.CenterPosition, firedBy))
+				return;
 
-			if (IsAirburst == false)
-			{
-				if (!IsValidImpact(loc.CenterPosition, firedBy))
-					return;
-			}
-
-			var directActors = world.FindActorsInCircle(loc.CenterPosition, TargetSearchRadius).Where(x => x != loc.Actor) ;
+			var directActors = world.FindActorsInCircle(loc.CenterPosition, ShrapnelSearchRadius).Where(x => x != loc.Actor) ;
 
 			var availableTargetActors = world.FindActorsInCircle(loc.CenterPosition, weapon.Range)
 				.Where(x => directActors.Contains(x)
@@ -174,6 +162,8 @@ namespace OpenRA.Mods.Shock.Warheads
 						shrapnelTarget.point = tpos;
 						shrapnelTarget.picked = ShrapnelType.Terrain;
 						shrapnelTarget.type = TargetType.Terrain;
+						//shrapnelTarget = NewShrapnel(tpos, tpos, ShrapnelType.Terrain,TargetType.Terrain)
+						//Something like a function like this to start organizing and making it smaller
 					}
 				}
 				else
