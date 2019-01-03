@@ -152,7 +152,7 @@ namespace OpenRA.Mods.Common.Projectiles
 	// TODO: double check square roots!!!
 	public class Missile : IProjectile, ISync
 	{
-		enum States
+		protected enum States
 		{
 			Freefall,
 			Homing,
@@ -173,10 +173,10 @@ namespace OpenRA.Mods.Common.Projectiles
 		int ticks;
 
 		int ticksToNextSmoke;
-		ContrailRenderable contrail;
+		protected ContrailRenderable contrail;
 		string trailPalette;
 
-		States state;
+		protected States state;
 		bool targetPassedBy;
 		bool lockOn = false;
 		bool allowPassBy; // TODO: use this also with high minimum launch angle settings
@@ -187,7 +187,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		WVec tarVel;
 		WVec predVel;
 
-		[Sync] WPos pos;
+		[Sync] protected WPos pos;
 		WVec velocity;
 		int speed;
 		int loopRadius;
@@ -775,7 +775,7 @@ namespace OpenRA.Mods.Common.Projectiles
 				/ 1024;
 		}
 
-		public void Tick(World world)
+		public virtual void Tick(World world)
 		{
 			ticks++;
 			if (anim != null)
@@ -869,7 +869,7 @@ namespace OpenRA.Mods.Common.Projectiles
 				Explode(world);
 		}
 
-		void Explode(World world)
+		public virtual void Explode(World world)
 		{
 			if (info.ContrailLength > 0)
 				world.AddFrameEndTask(w => w.Add(new ContrailFader(pos, contrail)));
