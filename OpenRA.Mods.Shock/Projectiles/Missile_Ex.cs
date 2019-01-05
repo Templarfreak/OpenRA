@@ -11,14 +11,17 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Primitives;
 using OpenRA.Mods.Common.Projectiles;
 using OpenRA.GameRules;
+using OpenRA.Traits;
 using OpenRA.Mods.Common;
-using OpenRA.Mods.Common.Traits;
 
 namespace OpenRA.Mods.Shock.Projectiles
 {
+	public enum BouncesTo : byte { Self, Outer, Inner }
+
 	public class MissileExInfo : MissileInfo
 	{
 		[Desc("Subtracts from the initial horizontal launch angle to make a starting point of a range of angles to randomly pick from.")]
@@ -29,6 +32,16 @@ namespace OpenRA.Mods.Shock.Projectiles
 
 		[Desc("When the missile would explode it will instead wait this many ticks before doing so, freefalling while it waits.")]
 		public readonly int ExplodeDelay = 0;
+
+		[Desc("When greater than 0, will \'bounce\' to additional targets this many times.")]
+		public readonly int Bounces = 0;
+
+		[Desc("What this missile is allouwed to \'bounce\' to. Accepted values are Self, Outer, and Inner." +
+			"Outer = targets not bounced to yet, Inner = targets already bounced to.")]
+		public readonly BouncesTo[] BounceTargets = new BouncesTo[] { BouncesTo.Outer };
+
+		[Desc("What diplomatic stances can be targeted by the shrapnel.")]
+		public readonly Stance BounceTargetStances = Stance.Neutral | Stance.Enemy;
 
 		public override IProjectile Create(ProjectileArgs args)
 		{
@@ -53,6 +66,8 @@ namespace OpenRA.Mods.Shock.Projectiles
 		bool exploded = false;
 		readonly World world;
 		readonly Actor source;
+		readonly ProjectileArgs bouncer;
+		List<Target> bouncedhits = new List<Target>();
 
 		public MissileEx(MissileExInfo info, ProjectileArgs args)
 			: base(info, args)
@@ -60,6 +75,7 @@ namespace OpenRA.Mods.Shock.Projectiles
 			this.info = info;
 			world = args.SourceActor.World;
 			source = args.SourceActor;
+			bouncer = args;
 		}
 
 		public override void Tick(World world)
@@ -90,6 +106,58 @@ namespace OpenRA.Mods.Shock.Projectiles
 			else
 				a();
 		}
+
+		//This is WIP and is not complete.
+		//protected void Bounce(World world)
+		//{
+		//	if (bouncedhits.Count < info.Bounces && info.Bounces > 0)
+		//	{
+		//		bouncedhits.Add(bouncer.GuidedTarget);
+		//
+		//		var range = bouncer.Weapon.Range;
+		//		var source = bouncer.SourceActor;
+		//		var allow_self = info.BounceTargets.Contains(BouncesTo.Self);
+		//
+		//		var targs = world.FindActorsInCircle(pos, range).Where(x =>
+		//		(!bouncedhits.Contains(Target.FromActor(x)) ||
+		//		(info.BounceTargets.Contains(BouncesTo.Inner) && bouncedhits.Contains(Target.FromActor(x))))
+		//		&& (x != bouncer.SourceActor || (x == bouncer.SourceActor && allow_self))
+		//		&& bouncer.Weapon.IsValidAgainst(Target.FromActor(x), world, source)
+		//		&& info.BounceTargetStances.HasStance(source.Owner.Stances[x.Owner]))
+		//		.Shuffle(world.SharedRandom);
+		//
+		//		if (targs.Count() == 0)
+		//		{
+		//			base.Explode(world);
+		//			return;
+		//		}
+		//
+		//		var targets = targs.GetEnumerator();
+		//
+		//		targets.MoveNext();
+		//		var new_target = Target.FromActor(targets.Current);
+		//
+		//		var new_args = bouncer;
+		//		new_args.GuidedTarget = Target.FromActor(targets.Current);
+		//		new_args.PassiveTarget = new_args.GuidedTarget.CenterPosition;
+		//
+		//		if (new_args.Weapon.Projectile != null)
+		//		{
+		//			var projectile = new MissileEx(info, new_args);
+		//			projectile.bouncedhits.Union(bouncedhits);
+		//
+		//			if (projectile != null)
+		//			{
+		//				source.World.AddFrameEndTask(w => w.Add(projectile));
+		//			}
+		//
+		//			if (new_args.Weapon.Report != null && new_args.Weapon.Report.Any())
+		//				Game.Sound.Play(SoundType.World, new_args.Weapon.Report.Random(source.World.SharedRandom), source.CenterPosition);
+		//		}
+		//	}
+		//
+		//	base.Explode(world);
+		//}
 
 		public override void Explode(World world)
 		{

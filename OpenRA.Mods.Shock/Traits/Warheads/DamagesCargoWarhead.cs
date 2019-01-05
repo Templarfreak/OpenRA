@@ -1,8 +1,5 @@
 #region Copyright & License Information
 /*
- * Modded by Boolbada of OP Mod.
- * Modded from CreateResourceWarhead by OpenRA devs.
- * 
  * Copyright 2007-2017 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
@@ -20,7 +17,7 @@ using OpenRA.Mods.Common.Warheads;
 using OpenRA.Mods.Common;
 using OpenRA.Traits;
 
-/* Works without base engine modification */
+/* Requires some base engine modification. */
 
 namespace OpenRA.Mods.Shock.Warheads
 {
@@ -37,6 +34,9 @@ namespace OpenRA.Mods.Shock.Warheads
 
 		[Desc("Cargo types to damage.")]
 		public readonly HashSet<string> Types = new HashSet<string>();
+
+		[Desc("Only damage one unit per attack at a time?")]
+		public readonly bool SingleHit = false;
 
 		void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
 		{
@@ -92,9 +92,18 @@ namespace OpenRA.Mods.Shock.Warheads
 								var localModifiers = damageModifiers.Append(GetDamageFalloff(distance.Length));
 
 								DoImpact(victim.CenterPosition, firedBy, localModifiers);
-							}
 
+								if (SingleHit)
+								{
+									break;
+								}
+							}
 						}
+					}
+
+					if (SingleHit)
+					{
+						break;
 					}
 				}
 			}

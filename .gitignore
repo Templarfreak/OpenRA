@@ -152,3 +152,4 @@ OpenRA.Mods.Shock/Experimental/GrantTimedCondition.cs
 *.exe
 *.yaml
 *.exe
+OpenRA.Mods.Shock/Traits/Warheads/FireShrapnelWarheadAS.cs
