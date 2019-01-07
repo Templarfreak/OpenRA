@@ -169,7 +169,6 @@ namespace OpenRA.Mods.Shock.Warheads
 					if (ActorHits.Contains(targetActor.Current))
 					{
 						inx = ActorHits.IndexOf(targetActor.Current);
-
 						Hits[inx] += 1;
 					}
 					else
@@ -179,7 +178,7 @@ namespace OpenRA.Mods.Shock.Warheads
 						inx = ActorHits.IndexOf(targetActor.Current);
 					}
 
-					if (Hits[inx] < TargetHits || TargetHits == 0)
+					if ((Hits[inx] <= TargetHits || TargetHits == 0) && Target.FromActor(targetActor.Current).Type != TargetType.Invalid)
 					{
 						t.SetTarget(Target.FromActor(targetActor.Current));
 						t.picked = ShrapnelType.Outer;
@@ -188,10 +187,11 @@ namespace OpenRA.Mods.Shock.Warheads
 					targetActor.MoveNext();
 				}
 
-				if (world.SharedRandom.Next(100) <= RetargetAccuracy && shrapnelTargets[ind].picked == ShrapnelType.Outer 
-					&& (ogHits < OriginalTargetHits || OriginalTargetHits == 0))
+				if (world.SharedRandom.Next(100) <= RetargetAccuracy && t.picked == ShrapnelType.Outer 
+					&& (ogHits < OriginalTargetHits || OriginalTargetHits == 0) && og.Type != TargetType.Invalid)
 				{
-					shrapnelTargets[ind].SetTarget(og);
+					t.SetTarget(og);
+					t.picked = ShrapnelType.Original;
 					ogHits += 1;
 				}
 			}

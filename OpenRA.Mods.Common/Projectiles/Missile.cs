@@ -160,17 +160,17 @@ namespace OpenRA.Mods.Common.Projectiles
 		}
 
 		readonly MissileInfo info;
-		readonly ProjectileArgs args;
+		public readonly ProjectileArgs args;
 		readonly Animation anim;
 
-		readonly WVec gravity;
+		public readonly WVec gravity;
 		readonly int minLaunchSpeed;
 		readonly int maxLaunchSpeed;
-		readonly int maxSpeed;
+		public readonly int maxSpeed;
 		readonly WAngle minLaunchAngle;
 		readonly WAngle maxLaunchAngle;
 
-		int ticks;
+		public int ticks;
 
 		int ticksToNextSmoke;
 		protected ContrailRenderable contrail;
@@ -188,15 +188,15 @@ namespace OpenRA.Mods.Common.Projectiles
 		WVec predVel;
 
 		[Sync] protected WPos pos;
-		WVec velocity;
-		int speed;
+		public WVec velocity;
+		public int speed;
 		int loopRadius;
 		WDist distanceCovered;
 		WDist rangeLimit;
 
 		int renderFacing;
-		[Sync] int hFacing;
-		[Sync] int vFacing;
+		[Sync] public int hFacing;
+		[Sync] public int vFacing;
 
 		public Actor SourceActor { get { return args.SourceActor; } }
 		public Target GuidedTarget { get { return args.GuidedTarget; } }
@@ -302,7 +302,7 @@ namespace OpenRA.Mods.Common.Projectiles
 		}
 
 		// TODO: Double check Launch parameter determination
-		void DetermineLaunchSpeedAndAngle(World world, out int speed, out int vFacing)
+		public void DetermineLaunchSpeedAndAngle(World world, out int speed, out int vFacing)
 		{
 			speed = maxLaunchSpeed;
 			loopRadius = LoopRadius(speed, info.VerticalRateOfTurn);
@@ -428,7 +428,7 @@ namespace OpenRA.Mods.Common.Projectiles
 			loopRadius = LoopRadius(speed, info.VerticalRateOfTurn);
 		}
 
-		WVec FreefallTick()
+		protected virtual WVec FreefallTick()
 		{
 			// Compute the projectile's freefall displacement
 			var move = velocity + gravity / 2;
