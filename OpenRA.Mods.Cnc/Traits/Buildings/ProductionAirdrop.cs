@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -168,12 +168,12 @@ namespace OpenRA.Mods.Cnc.Traits
 					if (aircraftinfo.VTOL)
 					{
 						actor.QueueActivity(new HeliFly(actor, Target.FromPos(self.CenterPosition + new WVec(landDistance, 0, 0))));
-						actor.QueueActivity(new Land(actor, Target.FromActor(self)));
+						actor.QueueActivity(new Land(actor, Target.FromActor(self), false));
 					}
 					else
 					{
 						actor.QueueActivity(new Fly(actor, Target.FromPos(self.CenterPosition + new WVec(landDistance, 0, 0))));
-						actor.QueueActivity(new Land(actor, Target.FromActor(self)));
+						actor.QueueActivity(new Land(actor, Target.FromActor(self), false));
 					}
 				}
 
@@ -204,7 +204,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				if (info.EndingPosition == "space")
 				{
 					var move = actor.Trait<IMove>();
-					actor.QueueActivity(new ScriptedTakeOff(actor, new AttackMoveActivity(actor, move.MoveTo(new CPos(self.CenterPosition.X + exittrait.X, self.CenterPosition.Y + exittrait.Y), 1))));
+					actor.QueueActivity(new ScriptedTakeOff(actor, new AttackMoveActivity(actor, () => move.MoveTo(new CPos(self.CenterPosition.X + exittrait.X, self.CenterPosition.Y + exittrait.Y), 1))));
 				}
 				else
 				{
@@ -340,12 +340,12 @@ namespace OpenRA.Mods.Cnc.Traits
 					if (aircraftinfo.VTOL)
 					{
 						actor.QueueActivity(new HeliFly(actor, Target.FromPos(self.CenterPosition + new WVec(landDistance, 0, 0))));
-						actor.QueueActivity(new Land(actor, Target.FromActor(self)));
+						actor.QueueActivity(new Land(actor, Target.FromActor(self), false));
 					}
 					else
 					{
 						actor.QueueActivity(new Fly(actor, Target.FromPos(self.CenterPosition + new WVec(landDistance, 0, 0))));
-						actor.QueueActivity(new Land(actor, Target.FromActor(self)));
+						actor.QueueActivity(new Land(actor, Target.FromActor(self), false));
 					}
 				}
 
@@ -385,7 +385,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				if (info.EndingPosition == "space")
 				{
 					var move = actor.Trait<IMove>();
-					actor.QueueActivity(new ScriptedTakeOff(actor, new AttackMoveActivity(actor, move.MoveTo(new CPos(self.CenterPosition.X + exittrait.X, self.CenterPosition.Y + exittrait.Y), 1))));
+					actor.QueueActivity(new ScriptedTakeOff(actor, new AttackMoveActivity(actor, () => move.MoveTo(new CPos(self.CenterPosition.X + exittrait.X, self.CenterPosition.Y + exittrait.Y), 1))));
 				}
 				else
 				{

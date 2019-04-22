@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,10 +11,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Warheads;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -31,8 +31,11 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Does the attack type require the attacker to enter the target's cell?")]
 		public readonly bool AttackRequiresEnteringCell = false;
 
-		[Desc("Does not care about shroud or fog. Enables the actor to launch an attack against a target even if he has no visibility of it.")]
-		public readonly bool IgnoresVisibility = false;
+		[Desc("Allow firing into the fog to target frozen actors without requiring force-fire.")]
+		public readonly bool TargetFrozenActors = false;
+
+		[Desc("Force-fire mode ignores actors and targets the ground instead.")]
+		public readonly bool ForceFireIgnoresActors = false;
 
 		[VoiceReference] public readonly string Voice = "Action";
 
@@ -44,7 +47,7 @@ namespace OpenRA.Mods.Common.Traits
 		readonly string attackOrderName = "Attack";
 		readonly string forceAttackOrderName = "ForceAttack";
 
-		[Sync] public bool IsAiming { get; internal set; }
+		[Sync] public bool IsAiming { get; set; }
 		public IEnumerable<Armament> Armaments { get { return getArmaments(); } }
 
 		protected IFacing facing;
@@ -119,12 +122,12 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
-		public virtual void DoAttack(Actor self, Target target, IEnumerable<Armament> armaments = null)
+		public virtual void DoAttack(Actor self, Target target)
 		{
-			if (armaments == null && !CanAttack(self, target))
+			if (!CanAttack(self, target))
 				return;
 
-			foreach (var a in armaments ?? Armaments)
+			foreach (var a in Armaments)
 				a.CheckFire(self, facing, target);
 		}
 
@@ -139,8 +142,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (armament == null)
 					yield break;
 
-				var negativeDamage = (armament.Weapon.Warheads.FirstOrDefault(w => (w is DamageWarhead)) as DamageWarhead).Damage < 0;
-				yield return new AttackOrderTargeter(this, 6, negativeDamage);
+				yield return new AttackOrderTargeter(this, 6);
 			}
 		}
 
@@ -162,12 +164,11 @@ namespace OpenRA.Mods.Common.Traits
 			var forceAttack = order.OrderString == forceAttackOrderName;
 			if (forceAttack || order.OrderString == attackOrderName)
 			{
-				var target = self.ResolveFrozenActorOrder(order, Color.Red);
-				if (!target.IsValidFor(self))
+				if (!order.Target.IsValidFor(self))
 					return;
 
-				self.SetTargetLine(target, Color.Red);
-				AttackTarget(target, order.Queued, true, forceAttack);
+				self.SetTargetLine(order.Target, Color.Red);
+				AttackTarget(order.Target, order.Queued, true, forceAttack);
 			}
 
 			if (order.OrderString == "Stop")
@@ -354,7 +355,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public virtual void AttackTarget(Target target, bool queued, bool allowMove, bool forceAttack = false)
 		{
-			if (IsTraitDisabled || IsTraitPaused)
+			if (IsTraitDisabled)
 				return;
 
 			if (!target.IsValidFor(self))
@@ -364,7 +365,10 @@ namespace OpenRA.Mods.Common.Traits
 				self.CancelActivity();
 
 			self.QueueActivity(GetAttackActivity(self, target, allowMove, forceAttack));
+			OnQueueAttackActivity(self, target, queued, allowMove, forceAttack);
 		}
+
+		public virtual void OnQueueAttackActivity(Actor self, Target target, bool queued, bool allowMove, bool forceAttack) { }
 
 		public bool IsReachableTarget(Target target, bool allowMove)
 		{
@@ -387,7 +391,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			readonly AttackBase ab;
 
-			public AttackOrderTargeter(AttackBase ab, int priority, bool negativeDamage)
+			public AttackOrderTargeter(AttackBase ab, int priority)
 			{
 				this.ab = ab;
 				OrderID = ab.attackOrderName;
@@ -403,6 +407,9 @@ namespace OpenRA.Mods.Common.Traits
 				IsQueued = modifiers.HasModifier(TargetModifiers.ForceQueue);
 
 				if (modifiers.HasModifier(TargetModifiers.ForceMove))
+					return false;
+
+				if (ab.Info.ForceFireIgnoresActors && modifiers.HasModifier(TargetModifiers.ForceAttack))
 					return false;
 
 				// Disguised actors are revealed by the attack cursor
@@ -425,7 +432,8 @@ namespace OpenRA.Mods.Common.Traits
 				if (a == null)
 					a = armaments.First();
 
-				cursor = !target.IsInRange(self.CenterPosition, a.MaxRange())
+				cursor = !target.IsInRange(self.CenterPosition, a.MaxRange()) ||
+				         (!forceAttack && target.Type == TargetType.FrozenActor && !ab.Info.TargetFrozenActors)
 					? ab.Info.OutsideRangeCursor ?? a.Info.OutsideRangeCursor
 					: ab.Info.Cursor ?? a.Info.Cursor;
 

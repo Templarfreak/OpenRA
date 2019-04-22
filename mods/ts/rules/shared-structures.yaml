@@ -29,7 +29,7 @@ GACNST:
 	BaseBuilding:
 	Transforms:
 		RequiresCondition: factundeploy && !build-incomplete
-		PauseOnCondition: being-demolished
+		PauseOnCondition: empdisable || being-demolished
 		IntoActor: mcv
 		Offset: 1,1
 		Facing: 96
@@ -160,10 +160,10 @@ GASILO:
 		FactionImages:
 			gdi: gasilo.gdi
 			nod: gasilo.nod
-	WithSiloAnimation:
+	WithResourceLevelOverlay@FILLSTAGE:
 		RequiresCondition: !build-incomplete
-	WithIdleOverlay@UNDERLAY:
-		RequiresCondition: !build-incomplete
+		Sequence: stages
+	WithSpriteBody:
 		Sequence: idle-underlay
 	WithIdleOverlay@LIGHTS:
 		RequiresCondition: !build-incomplete

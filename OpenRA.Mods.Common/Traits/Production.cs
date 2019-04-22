@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,12 +10,11 @@
 #endregion
 
 using System;
-using System.Linq;
-using System.Collections.Generic;
-using System.Drawing;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenRA.Mods.Common.Traits
 {
@@ -94,8 +93,7 @@ namespace OpenRA.Mods.Common.Traits
 							newUnit.QueueActivity(new Wait(exitinfo.ExitDelay, false));
 
 						newUnit.QueueActivity(move.MoveIntoWorld(newUnit, exit));
-						newUnit.QueueActivity(new AttackMoveActivity(
-							newUnit, move.MoveTo(exitLocation, 1)));
+						newUnit.QueueActivity(new AttackMoveActivity(newUnit, () => move.MoveTo(exitLocation, 1)));
 					}
 				}
 

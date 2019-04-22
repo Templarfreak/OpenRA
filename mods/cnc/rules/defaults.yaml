@@ -258,6 +258,7 @@
 	Targetable:
 		TargetTypes: Ground, Vehicle
 	Repairable:
+		RepairActors: fix
 	Passenger:
 		CargoType: Vehicle
 	ActorLostNotification:
@@ -309,7 +310,7 @@
 	Selectable:
 		Bounds: 24,24
 	Repairable:
-		RepairBuildings: hpad
+		RepairActors: hpad
 	Aircraft:
 		LandWhenIdle: false
 		AirborneCondition: airborne
@@ -813,6 +814,7 @@
 		ShowOwnerRow: True
 	MapEditorData:
 		Categories: Tech building
+	AppearsOnMapPreview:
 	WithBuildingRepairDecoration:
 		Image: allyrepair
 		Sequence: repair
@@ -891,6 +893,7 @@
 	ScriptTriggers:
 	Health:
 		HP: 10000
+	AppearsOnMapPreview:
 	MapEditorData:
 		Categories: Wall
 
@@ -908,6 +911,8 @@
 		Dimensions: 2,2
 	AppearsOnRadar:
 	RadarColorFromTerrain:
+		Terrain: Tree
+	AppearsOnMapPreview:
 		Terrain: Tree
 	Health:
 		HP: 50000
@@ -944,6 +949,8 @@
 	AppearsOnRadar:
 	RadarColorFromTerrain:
 		Terrain: Tree
+	AppearsOnMapPreview:
+		Terrain: Tree
 	Building:
 		Footprint: __ x_
 		Dimensions: 2,2
@@ -951,7 +958,7 @@
 	Tooltip:
 		Name: Tree (Burnt)
 		ShowOwnerRow: false
-	FrozenUnderFog:
+	HiddenUnderShroud:
 	ScriptTriggers:
 	MapEditorData:
 		Categories: Tree
@@ -972,6 +979,8 @@
 		Dimensions: 1,1
 	AppearsOnRadar:
 	RadarColorFromTerrain:
+		Terrain: Tiberium
+	AppearsOnMapPreview:
 		Terrain: Tiberium
 	HiddenUnderShroud:
 	WithMakeAnimation:
@@ -995,6 +1004,8 @@
 	AppearsOnRadar:
 	RadarColorFromTerrain:
 		Terrain: Tree
+	AppearsOnMapPreview:
+		Terrain: Tree
 	HiddenUnderShroud:
 	ScriptTriggers:
 	MapEditorData:
@@ -1012,6 +1023,7 @@
 		Type: Light
 	HiddenUnderFog:
 		Type: CenterPosition
+		AlwaysVisibleStances: None
 	WithFacingSpriteBody:
 	HitShape:
 	MapEditorData:
@@ -1065,6 +1077,7 @@
 		GenericName: Destroyed Helicopter
 	BodyOrientation:
 		UseClassicFacingFudge: True
+	-MapEditorData:
 
 ^Bridge:
 	Inherits@shape: ^1x1Shape

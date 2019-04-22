@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,9 +12,9 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Drawing;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -32,9 +32,6 @@ namespace OpenRA.Mods.Common.Traits
 			"Force - use force move modifier (Alt) to enable.",
 			"Default - use force move modifier (Alt) to disable.")]
 		public readonly AlternateTransportsMode AlternateTransportsMode = AlternateTransportsMode.Force;
-
-		[Desc("Number of retries using alternate transports.")]
-		public readonly int MaxAlternateTransportAttempts = 1;
 
 		[Desc("Range from self for looking for an alternate transport (default: 5.5 cells).")]
 		public readonly WDist AlternateTransportScanRange = WDist.FromCells(11) / 2;
@@ -55,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 		public object Create(ActorInitializer init) { return new Passenger(this); }
 	}
 
-	public class Passenger : INotifyCreated, IIssueOrder, IResolveOrder, IOrderVoice, INotifyRemovedFromWorld, INotifyEnteredCargo, INotifyExitedCargo
+	public class Passenger : INotifyCreated, IIssueOrder, IResolveOrder, IOrderVoice, INotifyRemovedFromWorld, INotifyEnteredCargo, INotifyExitedCargo, INotifyKilled
 	{
 		public readonly PassengerInfo Info;
 		public Actor Transport;
@@ -162,9 +159,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (!order.Queued)
 				self.CancelActivity();
 
-			var transports = order.OrderString == "EnterTransports";
 			self.SetTargetLine(order.Target, Color.Green);
-			self.QueueActivity(new EnterTransport(self, targetActor, transports ? Info.MaxAlternateTransportAttempts : 0, !transports));
+			if (order.OrderString == "EnterTransports")
+				self.QueueActivity(new EnterTransports(self, order.Target));
+			else
+				self.QueueActivity(new EnterTransport(self, order.Target));
 		}
 
 		public bool Reserve(Actor self, Cargo cargo)
@@ -184,6 +183,16 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			ReservedCargo.UnreserveSpace(self);
 			ReservedCargo = null;
+		}
+
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
+		{
+			if (Transport == null)
+				return;
+
+			// Something killed us, but it wasn't our transport blowing up. Remove us from the cargo.
+			if (!Transport.IsDead)
+				Transport.Trait<Cargo>().Unload(Transport, self);
 		}
 	}
 }

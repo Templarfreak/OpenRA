@@ -8,14 +8,6 @@ Container@PLAYER_WIDGETS:
 			X: 10
 			Y: 10
 			Children:
-				SupportPowers@SUPPORT_PALETTE:
-					IconSize: 62, 46
-					IconSpriteOffset: -1, -1
-					TooltipContainer: TOOLTIP_CONTAINER
-					ReadyText: READY
-					HoldText: ON HOLD
-					HotkeyPrefix: SupportPower
-					HotkeyCount: 6
 				Container@PALETTE_FOREGROUND:
 					Children:
 						Image@ICON_TEMPLATE:
@@ -24,9 +16,18 @@ Container@PLAYER_WIDGETS:
 							Y: 0 - 2
 							Width: 62
 							Height: 46
+							ClickThrough: false
 							IgnoreMouseOver: true
 							ImageCollection: sidebar
 							ImageName: background-supportoverlay
+				SupportPowers@SUPPORT_PALETTE:
+					IconSize: 62, 46
+					IconSpriteOffset: -1, -1
+					TooltipContainer: TOOLTIP_CONTAINER
+					ReadyText: READY
+					HoldText: ON HOLD
+					HotkeyPrefix: SupportPower
+					HotkeyCount: 6
 		SupportPowerTimer@SUPPORT_POWER_TIMER:
 			X: 80
 			Y: 10
@@ -91,7 +92,7 @@ Container@PLAYER_WIDGETS:
 					Background: command-button
 					DisableKeySound: true
 					TooltipText: Force Attack
-					TooltipDesc: Selected units will attack the targeted unit or location\nignoring their default activity for the target.\n\nLeft-click icon then right-click on target.\nHold {(Ctrl)} to activate temporarily while commanding units.
+					TooltipDesc: Selected units will attack the targeted unit or location\n - Default activity for the target is suppressed\n - Allows targeting of own or ally forces\n - Long-range artillery units will always target the\n   location, ignoring units and buildings\n\nLeft-click icon then right-click on target.\nHold {(Ctrl)} to activate temporarily while commanding units.
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:

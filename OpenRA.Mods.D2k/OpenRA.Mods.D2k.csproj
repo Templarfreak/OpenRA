@@ -56,7 +56,6 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Drawing" />
     <Reference Include="Eluant">
       <HintPath>..\thirdparty\download\Eluant.dll</HintPath>
       <Private>False</Private>
@@ -122,6 +121,14 @@
     -->
     <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(SolutionDir)mods/d2k/" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
     <Copy SourceFiles="$(TargetPath).mdb" DestinationFolder="$(SolutionDir)mods/d2k/" Condition="Exists('$(TargetPath).mdb')" />
+    <MakeDir Directories="$(SolutionDir)mods/d2k/"/>
+    <Copy
+      SourceFiles="$(TargetPath)"
+      DestinationFolder="$(SolutionDir)mods/d2k/"/>
+    <Copy
+      SourceFiles="$(TargetDir)$(TargetName).pdb"
+      DestinationFolder="$(SolutionDir)mods/d2k/"
+      Condition="Exists('$(TargetDir)$(TargetName).pdb')"/>
     <!-- Uncomment these lines when debugging or adding to this target
     <Message Text="DEBUG OS:                     $(OS)"/>
     <Message Text="DEBUG SolutionDir:            $(SolutionDir)"/>

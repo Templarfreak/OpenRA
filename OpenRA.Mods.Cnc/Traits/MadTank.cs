@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,6 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.GameRules;
@@ -174,8 +173,6 @@ namespace OpenRA.Mods.Cnc.Traits
 				driverMobile.Nudge(driver, driver, true);
 		}
 
-		public bool PreventsTeleport(Actor self) { return deployed; }
-
 		void StartDetonationSequence()
 		{
 			if (deployed)
@@ -199,20 +196,18 @@ namespace OpenRA.Mods.Cnc.Traits
 		{
 			if (order.OrderString == "DetonateAttack")
 			{
-				var target = self.ResolveFrozenActorOrder(order, Color.Red);
-				if (target.Type != TargetType.Actor)
-					return;
-
 				if (!order.Queued)
 					self.CancelActivity();
 
-				self.SetTargetLine(target, Color.Red);
-				self.QueueActivity(new MoveAdjacentTo(self, target));
+				self.SetTargetLine(order.Target, Color.Red);
+				self.QueueActivity(new MoveAdjacentTo(self, order.Target, targetLineColor: Color.Red));
 				self.QueueActivity(new CallFunc(StartDetonationSequence));
 			}
 			else if (order.OrderString == "Detonate")
 			{
-				self.CancelActivity();
+				if (!order.Queued)
+					self.CancelActivity();
+
 				self.QueueActivity(new CallFunc(StartDetonationSequence));
 			}
 		}

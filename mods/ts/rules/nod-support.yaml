@@ -298,7 +298,7 @@ NASTLH:
 		Range: 6c0
 		MaxHeightDelta: 3
 	WithIdleOverlay@pulse:
-		RequiresCondition: !build-incomplete && !disabled
+		RequiresCondition: !build-incomplete && !empdisable && !disabled
 		Sequence: pulse
 	WithRangeCircle:
 		Range: 12c0
@@ -306,7 +306,7 @@ NASTLH:
 	Power:
 		Amount: -350
 	ProximityExternalCondition:
-		RequiresCondition: !disabled
+		RequiresCondition: !empdisable && !disabled
 		Condition: cloakgenerator
 		Range: 12c0
 		EnableSound: cloak5.aud
@@ -370,6 +370,10 @@ NAMISL:
 		DisplayRadarPing: True
 		BeaconPoster:
 		CameraRange: 10c0
+		FlightVelocity: 1c0
+		TrailImage: small_smoke_trail
+		TrailPalette: effectalpha75
+		TrailInterval: 0
 	WithNukeLaunchOverlay:
 	SelectionDecorations:
 

@@ -7,6 +7,8 @@ BGGY:
 		Cost: 500
 	Tooltip:
 		Name: Attack Buggy
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 30
@@ -45,6 +47,8 @@ BIKE:
 		Cost: 600
 	Tooltip:
 		Name: Attack Cycle
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 40
@@ -90,6 +94,8 @@ TTNK:
 	Tooltip@DEPLOYED:
 		Name: Tick Tank (deployed)
 		RequiresCondition: deployed
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 60
@@ -98,7 +104,8 @@ TTNK:
 	Mobile:
 		TurnSpeed: 5
 		Speed: 85
-		RequiresCondition: !empdisable && undeployed && !being-captured
+		RequiresCondition: undeployed
+		PauseOnCondition: empdisable || being-captured
 	Health:
 		HP: 35000
 	Armor:
@@ -125,12 +132,14 @@ TTNK:
 		Image: ttnk
 	WithMakeAnimation:
 	GrantConditionOnDeploy:
+		PauseOnCondition: empdisable || being-captured
 		DeployedCondition: deployed
 		UndeployedCondition: undeployed
 		Facing: 160
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySound: place2.aud
-		UndeploySound: clicky1.aud
+		DeploySounds: place2.aud
+		UndeploySounds: clicky1.aud
+		Voice: Move
 	GrantCondition@PREVIEWWORKAROUND:
 		Condition: real-actor
 	WithVoxelBody:
@@ -203,6 +212,8 @@ ART2:
 	Tooltip@DEPLOYED:
 		Name: Artillery (deployed)
 		RequiresCondition: deployed
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 100
@@ -215,7 +226,8 @@ ART2:
 	Mobile:
 		Speed: 71
 		TurnSpeed: 2
-		RequiresCondition: !empdisable && undeployed && !being-captured
+		RequiresCondition: undeployed
+		PauseOnCondition: empdisable || being-captured
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
 		Range: 9c0
@@ -226,12 +238,14 @@ ART2:
 		Image: art2
 	WithMakeAnimation:
 	GrantConditionOnDeploy:
+		PauseOnCondition: empdisable || being-captured
 		DeployedCondition: deployed
 		UndeployedCondition: undeployed
 		Facing: 96
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySound: place2.aud
-		UndeploySound: clicky1.aud
+		DeploySounds: place2.aud
+		UndeploySounds: clicky1.aud
+		Voice: Move
 	GrantCondition@PREVIEWWORKAROUND:
 		Condition: real-actor
 	WithVoxelBody:
@@ -248,16 +262,18 @@ ART2:
 		Armament: deployed
 		LocalOffset: 203,0,0
 		LocalOrientation: 0, 128, 0
-		RequiresCondition: deployed
+		RequiresCondition: !undeployed
 	WithVoxelTurret@deployed:
 		Turret: deployed
-		RequiresCondition: deployed
+		RequiresCondition: !undeployed
 	AttackTurreted@deployed:
 		Voice: Attack
 		Armaments: deployed
 		Turrets: deployed
 		RequiresCondition: deployed
 		PauseOnCondition: empdisable
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
 	Armament@deployed:
 		Name: deployed
 		Turret: deployed
@@ -284,6 +300,8 @@ REPAIR:
 		Cost: 1000
 	Tooltip:
 		Name: Mobile Repair Vehicle
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 20000
 	Mobile:
@@ -356,6 +374,8 @@ SAPC:
 		Cost: 800
 	Tooltip:
 		Name: Subterranean APC
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 110
@@ -364,7 +384,7 @@ SAPC:
 	Mobile:
 		TurnSpeed: 5
 		Speed: 71
-		RequiresCondition: !empdisable && !loading && !being-captured
+		PauseOnCondition: empdisable || loading || being-captured
 		Locomotor: subterranean
 	Health:
 		HP: 17500
@@ -400,6 +420,8 @@ SUBTANK:
 		Cost: 750
 	Tooltip:
 		Name: Devil's Tongue
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 130
@@ -441,6 +463,8 @@ STNK:
 		Cost: 1100
 	Tooltip:
 		Name: Stealth Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 150
 		Prerequisites: ~naweap, natech, ~techlevel.high

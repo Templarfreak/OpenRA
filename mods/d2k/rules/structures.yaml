@@ -353,8 +353,9 @@ silo:
 			fremen: silo.atreides
 			harkonnen: silo.harkonnen
 			corrino: silo.harkonnen
-	WithSiloAnimation:
-		RequiresCondition: !build-incomplete
+	-WithSpriteBody:
+	WithResourceLevelSpriteBody:
+		Sequence: stages
 	StoresResources:
 		PipColor: green
 		PipCount: 5
@@ -767,6 +768,7 @@ wall:
 		Type: Rectangle
 			TopLeft: -512, -512
 			BottomRight: 512, 512
+	AppearsOnMapPreview:
 	MapEditorData:
 		Categories: Defense
 	Replaceable:
@@ -1151,13 +1153,16 @@ palace:
 		EndChargeSpeechNotification: DeathHandMissileReady
 		LaunchSpeechNotification: MissileLaunchDetected
 		MissileWeapon: atomic
-		MissileDelay: 19
-		SpawnOffset: -512,1c171,0
+		MissileDelay: 18
+		SpawnOffset: 32,816,0
 		DisplayBeacon: True
 		DisplayRadarPing: True
 		CameraRange: 10c0
 		ArrowSequence: arrow
 		CircleSequence: circles
+		FlightVelocity: 384
+		TrailInterval: 0
+		TrailImage: large_trail
 	ProduceActorPower@fremen:
 		Description: Recruit Fremen
 		LongDesc: Elite infantry unit armed with assault rifles and rockets\n  Strong vs Infantry, Vehicles\n  Weak vs Artillery\n  Special Ability: Invisibility

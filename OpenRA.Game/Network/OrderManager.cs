@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,9 +11,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Primitives;
+using OpenRA.Support;
 
 namespace OpenRA.Network
 {
@@ -45,6 +45,9 @@ namespace OpenRA.Network
 		public bool GameStarted { get { return NetFrameNumber != 0; } }
 		public IConnection Connection { get; private set; }
 
+		internal int GameSaveLastFrame = -1;
+		internal int GameSaveLastSyncFrame = -1;
+
 		List<Order> localOrders = new List<Order>();
 
 		List<ChatLine> chatCache = new List<ChatLine>();
@@ -67,11 +70,13 @@ namespace OpenRA.Network
 
 			// Generating sync reports is expensive, so only do it if we have
 			// other players to compare against if a desync did occur
-			generateSyncReport = !(Connection is ReplayConnection) && LobbyInfo.NonBotClients.Count() > 1;
+			generateSyncReport = !(Connection is ReplayConnection) && LobbyInfo.GlobalSettings.EnableSyncReports;
 
 			NetFrameNumber = 1;
-			for (var i = NetFrameNumber; i <= FramesAhead; i++)
-				Connection.Send(i, new List<byte[]>());
+
+			if (GameSaveLastFrame < 0)
+				for (var i = NetFrameNumber; i <= FramesAhead; i++)
+					Connection.Send(i, new List<byte[]>());
 		}
 
 		public OrderManager(string host, int port, string password, IConnection conn)
@@ -105,7 +110,7 @@ namespace OpenRA.Network
 		public void TickImmediate()
 		{
 			var immediateOrders = localOrders.Where(o => o.IsImmediate).ToList();
-			if (immediateOrders.Count != 0)
+			if (immediateOrders.Count != 0 && GameSaveLastFrame < NetFrameNumber + FramesAhead)
 				Connection.SendImmediate(immediateOrders.Select(o => o.Serialize()).ToList());
 			localOrders.RemoveAll(o => o.IsImmediate);
 
@@ -178,16 +183,22 @@ namespace OpenRA.Network
 			if (!IsReadyForNextFrame)
 				throw new InvalidOperationException();
 
-			Connection.Send(NetFrameNumber + FramesAhead, localOrders.Select(o => o.Serialize()).ToList());
+			if (GameSaveLastFrame < NetFrameNumber + FramesAhead)
+				Connection.Send(NetFrameNumber + FramesAhead, localOrders.Select(o => o.Serialize()).ToList());
+
 			localOrders.Clear();
 
 			foreach (var order in frameData.OrdersForFrame(World, NetFrameNumber))
 				UnitOrders.ProcessOrder(this, World, order.Client, order.Order);
 
-			Connection.SendSync(NetFrameNumber, OrderIO.SerializeSync(World.SyncHash()));
+			if (NetFrameNumber + FramesAhead >= GameSaveLastSyncFrame)
+				Connection.SendSync(NetFrameNumber, OrderIO.SerializeSync(World.SyncHash()));
+			else
+				Connection.SendSync(NetFrameNumber, OrderIO.SerializeSync(0));
 
 			if (generateSyncReport)
-				syncReport.UpdateSyncReport();
+				using (new PerfSample("sync_report"))
+					syncReport.UpdateSyncReport();
 
 			++NetFrameNumber;
 		}

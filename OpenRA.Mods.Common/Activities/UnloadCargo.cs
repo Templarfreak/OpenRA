@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,6 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
@@ -56,9 +55,22 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override Activity Tick(Actor self)
 		{
+			if (ChildActivity != null)
+			{
+				ChildActivity = ActivityUtils.RunActivity(self, ChildActivity);
+				if (ChildActivity != null)
+					return this;
+			}
+
 			cargo.Unloading = false;
-			if (IsCanceled || cargo.IsEmpty(self))
+			if (IsCanceling || cargo.IsEmpty(self))
 				return NextActivity;
+
+			if (!cargo.CanUnload())
+			{
+				Cancel(self, true);
+				return NextActivity;
+			}
 
 			foreach (var inu in notifiers)
 				inu.Unloading(self);
@@ -70,8 +82,8 @@ namespace OpenRA.Mods.Common.Activities
 			if (exitSubCell == null)
 			{
 				self.NotifyBlocker(BlockedExitCells(actor));
-
-				return ActivityUtils.SequenceActivities(new Wait(10), this);
+				QueueChild(self, new Wait(10), true);
+				return this;
 			}
 
 			cargo.Unload(self);

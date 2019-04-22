@@ -11,6 +11,8 @@ SS:
 		Cost: 950
 	Tooltip:
 		Name: Submarine
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 25000
 	Armor:
@@ -79,6 +81,8 @@ MSUB:
 		Cost: 2000
 	Tooltip:
 		Name: Missile Submarine
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 40000
 	Armor:
@@ -118,6 +122,8 @@ MSUB:
 		LocalOffset: 0,-171,0, 0,171,0
 		FireDelay: 2
 	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
 	SelectionDecorations:
 	AutoTarget:
 		InitialStance: HoldFire
@@ -146,6 +152,8 @@ DD:
 		Cost: 1000
 	Tooltip:
 		Name: Destroyer
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 40000
 	Armor:
@@ -197,6 +205,8 @@ CA:
 		Cost: 2400
 	Tooltip:
 		Name: Cruiser
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 80000
 	Armor:
@@ -234,6 +244,8 @@ CA:
 		MuzzleSequence: muzzle
 	AttackTurreted:
 		Turrets: primary, secondary
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
 	WithMuzzleOverlay:
 	SelectionDecorations:
 	WithSpriteTurret@PRIMARY:
@@ -254,15 +266,16 @@ LST:
 		Cost: 700
 	Tooltip:
 		Name: Transport
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 35000
 	Armor:
 		Type: Heavy
 	Mobile:
 		Locomotor: lcraft
-		TurnSpeed: 10
 		Speed: 113
-		RequiresCondition: !notmobile
+		PauseOnCondition: notmobile
 	RevealsShroud:
 		Range: 6c0
 		RevealGeneratedShroud: False
@@ -294,6 +307,8 @@ PT:
 		Cost: 500
 	Tooltip:
 		Name: Gunboat
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 20000
 	Armor:

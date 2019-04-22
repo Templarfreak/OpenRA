@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,23 +10,24 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("This actor can be sent to a structure for repairs.")]
-	class RepairableInfo : ITraitInfo, Requires<IHealthInfo>, Requires<IMoveInfo>
+	public class RepairableInfo : ITraitInfo, Requires<IHealthInfo>, Requires<IMoveInfo>
 	{
-		public readonly HashSet<string> RepairBuildings = new HashSet<string> { "fix" };
+		[FieldLoader.Require]
+		[ActorReference] public readonly HashSet<string> RepairActors = new HashSet<string> { };
 
 		[VoiceReference] public readonly string Voice = "Action";
 
-		[Desc("The amount the unit will be repaired at each step. Use -1 for fallback behavior where HpPerStep from RepairUnit trait will be used.")]
+		[Desc("The amount the unit will be repaired at each step. Use -1 for fallback behavior where HpPerStep from RepairsUnits trait will be used.")]
 		public readonly int HpPerStep = -1;
 
 		[Desc("Amount of credits to charge per HP step. If this is -1, default cost calculation will be used.")]
@@ -41,7 +42,7 @@ namespace OpenRA.Mods.Common.Traits
 		public virtual object Create(ActorInitializer init) { return new Repairable(init.Self, this); }
 	}
 
-	class Repairable : IIssueOrder, IResolveOrder, IOrderVoice, INotifyCreated
+	public class Repairable : IIssueOrder, IResolveOrder, IOrderVoice, INotifyCreated
 	{
 		public readonly RepairableInfo Info;
 		readonly IHealth health;
@@ -78,7 +79,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool CanRepairAt(Actor target)
 		{
-			return Info.RepairBuildings.Contains(target.Info.Name);
+			return Info.RepairActors.Contains(target.Info.Name);
 		}
 
 		bool CanRearmAt(Actor target)
@@ -121,9 +122,11 @@ namespace OpenRA.Mods.Common.Traits
 					self.CancelActivity();
 
 				self.SetTargetLine(order.Target, Color.Green);
-				self.QueueActivity(new WaitForTransport(self, ActivityUtils.SequenceActivities(movement.MoveToTarget(self, order.Target),
-					new CallFunc(() => AfterReachActivities(self, order, movement)))));
+				var activities = ActivityUtils.SequenceActivities(self,
+					movement.MoveToTarget(self, order.Target, targetLineColor: Color.Green),
+					new CallFunc(() => AfterReachActivities(self, order, movement)));
 
+				self.QueueActivity(new WaitForTransport(self, activities));
 				TryCallTransport(self, order.Target, new CallFunc(() => AfterReachActivities(self, order, movement)));
 			}
 		}
@@ -164,7 +167,7 @@ namespace OpenRA.Mods.Common.Traits
 			var repairBuilding = self.World.ActorsWithTrait<RepairsUnits>()
 				.Where(a => !a.Actor.IsDead && a.Actor.IsInWorld
 					&& a.Actor.Owner.IsAlliedWith(self.Owner) &&
-					Info.RepairBuildings.Contains(a.Actor.Info.Name))
+					Info.RepairActors.Contains(a.Actor.Info.Name))
 				.OrderBy(p => (self.Location - p.Actor.Location).LengthSquared);
 
 			// Worst case FirstOrDefault() will return a TraitPair<null, null>, which is OK.

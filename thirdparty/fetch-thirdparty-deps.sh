@@ -29,8 +29,8 @@ fi
 
 if [ ! -f ICSharpCode.SharpZipLib.dll ]; then
 	echo "Fetching ICSharpCode.SharpZipLib from NuGet"
-	../noget.sh SharpZipLib 0.86.0
-	cp ./SharpZipLib/lib/20/ICSharpCode.SharpZipLib.dll .
+	../noget.sh SharpZipLib 1.1.0
+	cp ./SharpZipLib/lib/net45/ICSharpCode.SharpZipLib.dll .
 	rm -rf SharpZipLib
 fi
 
@@ -39,14 +39,6 @@ if [ ! -f MaxMind.Db.dll ]; then
 	../noget.sh MaxMind.Db 2.0.0 -IgnoreDependencies
 	cp ./MaxMind.Db/lib/net45/MaxMind.Db.* .
 	rm -rf MaxMind.Db
-fi
-
-if [ ! -f SharpFont.dll ]; then
-	echo "Fetching SharpFont from NuGet"
-	../noget.sh SharpFont 4.0.1
-	cp ./SharpFont/lib/net45/SharpFont* .
-	cp ./SharpFont/config/SharpFont.dll.config .
-	rm -rf SharpFont SharpFont.Dependencies
 fi
 
 if [ ! -f nunit.framework.dll ]; then

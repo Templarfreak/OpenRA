@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,9 +9,10 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Network
@@ -58,7 +59,7 @@ namespace OpenRA.Network
 							if (orderManager.LocalClient != null && client != orderManager.LocalClient && client.Team > 0 && client.Team == orderManager.LocalClient.Team)
 								suffix += " (Ally)";
 
-							Game.AddChatLine(client.Color.RGB, client.Name + suffix, message);
+							Game.AddChatLine(client.Color, client.Name + suffix, message);
 						}
 						else
 							Game.AddChatLine(Color.White, "(player {0})".F(clientId), message);
@@ -86,17 +87,17 @@ namespace OpenRA.Network
 							if (world == null)
 							{
 								if (orderManager.LocalClient != null && client.Team == orderManager.LocalClient.Team)
-									Game.AddChatLine(client.Color.RGB, "[Team] " + client.Name, order.TargetString);
+									Game.AddChatLine(client.Color, "[Team] " + client.Name, order.TargetString);
 							}
 							else
 							{
 								var player = world.FindPlayerByClient(client);
 								if (player != null && player.WinState == WinState.Lost)
-									Game.AddChatLine(client.Color.RGB, client.Name + " (Dead)", order.TargetString);
+									Game.AddChatLine(client.Color, client.Name + " (Dead)", order.TargetString);
 								else if ((player != null && world.LocalPlayer != null && player.Stances[world.LocalPlayer] == Stance.Ally) || (world.IsReplay && player != null))
-									Game.AddChatLine(client.Color.RGB, "[Team" + (world.IsReplay ? " " + client.Team : "") + "] " + client.Name, order.TargetString);
+									Game.AddChatLine(client.Color, "[Team" + (world.IsReplay ? " " + client.Team : "") + "] " + client.Name, order.TargetString);
 								else if ((orderManager.LocalClient != null && orderManager.LocalClient.IsObserver && client.IsObserver) || (world.IsReplay  && client.IsObserver))
-									Game.AddChatLine(client.Color.RGB, "[Spectators] " + client.Name, order.TargetString);
+									Game.AddChatLine(client.Color, "[Spectators] " + client.Name, order.TargetString);
 							}
 						}
 
@@ -114,10 +115,44 @@ namespace OpenRA.Network
 							break;
 						}
 
-						Game.AddChatLine(Color.White, ServerChatName, "The game has started.");
+						if (!string.IsNullOrEmpty(order.TargetString))
+						{
+							var data = MiniYaml.FromString(order.TargetString);
+							var saveLastOrdersFrame = data.FirstOrDefault(n => n.Key == "SaveLastOrdersFrame");
+							if (saveLastOrdersFrame != null)
+								orderManager.GameSaveLastFrame =
+									FieldLoader.GetValue<int>("saveLastOrdersFrame", saveLastOrdersFrame.Value.Value);
+
+							var saveSyncFrame = data.FirstOrDefault(n => n.Key == "SaveSyncFrame");
+							if (saveSyncFrame != null)
+								orderManager.GameSaveLastSyncFrame =
+									FieldLoader.GetValue<int>("SaveSyncFrame", saveSyncFrame.Value.Value);
+						}
+						else
+							Game.AddChatLine(Color.White, ServerChatName, "The game has started.");
+
 						Game.StartGame(orderManager.LobbyInfo.GlobalSettings.Map, WorldType.Regular);
 						break;
 					}
+
+				case "SaveTraitData":
+					{
+						var data = MiniYaml.FromString(order.TargetString)[0];
+						var traitIndex = int.Parse(data.Key);
+
+						if (world != null)
+							world.AddGameSaveTraitData(traitIndex, data.Value);
+
+						break;
+					}
+
+				case "GameSaved":
+					if (!orderManager.World.IsReplay)
+						Game.AddChatLine(Color.White, ServerChatName, "Game saved");
+
+					foreach (var nsr in orderManager.World.WorldActor.TraitsImplementing<INotifyGameSaved>())
+						nsr.GameSaved(orderManager.World);
+					break;
 
 				case "PauseGame":
 					{

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,8 +19,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
 {
-	public class TDGunboatInfo : ITraitInfo, IPositionableInfo, IFacingInfo, IMoveInfo,
-		UsesInit<LocationInit>, UsesInit<FacingInit>, IActorPreviewInitInfo
+	public class TDGunboatInfo : ITraitInfo, IPositionableInfo, IFacingInfo, IMoveInfo, IActorPreviewInitInfo
 	{
 		public readonly int Speed = 28;
 
@@ -182,11 +181,15 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		public Activity MoveTo(CPos cell, int nearEnough) { return null; }
 		public Activity MoveTo(CPos cell, Actor ignoreActor) { return null; }
-		public Activity MoveWithinRange(Target target, WDist range) { return null; }
-		public Activity MoveWithinRange(Target target, WDist minRange, WDist maxRange) { return null; }
-		public Activity MoveFollow(Actor self, Target target, WDist minRange, WDist maxRange) { return null; }
+		public Activity MoveWithinRange(Target target, WDist range,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null) { return null; }
+		public Activity MoveWithinRange(Target target, WDist minRange, WDist maxRange,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null) { return null; }
+		public Activity MoveFollow(Actor self, Target target, WDist minRange, WDist maxRange,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null) { return null; }
 		public Activity MoveIntoWorld(Actor self, CPos cell, SubCell subCell = SubCell.Any) { return null; }
-		public Activity MoveToTarget(Actor self, Target target) { return null; }
+		public Activity MoveToTarget(Actor self, Target target,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null) { return null; }
 		public Activity MoveIntoTarget(Actor self, Target target) { return null; }
 		public Activity VisualMove(Actor self, WPos fromPos, WPos toPos) { return null; }
 
@@ -198,9 +201,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public CPos NearestMoveableCell(CPos cell) { return cell; }
 
 		// Actors with TDGunboat always move
-		public bool IsMoving { get { return true; } set { } }
-
-		public bool IsMovingVertically { get { return false; } set { } }
+		public MovementType CurrentMovementTypes { get { return MovementType.Horizontal; } set { } }
 
 		public bool CanEnterTargetNow(Actor self, Target target)
 		{

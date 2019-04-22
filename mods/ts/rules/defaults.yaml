@@ -497,6 +497,7 @@
 			TopLeft: -512, -512
 			BottomRight: 512, 512
 			VerticalTopOffset: 768
+	AppearsOnMapPreview:
 	MapEditorData:
 		Categories: Wall
 	Valued:
@@ -701,7 +702,7 @@
 		RequiresCondition: criticalspeed
 		Modifier: 50
 	Mobile:
-		RequiresCondition: !empdisable
+		PauseOnCondition: empdisable
 
 ^CivilianInfantry:
 	Inherits@1: ^Infantry
@@ -728,7 +729,7 @@
 		Action: Kill
 	DrawLineToTarget:
 	Mobile:
-		RequiresCondition: !empdisable && !being-captured
+		PauseOnCondition: empdisable || being-captured
 		Locomotor: wheeled
 		TurnSpeed: 5
 		Voice: Move
@@ -749,7 +750,7 @@
 		Condition: damaged
 		ValidDamageStates: Light, Medium, Heavy, Critical
 	Repairable:
-		RepairBuildings: gadept
+		RepairActors: gadept
 		Voice: Move
 	Passenger:
 		CargoType: Vehicle
@@ -841,7 +842,7 @@
 	SelectionDecorations:
 		Palette: pips
 	Repairable:
-		RepairBuildings: gadept
+		RepairActors: gadept
 		Voice: Move
 	Aircraft:
 		AirborneCondition: airborne
@@ -897,6 +898,7 @@
 		Type: Heavy
 	HiddenUnderFog:
 		Type: GroundPosition
+		AlwaysVisibleStances: None
 	ScriptTriggers:
 	Interactable:
 	Tooltip:
@@ -906,8 +908,6 @@
 		Moves: true
 		Velocity: 86
 	HitShape:
-	MapEditorData:
-		Categories: Husk
 
 ^Visceroid:
 	Inherits@1: ^ExistsInWorld
@@ -959,6 +959,8 @@
 	AppearsOnRadar:
 	RadarColorFromTerrain:
 		Terrain: Tiberium
+	AppearsOnMapPreview:
+		Terrain: Tiberium
 	FrozenUnderFog:
 	SeedsResource:
 		ResourceType: Tiberium
@@ -980,6 +982,8 @@
 	AppearsOnRadar:
 	RadarColorFromTerrain:
 		Terrain: Tree
+	AppearsOnMapPreview:
+		Terrain: Tree
 	Tooltip:
 		Name: Tree
 	MapEditorData:
@@ -999,6 +1003,8 @@
 		Dimensions: 1, 1
 	AppearsOnRadar:
 	RadarColorFromTerrain:
+		Terrain: Rock
+	AppearsOnMapPreview:
 		Terrain: Rock
 	Tooltip:
 		Name: Rock
@@ -1067,7 +1073,7 @@
 		TurnSpeed: 5
 		Voice: Move
 		Speed: 113
-		RequiresCondition: !empdisable
+		PauseOnCondition: empdisable
 		Locomotor: train
 	Cargo:
 		Types: Infantry
@@ -1163,11 +1169,9 @@
 	-Capturable:
 	-GivesBuildableArea:
 	-MustBeDestroyed:
-	WithMakeAnimation:
-		Condition: build-incomplete
+	-WithMakeAnimation:
 	-WithSpriteBody:
 	WithGateSpriteBody:
-		PauseOnCondition: !build-incomplete
 		OpenSequence: open
 	Tooltip:
 	Buildable:
@@ -1181,10 +1185,12 @@
 	MapEditorData:
 		Categories: Wall
 	Gate:
-		PauseOnCondition: empdisable || build-incomplete
+		PauseOnCondition: empdisable
 		OpeningSound: gateup1.aud
 		ClosingSound: gatedwn1.aud
 		BlocksProjectilesHeight: 768
+	Sellable:
+		RequiresCondition: !being-demolished
 
 ^Gate_A:
 	Inherits: ^Gate

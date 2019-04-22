@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,6 @@
 #endregion
 
 using System;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Primitives;
@@ -46,6 +45,8 @@ namespace OpenRA.Mods.Common.Widgets
 		public int MinimumThumbSize = 10;
 		public ScrollPanelAlign Align = ScrollPanelAlign.Top;
 		public bool CollapseHiddenChildren;
+
+		// Fraction of the remaining scroll-delta to move in 40ms
 		public float SmoothScrollSpeed = 0.333f;
 
 		protected bool upPressed;
@@ -64,6 +65,10 @@ namespace OpenRA.Mods.Common.Widgets
 
 		// The current value is the actual list offset at the moment
 		float currentListOffset;
+
+		// The Game.Runtime value when UpdateSmoothScrolling was last called
+		// Used for calculating the per-frame smooth-scrolling delta
+		long lastSmoothScrollTime = 0;
 
 		// Setting "smooth" to true will only update the target list offset.
 		// Setting "smooth" to false will also set the current list offset,
@@ -129,6 +134,8 @@ namespace OpenRA.Mods.Common.Widgets
 			if (!IsVisible())
 				return;
 
+			UpdateSmoothScrolling();
+
 			var rb = RenderBounds;
 
 			var scrollbarHeight = rb.Height - 2 * ScrollbarWidth;
@@ -170,7 +177,11 @@ namespace OpenRA.Mods.Common.Widgets
 			var drawBounds = backgroundRect.InflateBy(-BorderWidth, -BorderWidth, -BorderWidth, -BorderWidth);
 			Game.Renderer.EnableScissor(drawBounds);
 
-			drawBounds.Offset((-ChildOrigin).ToPoint());
+			// ChildOrigin enumerates the widget tree, so only evaluate it once
+			var co = ChildOrigin;
+			drawBounds.X -= co.X;
+			drawBounds.Y -= co.Y;
+
 			foreach (var child in Children)
 				if (child.Bounds.IntersectsWith(drawBounds))
 					child.DrawOuter();
@@ -253,6 +264,29 @@ namespace OpenRA.Mods.Common.Widgets
 				ScrollToItem(item);
 		}
 
+		void UpdateSmoothScrolling()
+		{
+			if (lastSmoothScrollTime == 0)
+			{
+				lastSmoothScrollTime = Game.RunTime;
+				return;
+			}
+
+			var offsetDiff = targetListOffset - currentListOffset;
+			var absOffsetDiff = Math.Abs(offsetDiff);
+			if (absOffsetDiff > 1f)
+			{
+				var dt = Game.RunTime - lastSmoothScrollTime;
+				currentListOffset += offsetDiff * SmoothScrollSpeed.Clamp(0.1f, 1.0f) * dt / 40;
+
+				Ui.ResetTooltips();
+			}
+			else
+				SetListOffset(targetListOffset, false);
+
+			lastSmoothScrollTime = Game.RunTime;
+		}
+
 		public override void Tick()
 		{
 			if (upPressed)
@@ -260,17 +294,6 @@ namespace OpenRA.Mods.Common.Widgets
 
 			if (downPressed)
 				Scroll(-1);
-
-			var offsetDiff = targetListOffset - currentListOffset;
-			var absOffsetDiff = Math.Abs(offsetDiff);
-			if (absOffsetDiff > 1f)
-			{
-				currentListOffset += offsetDiff * SmoothScrollSpeed.Clamp(0.1f, 1.0f);
-
-				Ui.ResetTooltips();
-			}
-			else
-				SetListOffset(targetListOffset, false);
 		}
 
 		public override bool YieldMouseFocus(MouseInput mi)

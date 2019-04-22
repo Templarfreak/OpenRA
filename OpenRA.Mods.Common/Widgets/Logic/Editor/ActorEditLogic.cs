@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -26,19 +26,21 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly WorldRenderer worldRenderer;
 		readonly EditorActorLayer editorActorLayer;
 		readonly EditorViewportControllerWidget editor;
-		readonly ContainerWidget actorSelectBorder;
 		readonly BackgroundWidget actorEditPanel;
 		readonly LabelWidget typeLabel;
 		readonly TextFieldWidget actorIDField;
 		readonly LabelWidget actorIDErrorLabel;
-		readonly DropDownButtonWidget ownersDropDown;
+
 		readonly Widget initContainer;
 		readonly Widget buttonContainer;
+
+		readonly Widget sliderOptionTemplate;
+		readonly Widget dropdownOptionTemplate;
 
 		readonly int editPanelPadding; // Padding between right edge of actor and the edit panel.
 		readonly long scrollVisibleTimeout = 100; // Delay after scrolling map before edit widget becomes visible again.
 		long lastScrollTime = 0;
-		PlayerReference selectedOwner;
+		int2 lastScrollPosition = int2.Zero;
 
 		ActorIDStatus actorIDStatus = ActorIDStatus.Normal;
 		ActorIDStatus nextActorIDStatus = ActorIDStatus.Normal;
@@ -72,16 +74,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			this.worldRenderer = worldRenderer;
 			editorActorLayer = world.WorldActor.Trait<EditorActorLayer>();
 			editor = widget.Parent.Get<EditorViewportControllerWidget>("MAP_EDITOR");
-			actorSelectBorder = editor.Get<ContainerWidget>("ACTOR_SELECT_BORDER");
 			actorEditPanel = editor.Get<BackgroundWidget>("ACTOR_EDIT_PANEL");
 
 			typeLabel = actorEditPanel.Get<LabelWidget>("ACTOR_TYPE_LABEL");
 			actorIDField = actorEditPanel.Get<TextFieldWidget>("ACTOR_ID");
 
-			ownersDropDown = actorEditPanel.Get<DropDownButtonWidget>("OWNERS_DROPDOWN");
-
 			initContainer = actorEditPanel.Get("ACTOR_INIT_CONTAINER");
 			buttonContainer = actorEditPanel.Get("BUTTON_CONTAINER");
+
+			sliderOptionTemplate = initContainer.Get("SLIDER_OPTION_TEMPLATE");
+			dropdownOptionTemplate = initContainer.Get("DROPDOWN_OPTION_TEMPLATE");
+			initContainer.RemoveChildren();
 
 			var deleteButton = actorEditPanel.Get<ButtonWidget>("DELETE_BUTTON");
 			var closeButton = actorEditPanel.Get<ButtonWidget>("CLOSE_BUTTON");
@@ -97,10 +100,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			closeButton.OnClick = Close;
 			deleteButton.OnClick = Delete;
-			actorSelectBorder.IsVisible = () => CurrentActor != null
+			actorEditPanel.IsVisible = () => CurrentActor != null
 				&& editor.CurrentBrush == editor.DefaultBrush
 				&& Game.RunTime > lastScrollTime + scrollVisibleTimeout;
-			actorEditPanel.IsVisible = actorSelectBorder.IsVisible;
 
 			actorIDField.OnEscKey = () =>
 			{
@@ -120,8 +122,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var actorId = actorIDField.Text.ToLowerInvariant();
 				if (CurrentActor.ID.ToLowerInvariant() != actorId)
 				{
-					var found = world.Map.ActorDefinitions.Any(x => x.Key.ToLowerInvariant() == actorId);
-					if (found)
+					if (editorActorLayer[actorId] != null)
 					{
 						nextActorIDStatus = ActorIDStatus.Duplicate;
 						return;
@@ -137,40 +138,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (actorIDStatus != ActorIDStatus.Normal)
 					SetActorID(world, initialActorID);
 			};
-
-			// Setup owners drop down
-			selectedOwner = editorActorLayer.Players.Players.Values.First();
-			Func<PlayerReference, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
-			{
-				var item = ScrollItemWidget.Setup(template, () => selectedOwner == option, () =>
-				{
-					ownersDropDown.Text = option.Name;
-					ownersDropDown.TextColor = option.Color.RGB;
-					selectedOwner = option;
-
-					CurrentActor.Owner = selectedOwner;
-					CurrentActor.ReplaceInit(new OwnerInit(selectedOwner.Name));
-				});
-
-				item.Get<LabelWidget>("LABEL").GetText = () => option.Name;
-				item.GetColor = () => option.Color.RGB;
-				return item;
-			};
-
-			ownersDropDown.OnClick = () =>
-			{
-				var owners = editorActorLayer.Players.Players.Values.OrderBy(p => p.Name);
-				ownersDropDown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 270, owners, setupItem);
-			};
-
-			ownersDropDown.Text = selectedOwner.Name;
-			ownersDropDown.TextColor = selectedOwner.Color.RGB;
 		}
 
 		void SetActorID(World world, string actorId)
 		{
-			var actorDef = world.Map.ActorDefinitions.First(x => x.Key == CurrentActor.ID);
-			actorDef.Key = actorId;
 			CurrentActor.ID = actorId;
 			nextActorIDStatus = ActorIDStatus.Normal;
 		}
@@ -196,20 +167,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var actor = editor.DefaultBrush.SelectedActor;
 			if (actor != null)
 			{
-				var origin = worldRenderer.Viewport.WorldToViewPx(new int2(actor.Bounds.X, actor.Bounds.Y));
+				var origin = worldRenderer.Viewport.WorldToViewPx(new int2(actor.Bounds.Right, actor.Bounds.Top));
 
 				// If we scrolled, hide the edit box for a moment
-				if (actorSelectBorder.Bounds.X != origin.X || actorSelectBorder.Bounds.Y != origin.Y)
+				if (lastScrollPosition.X != origin.X || lastScrollPosition.Y != origin.Y)
+				{
 					lastScrollTime = Game.RunTime;
+					lastScrollPosition = origin;
+				}
 
 				// If we changed actor, move widgets
 				if (CurrentActor != actor)
 				{
 					lastScrollTime = 0; // Ensure visible
-					selectedOwner = actor.Owner;
-					ownersDropDown.Text = selectedOwner.Name;
-					ownersDropDown.TextColor = selectedOwner.Color.RGB;
-
 					CurrentActor = actor;
 
 					initialActorID = actorIDField.Text = actor.ID;
@@ -219,16 +189,101 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					typeLabel.Text = truncatedType;
 
 					actorIDField.CursorPosition = actor.ID.Length;
-					actorSelectBorder.Bounds.Width = actor.Bounds.Width * 2;
-					actorSelectBorder.Bounds.Height = actor.Bounds.Height * 2;
 					nextActorIDStatus = ActorIDStatus.Normal;
+
+					// Remove old widgets
+					var oldInitHeight = initContainer.Bounds.Height;
+					initContainer.Bounds.Height = 0;
+					initContainer.RemoveChildren();
+
+					// Add owner dropdown
+					var ownerContainer = dropdownOptionTemplate.Clone();
+					ownerContainer.Get<LabelWidget>("LABEL").GetText = () => "Owner";
+					var ownerDropdown = ownerContainer.Get<DropDownButtonWidget>("OPTION");
+					var selectedOwner = actor.Owner;
+
+					Func<PlayerReference, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
+					{
+						var item = ScrollItemWidget.Setup(template, () => selectedOwner == option, () =>
+						{
+							selectedOwner = option;
+							CurrentActor.Owner = selectedOwner;
+							CurrentActor.ReplaceInit(new OwnerInit(selectedOwner.Name));
+						});
+
+						item.Get<LabelWidget>("LABEL").GetText = () => option.Name;
+						item.GetColor = () => option.Color;
+						return item;
+					};
+
+					ownerDropdown.GetText = () => selectedOwner.Name;
+					ownerDropdown.GetColor = () => selectedOwner.Color;
+					ownerDropdown.OnClick = () =>
+					{
+						var owners = editorActorLayer.Players.Players.Values.OrderBy(p => p.Name);
+						ownerDropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 270, owners, setupItem);
+					};
+
+					initContainer.Bounds.Height += ownerContainer.Bounds.Height;
+					initContainer.AddChild(ownerContainer);
+
+					// Add new children for inits
+					var options = actor.Info.TraitInfos<IEditorActorOptions>()
+						.SelectMany(t => t.ActorOptions(actor.Info, worldRenderer.World))
+						.OrderBy(o => o.DisplayOrder);
+
+					foreach (var o in options)
+					{
+						if (o is EditorActorSlider)
+						{
+							var so = (EditorActorSlider)o;
+							var sliderContainer = sliderOptionTemplate.Clone();
+							sliderContainer.Bounds.Y = initContainer.Bounds.Height;
+							initContainer.Bounds.Height += sliderContainer.Bounds.Height;
+							sliderContainer.Get<LabelWidget>("LABEL").GetText = () => so.Name;
+
+							var slider = sliderContainer.Get<SliderWidget>("OPTION");
+							slider.MinimumValue = so.MinValue;
+							slider.MaximumValue = so.MaxValue;
+							slider.Ticks = so.Ticks;
+
+							slider.GetValue = () => so.GetValue(actor);
+							slider.OnChange += value => so.OnChange(actor, value);
+
+							initContainer.AddChild(sliderContainer);
+						}
+						else if (o is EditorActorDropdown)
+						{
+							var ddo = (EditorActorDropdown)o;
+							var dropdownContainer = dropdownOptionTemplate.Clone();
+							dropdownContainer.Bounds.Y = initContainer.Bounds.Height;
+							initContainer.Bounds.Height += dropdownContainer.Bounds.Height;
+							dropdownContainer.Get<LabelWidget>("LABEL").GetText = () => ddo.Name;
+
+							var dropdown = dropdownContainer.Get<DropDownButtonWidget>("OPTION");
+							Func<KeyValuePair<string, string>, ScrollItemWidget, ScrollItemWidget> dropdownSetup = (option, template) =>
+							{
+								var item = ScrollItemWidget.Setup(template,
+									() => ddo.GetValue(actor) == option.Key,
+									() => ddo.OnChange(actor, option.Key));
+
+								item.Get<LabelWidget>("LABEL").GetText = () => option.Value;
+								return item;
+							};
+
+							dropdown.GetText = () => ddo.Labels[ddo.GetValue(actor)];
+							dropdown.OnClick = () => dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 270, ddo.Labels, dropdownSetup);
+
+							initContainer.AddChild(dropdownContainer);
+						}
+					}
+
+					actorEditPanel.Bounds.Height += initContainer.Bounds.Height - oldInitHeight;
+					buttonContainer.Bounds.Y += initContainer.Bounds.Height - oldInitHeight;
 				}
 
-				actorSelectBorder.Bounds.X = origin.X;
-				actorSelectBorder.Bounds.Y = origin.Y;
-
 				// Set the edit panel to the right of the selection border.
-				actorEditPanel.Bounds.X = origin.X + actorSelectBorder.Bounds.Width / 2 + editPanelPadding;
+				actorEditPanel.Bounds.X = origin.X + editPanelPadding;
 				actorEditPanel.Bounds.Y = origin.Y;
 			}
 			else
@@ -251,7 +306,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			actorIDField.YieldKeyboardFocus();
 			editor.DefaultBrush.SelectedActor = null;
-			actorSelectBorder.Visible = false;
 			CurrentActor = null;
 		}
 	}

@@ -11,6 +11,8 @@ V2RL:
 		Cost: 900
 	Tooltip:
 		Name: V2 Rocket Launcher
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 20000
 	Armor:
@@ -28,6 +30,8 @@ V2RL:
 	AutoTarget:
 		ScanRadius: 10
 	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
 	WithFacingSpriteBody:
 		RequiresCondition: !reloading
 		Name: loaded
@@ -57,6 +61,8 @@ V2RL:
 	Tooltip:
 		Name: Light Tank
 		GenericName: Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 22000
 	Armor:
@@ -98,6 +104,8 @@ V2RL:
 	Tooltip:
 		Name: Medium Tank
 		GenericName: Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 45000
 	Armor:
@@ -142,6 +150,8 @@ V2RL:
 	Tooltip:
 		Name: Heavy Tank
 		GenericName: Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 60000
 	Armor:
@@ -187,6 +197,8 @@ V2RL:
 	Tooltip:
 		Name: Mammoth Tank
 		GenericName: Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 90000
 	Armor:
@@ -245,6 +257,8 @@ ARTY:
 		Cost: 850
 	Tooltip:
 		Name: Artillery
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 10000
 	Armor:
@@ -263,6 +277,8 @@ ARTY:
 		LocalOffset: 624,0,208
 		MuzzleSequence: muzzle
 	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
 	WithMuzzleOverlay:
 	Explodes:
 		Weapon: ArtilleryExplode
@@ -304,7 +320,6 @@ HARV:
 	RevealsShroud:
 		Range: 4c0
 	WithHarvestAnimation:
-		PrefixByFullness: empty-, half-, full-
 	WithDockingAnimation:
 	GpsDot:
 		String: Harvester
@@ -321,6 +336,9 @@ HARV:
 	Explodes:
 		RequiresCondition: !no-ore
 		Weapon: OreExplosion
+	WithHarvesterSpriteBody:
+		ImageByFullness: harvempty, harvhalf, harv
+	-WithFacingSpriteBody:
 
 MCV:
 	Inherits: ^Vehicle
@@ -374,6 +392,8 @@ JEEP:
 		Cost: 500
 	Tooltip:
 		Name: Ranger
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 15000
 	Armor:
@@ -381,7 +401,7 @@ JEEP:
 	Mobile:
 		TurnSpeed: 10
 		Speed: 170
-		RequiresCondition: !notmobile && !being-captured
+		PauseOnCondition: notmobile || being-captured
 	RevealsShroud:
 		Range: 8c0
 		RevealGeneratedShroud: False
@@ -418,13 +438,15 @@ APC:
 		Cost: 850
 	Tooltip:
 		Name: Armored Personnel Carrier
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 30000
 	Armor:
 		Type: Heavy
 	Mobile:
 		Speed: 142
-		RequiresCondition: !notmobile && !being-captured
+		PauseOnCondition: notmobile || being-captured
 	RevealsShroud:
 		Range: 5c0
 		RevealGeneratedShroud: False
@@ -455,6 +477,8 @@ MNLY:
 		Cost: 800
 	Tooltip:
 		Name: Minelayer
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Selectable:
 		Priority: 5
 	Health:
@@ -524,12 +548,14 @@ MGG:
 		Cost: 1200
 	Tooltip:
 		Name: Mobile Gap Generator
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 22000
 	Armor:
 		Type: Heavy
 	Mobile:
-		Speed: 99
+		Speed: 85
 	WithIdleOverlay@SPINNER:
 		Offset: -299,0,171
 		Sequence: spinner
@@ -547,9 +573,11 @@ MGG:
 MRJ:
 	Inherits: ^Vehicle
 	Valued:
-		Cost: 1100
+		Cost: 1000
 	Tooltip:
 		Name: Mobile Radar Jammer
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Vehicle
 		BuildPaletteOrder: 140
@@ -561,7 +589,7 @@ MRJ:
 	Armor:
 		Type: Heavy
 	Mobile:
-		Speed: 99
+		Speed: 85
 	RevealsShroud:
 		Range: 7c0
 	WithIdleOverlay@SPINNER:
@@ -597,6 +625,8 @@ TTNK:
 	Tooltip:
 		Name: Tesla Tank
 		GenericName: Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 45000
 	Armor:
@@ -634,6 +664,8 @@ FTRK:
 		Cost: 600
 	Tooltip:
 		Name: Mobile Flak
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 15000
 	Armor:
@@ -679,6 +711,8 @@ DTRK:
 		Cost: 2500
 	Tooltip:
 		Name: Demolition Truck
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 5000
 	Armor:
@@ -691,10 +725,17 @@ DTRK:
 		Weapon: MiniNuke
 		EmptyWeapon: MiniNuke
 		DamageSource: Killer
-	AttackSuicides:
+	AttackFrontal:
+		FacingTolerance: 128
+	Armament@PRIMARY:
+		Weapon: DemoTruckTargeting
+	GrantConditionOnAttack:
+		Condition: triggered
+	GrantConditionOnDeploy:
+		DeployedCondition: triggered
 	-DamageMultiplier@IRONCURTAIN:
 	KillsSelf:
-		RequiresCondition: invulnerability
+		RequiresCondition: invulnerability || triggered
 	Chronoshiftable:
 		ExplodeInstead: yes
 
@@ -713,6 +754,8 @@ CTNK:
 	Tooltip:
 		Name: Chrono Tank
 		GenericName: Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	SelectionDecorations:
 	Health:
 		HP: 45000
@@ -754,12 +797,15 @@ QTNK:
 	Tooltip:
 		Name: MAD Tank
 		GenericName: Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 90000
 	Armor:
 		Type: Heavy
 	Mobile:
-		RequiresCondition: !deployed && !being-captured
+		RequiresCondition: !deployed
+		PauseOnCondition: being-captured
 		Speed: 56
 	Chronoshiftable:
 		RequiresCondition: !deployed && !being-captured
@@ -790,6 +836,8 @@ STNK:
 		Cost: 1350
 	Tooltip:
 		Name: Phase Transport
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 30000
 	Armor:
@@ -797,7 +845,7 @@ STNK:
 	Mobile:
 		Speed: 142
 		Locomotor: heavywheeled
-		RequiresCondition: !notmobile && !being-captured
+		PauseOnCondition: notmobile || being-captured
 	RevealsShroud:
 		Range: 7c0
 		RevealGeneratedShroud: False

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,9 +10,9 @@
 #endregion
 
 using System;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 
 namespace OpenRA.Widgets
 {
@@ -256,8 +256,7 @@ namespace OpenRA.Widgets
 
 		public static Color GetContrastColor(Color fgColor, Color bgDark, Color bgLight)
 		{
-			var fg = new HSLColor(fgColor);
-			return fg.RGB == Color.White || fg.L > 80 ? bgDark : bgLight;
+			return fgColor == Color.White || fgColor.GetBrightness() > 0.33 ? bgDark : bgLight;
 		}
 	}
 

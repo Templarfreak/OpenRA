@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using Eluant;
 using Eluant.ObjectBinding;
@@ -42,11 +41,13 @@ namespace OpenRA
 		public Player Owner { get; internal set; }
 
 		public bool IsInWorld { get; internal set; }
+		public bool WillDispose { get; private set; }
 		public bool Disposed { get; private set; }
 
 		public Activity CurrentActivity { get; private set; }
 
 		public int Generation;
+		public Actor ReplacedByActor;
 
 		public IEffectiveOwner EffectiveOwner { get; private set; }
 		public IOccupySpace OccupiesSpace { get; private set; }
@@ -221,15 +222,13 @@ namespace OpenRA
 			if (CurrentActivity == null)
 				CurrentActivity = nextActivity;
 			else
-				CurrentActivity.RootActivity.Queue(nextActivity);
+				CurrentActivity.Queue(this, nextActivity);
 		}
 
-		public bool CancelActivity()
+		public void CancelActivity()
 		{
 			if (CurrentActivity != null)
-				return CurrentActivity.RootActivity.Cancel(this);
-
-			return true;
+				CurrentActivity.Cancel(this);
 		}
 
 		public override int GetHashCode()
@@ -282,7 +281,10 @@ namespace OpenRA
 			// If CurrentActivity isn't null, run OnActorDisposeOuter in case some cleanups are needed.
 			// This should be done before the FrameEndTask to avoid dependency issues.
 			if (CurrentActivity != null)
-				CurrentActivity.RootActivity.OnActorDisposeOuter(this);
+				CurrentActivity.OnActorDisposeOuter(this);
+
+			// Allow traits/activities to prevent a race condition when they depend on disposing the actor (e.g. Transforms)
+			WillDispose = true;
 
 			World.AddFrameEndTask(w =>
 			{
@@ -330,6 +332,8 @@ namespace OpenRA
 
 			foreach (var t in TraitsImplementing<INotifyOwnerChanged>())
 				t.OnOwnerChanged(this, oldOwner, newOwner);
+
+			World.Selection.OnOwnerChanged(this, oldOwner, newOwner);
 
 			if (wasInWorld)
 				World.Add(this);

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -140,12 +140,12 @@ namespace OpenRA.Mods.Common.Traits.Render
 				wasModifying = rsm.IsModifyingSequence;
 			}
 
-			if ((state != AnimationState.Moving || dirty) && move.IsMoving)
+			if ((state != AnimationState.Moving || dirty) && move.CurrentMovementTypes.HasFlag(MovementType.Horizontal))
 			{
 				state = AnimationState.Moving;
 				DefaultAnimation.PlayRepeating(NormalizeInfantrySequence(self, Info.MoveSequence));
 			}
-			else if (((state == AnimationState.Moving || dirty) && !move.IsMoving)
+			else if (((state == AnimationState.Moving || dirty) && !move.CurrentMovementTypes.HasFlag(MovementType.Horizontal))
 				|| ((state == AnimationState.Idle || state == AnimationState.IdleAnimating) && !self.IsIdle))
 				PlayStandAnimation(self);
 

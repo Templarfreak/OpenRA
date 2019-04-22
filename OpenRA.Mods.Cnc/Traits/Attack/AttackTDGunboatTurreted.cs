@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -48,7 +48,7 @@ namespace OpenRA.Mods.Cnc.Traits
 
 			public override Activity Tick(Actor self)
 			{
-				if (IsCanceled || !target.IsValidFor(self))
+				if (IsCanceling || !target.IsValidFor(self))
 					return NextActivity;
 
 				if (attack.IsTraitDisabled)
@@ -59,10 +59,10 @@ namespace OpenRA.Mods.Cnc.Traits
 				{
 					// Check that AttackTDGunboatTurreted hasn't cancelled the target by modifying attack.Target
 					// Having both this and AttackTDGunboatTurreted modify that field is a horrible hack.
-					if (hasTicked && attack.Target.Type == TargetType.Invalid)
+					if (hasTicked && attack.requestedTarget.Type == TargetType.Invalid)
 						return NextActivity;
 
-					attack.Target = target;
+					attack.requestedTarget = target;
 					hasTicked = true;
 				}
 

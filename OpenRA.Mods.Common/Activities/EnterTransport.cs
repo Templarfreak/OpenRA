@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,9 @@
 
 using System;
 using System.Linq;
+using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
@@ -19,56 +21,117 @@ namespace OpenRA.Mods.Common.Activities
 	class EnterTransport : Enter
 	{
 		readonly Passenger passenger;
-		readonly int maxTries;
-		Actor transport;
-		Cargo cargo;
 
-		public EnterTransport(Actor self, Actor transport, int maxTries = 0, bool repathWhileMoving = true)
-			: base(self, transport, EnterBehaviour.Exit, maxTries, repathWhileMoving)
+		Actor enterActor;
+		Cargo enterCargo;
+
+		public EnterTransport(Actor self, Target target)
+			: base(self, target, Color.Green)
 		{
-			this.transport = transport;
-			this.maxTries = maxTries;
-			cargo = transport.TraitsImplementing<Cargo>().First(c => c.CanLoad(transport, self));
 			passenger = self.Trait<Passenger>();
 		}
 
-		protected override void Unreserve(Actor self, bool abort) { passenger.Unreserve(self); }
-		protected override bool CanReserve(Actor self) { return cargo.Unloading || cargo.CanLoad(transport, self); }
-		protected override ReserveStatus Reserve(Actor self)
+		protected override bool TryStartEnter(Actor self, Actor targetActor)
 		{
-			var status = base.Reserve(self);
-			if (status != ReserveStatus.Ready)
-				return status;
-			if (passenger.Reserve(self, cargo))
-				return ReserveStatus.Ready;
-			return ReserveStatus.Pending;
+			enterActor = targetActor;
+			enterCargo = targetActor.TraitOrDefault<Cargo>();
+
+			// Make sure we can still enter the transport
+			// (but not before, because this may stop the actor in the middle of nowhere)
+			if (enterCargo == null || !passenger.Reserve(self, enterCargo))
+			{
+				Cancel(self, true);
+				return false;
+			}
+
+			return true;
 		}
 
-		protected override void OnInside(Actor self)
+		protected override void OnEnterComplete(Actor self, Actor targetActor)
 		{
 			self.World.AddFrameEndTask(w =>
 			{
-				if (self.IsDead || transport.IsDead || !cargo.CanLoad(transport, self))
+				// Make sure the target hasn't changed while entering
+				// OnEnterComplete is only called if targetActor is alive
+				if (targetActor != enterActor)
 					return;
 
-				cargo.Load(transport, self);
-				w.Remove(self);
-			});
+				if (!enterCargo.CanLoad(enterActor, self))
+					return;
 
-			Done(self);
+				enterCargo.Load(enterActor, self);
+				w.Remove(self);
+				var a = new Actor();
+
+				// Preemptively cancel any activities to avoid an edge-case where successively queued
+				// EnterTransports corrupt the actor state. Activities are cancelled again on unload
+				self.CancelActivity();
+			});
 		}
 
-		protected override bool TryGetAlternateTarget(Actor self, int tries, ref Target target)
+		protected override void OnLastRun(Actor self)
 		{
-			if (tries > maxTries)
-				return false;
-			var type = target.Actor.Info.Name;
-			return TryGetAlternateTargetInCircle(
-				self, passenger.Info.AlternateTransportScanRange,
-				t => { transport = t.Actor; cargo = t.Actor.Trait<Cargo>(); }, // update transport and cargo
-				a => { var c = a.TraitsImplementing<Cargo>().First(t => t.Info.Loadable);
-					return c != null && c.Info.Types.Contains(passenger.Info.CargoType) && (c.Unloading || c.CanLoad(a, self)); },
-				new Func<Actor, bool>[] { a => a.Info.Name == type }); // Prefer transports of the same type
+			passenger.Unreserve(self);
+		}
+
+		public override void Cancel(Actor self, bool keepQueue = false)
+		{
+			passenger.Unreserve(self);
+
+			base.Cancel(self, keepQueue);
+		}
+	}
+
+	class EnterTransports : Activity
+	{
+		readonly string type;
+		readonly Passenger passenger;
+
+		public EnterTransports(Actor self, Target primaryTarget)
+		{
+			passenger = self.Trait<Passenger>();
+			if (primaryTarget.Type == TargetType.Actor)
+				type = primaryTarget.Actor.Info.Name;
+
+			QueueChild(self, new EnterTransport(self, primaryTarget));
+		}
+
+		public override Activity Tick(Actor self)
+		{
+			if (ChildActivity != null)
+			{
+				ChildActivity = ActivityUtils.RunActivity(self, ChildActivity);
+				if (ChildActivity != null)
+					return this;
+			}
+
+			// Try and find a new transport nearby
+			if (IsCanceling || string.IsNullOrEmpty(type))
+				return NextActivity;
+
+			Func<Actor, bool> isValidTransport = a =>
+			{
+				var c = a.TraitOrDefault<Cargo>();
+				return c != null && c.Info.Types.Contains(passenger.Info.CargoType) &&
+				       (c.Unloading || c.CanLoad(a, self));
+			};
+
+			var candidates = self.World.FindActorsInCircle(self.CenterPosition, passenger.Info.AlternateTransportScanRange)
+				.Where(isValidTransport)
+				.ToList();
+
+			// Prefer transports of the same type as the primary
+			var transport = candidates.Where(a => a.Info.Name == type).ClosestTo(self);
+			if (transport == null)
+				transport = candidates.ClosestTo(self);
+
+			if (transport != null)
+			{
+				QueueChild(self, ActivityUtils.RunActivity(self, new EnterTransport(self, Target.FromActor(transport))), true);
+				return this;
+			}
+
+			return NextActivity;
 		}
 	}
 }

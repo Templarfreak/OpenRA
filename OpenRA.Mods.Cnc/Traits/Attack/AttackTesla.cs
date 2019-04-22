@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -91,7 +91,14 @@ namespace OpenRA.Mods.Cnc.Traits
 
 			public override Activity Tick(Actor self)
 			{
-				if (IsCanceled || !attack.CanAttack(self, target))
+				if (ChildActivity != null)
+				{
+					ChildActivity = ActivityUtils.RunActivity(self, ChildActivity);
+					if (ChildActivity != null)
+						return this;
+				}
+
+				if (IsCanceling || !attack.CanAttack(self, target))
 					return NextActivity;
 
 				if (attack.charges == 0)
@@ -103,7 +110,9 @@ namespace OpenRA.Mods.Cnc.Traits
 				if (!string.IsNullOrEmpty(attack.info.ChargeAudio))
 					Game.Sound.Play(SoundType.World, attack.info.ChargeAudio, self.CenterPosition);
 
-				return ActivityUtils.SequenceActivities(new Wait(attack.info.InitialChargeDelay), new ChargeFire(attack, target), this);
+				QueueChild(self, new Wait(attack.info.InitialChargeDelay), true);
+				QueueChild(self, new ChargeFire(attack, target));
+				return this;
 			}
 		}
 
@@ -120,7 +129,14 @@ namespace OpenRA.Mods.Cnc.Traits
 
 			public override Activity Tick(Actor self)
 			{
-				if (IsCanceled || !attack.CanAttack(self, target))
+				if (ChildActivity != null)
+				{
+					ChildActivity = ActivityUtils.RunActivity(self, ChildActivity);
+					if (ChildActivity != null)
+						return this;
+				}
+
+				if (IsCanceling || !attack.CanAttack(self, target))
 					return NextActivity;
 
 				if (attack.charges == 0)
@@ -128,7 +144,8 @@ namespace OpenRA.Mods.Cnc.Traits
 
 				attack.DoAttack(self, target);
 
-				return ActivityUtils.SequenceActivities(new Wait(attack.info.ChargeDelay), this);
+				QueueChild(self, new Wait(attack.info.ChargeDelay), true);
+				return this;
 			}
 		}
 	}

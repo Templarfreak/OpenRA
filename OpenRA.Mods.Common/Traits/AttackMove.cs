@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,11 +10,11 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Orders;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -38,19 +38,14 @@ namespace OpenRA.Mods.Common.Traits
 		public object Create(ActorInitializer init) { return new AttackMove(init.Self, this); }
 	}
 
-	class AttackMove : INotifyCreated, ITick, IResolveOrder, IOrderVoice, INotifyIdle, ISync
+	class AttackMove : INotifyCreated, ITick, IResolveOrder, IOrderVoice
 	{
 		public readonly AttackMoveInfo Info;
-
-		[Sync] public CPos _targetLocation { get { return TargetLocation.HasValue ? TargetLocation.Value : CPos.Zero; } }
-		public CPos? TargetLocation = null;
-
 		readonly IMove move;
 
 		ConditionManager conditionManager;
 		int attackMoveToken = ConditionManager.InvalidConditionToken;
 		int assaultMoveToken = ConditionManager.InvalidConditionToken;
-		bool assaultMoving = false;
 
 		public AttackMove(Actor self, AttackMoveInfo info)
 		{
@@ -69,8 +64,8 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var activity = self.CurrentActivity as AttackMoveActivity;
-			var attackActive = activity != null && !assaultMoving;
-			var assaultActive = activity != null && assaultMoving;
+			var attackActive = activity != null && !activity.IsAssaultMove;
+			var assaultActive = activity != null && activity.IsAssaultMove;
 
 			if (attackActive && attackMoveToken == ConditionManager.InvalidConditionToken && !string.IsNullOrEmpty(Info.AttackMoveScanCondition))
 				attackMoveToken = conditionManager.GrantCondition(self, Info.AttackMoveScanCondition);
@@ -85,8 +80,12 @@ namespace OpenRA.Mods.Common.Traits
 
 		string IOrderVoice.VoicePhraseForOrder(Actor self, Order order)
 		{
-			if (!Info.MoveIntoShroud && !self.Owner.Shroud.IsExplored(order.TargetLocation))
-				return null;
+			if (!Info.MoveIntoShroud && order.Target.Type != TargetType.Invalid)
+			{
+				var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
+				if (!self.Owner.Shroud.IsExplored(cell))
+					return null;
+			}
 
 			if (order.OrderString == "AttackMove" || order.OrderString == "AssaultMove")
 				return Info.Voice;
@@ -94,34 +93,21 @@ namespace OpenRA.Mods.Common.Traits
 			return null;
 		}
 
-		void Activate(Actor self, bool assaultMove)
-		{
-			assaultMoving = assaultMove;
-			self.QueueActivity(new AttackMoveActivity(self, move.MoveTo(TargetLocation.Value, 1)));
-		}
-
-		void INotifyIdle.TickIdle(Actor self)
-		{
-			// This might cause the actor to be stuck if the target location is unreachable
-			if (TargetLocation.HasValue && self.Location != TargetLocation.Value)
-				Activate(self, assaultMoving);
-		}
-
 		public void ResolveOrder(Actor self, Order order)
 		{
-			TargetLocation = null;
-
 			if (order.OrderString == "AttackMove" || order.OrderString == "AssaultMove")
 			{
 				if (!order.Queued)
 					self.CancelActivity();
 
-				if (!Info.MoveIntoShroud && !self.Owner.Shroud.IsExplored(order.TargetLocation))
+				var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));
+				if (!Info.MoveIntoShroud && !self.Owner.Shroud.IsExplored(cell))
 					return;
 
-				TargetLocation = move.NearestMoveableCell(order.TargetLocation);
-				self.SetTargetLine(Target.FromCell(self.World, TargetLocation.Value), Color.Red);
-				Activate(self, order.OrderString == "AssaultMove");
+				var targetLocation = move.NearestMoveableCell(cell);
+				self.SetTargetLine(Target.FromCell(self.World, targetLocation), Color.Red);
+				var assaultMoving = order.OrderString == "AssaultMove";
+				self.QueueActivity(new AttackMoveActivity(self, () => move.MoveTo(targetLocation, 1), assaultMoving));
 			}
 		}
 	}

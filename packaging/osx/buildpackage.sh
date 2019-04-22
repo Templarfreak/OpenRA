@@ -9,7 +9,7 @@ if [[ "$OSTYPE" != "darwin"* ]]; then
 	command -v genisoimage >/dev/null 2>&1 || { echo >&2 "macOS packaging requires genisoimage."; exit 1; }
 fi
 
-LAUNCHER_TAG="osx-launcher-20171118"
+LAUNCHER_TAG="osx-launcher-20190317"
 
 if [ $# -ne "2" ]; then
 	echo "Usage: $(basename "$0") tag outputdir"
@@ -71,8 +71,9 @@ modify_plist "{FAQ_URL}" "http://wiki.openra.net/FAQ" "${BUILTDIR}/OpenRA.app/Co
 echo "Building core files"
 
 pushd "${SRCDIR}" > /dev/null || exit 1
+make clean
 make osx-dependencies
-make core SDK="-sdk:4.5"
+make core
 make version VERSION="${TAG}"
 make install-core gameinstalldir="/Contents/Resources/" DESTDIR="${BUILTDIR}/OpenRA.app"
 popd > /dev/null || exit 1

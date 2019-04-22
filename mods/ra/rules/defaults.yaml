@@ -242,7 +242,7 @@
 	DrawLineToTarget:
 	UpdatesPlayerStatistics:
 	Mobile:
-		RequiresCondition: !being-captured
+		PauseOnCondition: being-captured
 		Locomotor: wheeled
 		TurnSpeed: 5
 	SelectionDecorations:
@@ -259,6 +259,7 @@
 		Condition: damaged
 		ValidDamageStates: Light, Medium, Heavy, Critical
 	Repairable:
+		RepairActors: fix
 	Chronoshiftable:
 	Passenger:
 		CargoType: Vehicle
@@ -281,6 +282,7 @@
 		CancelActivity: True
 	CaptureNotification:
 		Notification: UnitStolen
+		LoseNotification: UnitLost
 	MustBeDestroyed:
 	Voiced:
 		VoiceSet: VehicleVoice
@@ -360,6 +362,10 @@
 	AttackMove:
 	Passenger:
 		CargoType: Infantry
+		CargoCondition: disable-experience
+	GainsExperienceMultiplier:
+		Modifier: 0
+		RequiresCondition: disable-experience
 	HiddenUnderFog:
 	ActorLostNotification:
 	GpsDot:
@@ -425,6 +431,7 @@
 			Radius: 128
 	MapEditorData:
 		Categories: Infantry
+	EdibleByLeap:
 
 ^Soldier:
 	Inherits: ^Infantry
@@ -507,6 +514,7 @@
 		Types: Ship
 	Chronoshiftable:
 	RepairableNear:
+		RepairActors: spen, syrd
 	GpsDot:
 		String: Ship
 	WithDamageOverlay:
@@ -598,7 +606,7 @@
 	Inherits: ^NeutralPlane
 	Inherits@2: ^GainsExperience
 	Repairable:
-		RepairBuildings: fix
+		RepairActors: fix
 
 ^Helicopter:
 	Inherits: ^Plane
@@ -766,6 +774,7 @@
 	FrozenUnderFogUpdatedByGps:
 	Health:
 		HP: 10000
+	AppearsOnMapPreview:
 	MapEditorData:
 		Categories: Wall
 
@@ -891,6 +900,8 @@
 	AppearsOnRadar:
 	RadarColorFromTerrain:
 		Terrain: Tree
+	AppearsOnMapPreview:
+		Terrain: Tree
 	Health:
 		HP: 50000
 	Armor:
@@ -928,6 +939,8 @@
 	AppearsOnRadar:
 	RadarColorFromTerrain:
 		Terrain: Tree
+	AppearsOnMapPreview:
+		Terrain: Tree
 	Building:
 		Footprint: x
 		Dimensions: 1,1
@@ -935,7 +948,7 @@
 	Tooltip:
 		Name: Tree (Burnt)
 		ShowOwnerRow: false
-	FrozenUnderFog:
+	HiddenUnderShroud:
 	ScriptTriggers:
 	MapEditorData:
 		Categories: Tree
@@ -951,6 +964,7 @@
 		Type: Heavy
 	HiddenUnderFog:
 		Type: CenterPosition
+		AlwaysVisibleStances: None
 	ScriptTriggers:
 	WithFacingSpriteBody:
 	HitShape:
@@ -963,6 +977,8 @@
 		AllowedTerrain: Clear, Rough, Road, Ore, Gems, Beach
 	Burns:
 		Damage: 200
+	OwnerLostAction:
+		Action: ChangeOwner
 	CaptureManager:
 	Capturable:
 		Types: husk
@@ -996,8 +1012,7 @@
 		Moves: True
 		Velocity: 86
 		Explosion: UnitExplodePlane
-	MapEditorData:
-		Categories: Husk
+	-MapEditorData:
 	RevealOnDeath:
 		Duration: 60
 		Radius: 4c0
@@ -1016,6 +1031,7 @@
 		Explosion: UnitExplodeHeli
 	BodyOrientation:
 		UseClassicFacingFudge: True
+	-MapEditorData:
 	RevealOnDeath:
 		Duration: 60
 		Radius: 4c0
@@ -1059,6 +1075,8 @@
 		Dimensions: 2,2
 	AppearsOnRadar:
 	RadarColorFromTerrain:
+		Terrain: Tree
+	AppearsOnMapPreview:
 		Terrain: Tree
 	HiddenUnderShroud:
 	ScriptTriggers:

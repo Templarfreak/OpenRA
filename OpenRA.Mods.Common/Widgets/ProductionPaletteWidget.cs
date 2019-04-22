@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Lint;
@@ -19,6 +18,7 @@ using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Traits.Render;
 using OpenRA.Network;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -47,8 +47,8 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly int2 IconMargin = int2.Zero;
 		public readonly int2 IconSpriteOffset = int2.Zero;
 
-		public readonly string TabClick = null;
-		public readonly string DisabledTabClick = null;
+		public readonly string ClickSound = ChromeMetrics.Get<string>("ClickSound");
+		public readonly string ClickDisabledSound = ChromeMetrics.Get<string>("ClickDisabledSound");
 		public readonly string TooltipContainer;
 		public readonly string TooltipTemplate = "PRODUCTION_TOOLTIP";
 
@@ -267,14 +267,15 @@ namespace OpenRA.Mods.Common.Widgets
 		{
 			if (PickUpCompletedBuildingIcon(icon, item))
 			{
-				Game.Sound.Play(SoundType.UI, TabClick);
+				Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickSound, null);
 				return true;
 			}
 
 			if (item != null && item.Paused)
 			{
 				// Resume a paused item
-				Game.Sound.Play(SoundType.UI, TabClick);
+				Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickSound, null);
+				Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Speech", CurrentQueue.Info.QueuedAudio, World.LocalPlayer.Faction.InternalName);
 				World.IssueOrder(Order.PauseProduction(CurrentQueue.Actor, icon.Name, false));
 				return true;
 			}
@@ -284,11 +285,11 @@ namespace OpenRA.Mods.Common.Widgets
 			if (buildable != null)
 			{
 				// Queue a new item
-				Game.Sound.Play(SoundType.UI, TabClick);
+				Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickSound, null);
 				string notification;
 				var canQueue = CurrentQueue.CanQueue(buildable, out notification);
 
-				if (!CurrentQueue.AllQueued().Any(qi => qi.Item == icon.Name && !qi.Paused && qi.Infinite))
+				if (!CurrentQueue.AllQueued().Any())
 					Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Speech", notification, World.LocalPlayer.Faction.InternalName);
 
 				if (canQueue)
@@ -307,7 +308,7 @@ namespace OpenRA.Mods.Common.Widgets
 			if (item == null)
 				return false;
 
-			Game.Sound.Play(SoundType.UI, TabClick);
+			Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickSound, null);
 
 			if (CurrentQueue.Info.DisallowPaused || item.Paused || item.Done || item.TotalCost == item.RemainingCost)
 			{
@@ -331,7 +332,7 @@ namespace OpenRA.Mods.Common.Widgets
 				return false;
 
 			// Directly cancel, skipping "on-hold"
-			Game.Sound.Play(SoundType.UI, TabClick);
+			Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickSound, null);
 			Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Speech", CurrentQueue.Info.CancelledAudio, World.LocalPlayer.Faction.InternalName);
 			World.IssueOrder(Order.CancelProduction(CurrentQueue.Actor, icon.Name, handleCount));
 
@@ -351,7 +352,7 @@ namespace OpenRA.Mods.Common.Widgets
 				: false;
 
 			if (!handled)
-				Game.Sound.Play(SoundType.UI, DisabledTabClick);
+				Game.Sound.PlayNotification(World.Map.Rules, World.LocalPlayer, "Sounds", ClickDisabledSound, null);
 
 			return true;
 		}

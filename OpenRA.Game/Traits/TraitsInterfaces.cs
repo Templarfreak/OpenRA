@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,7 +12,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
 using OpenRA.FileSystem;
 using OpenRA.Graphics;
 using OpenRA.Network;
@@ -281,12 +280,19 @@ namespace OpenRA.Traits
 	}
 
 	public interface ILoadsPalettes { void LoadPalettes(WorldRenderer wr); }
-	public interface ILoadsPlayerPalettes { void LoadPlayerPalettes(WorldRenderer wr, string playerName, HSLColor playerColor, bool replaceExisting); }
+	public interface ILoadsPlayerPalettes { void LoadPlayerPalettes(WorldRenderer wr, string playerName, Color playerColor, bool replaceExisting); }
 	public interface IPaletteModifier { void AdjustPalette(IReadOnlyDictionary<string, MutablePalette> b); }
 	public interface IPips { IEnumerable<PipType> GetPips(Actor self); }
 
 	[RequireExplicitImplementation]
 	public interface ISelectionBar { float GetValue(); Color GetColor(); bool DisplayWhenEmpty { get; } }
+
+	public interface ISelectionDecorations { void DrawRollover(Actor self, WorldRenderer worldRenderer); }
+
+	public interface IMapPreviewSignatureInfo : ITraitInfoInterface
+	{
+		void PopulateMapPreviewSignatureCells(Map map, ActorInfo ai, ActorReference s, List<Pair<MPos, Color>> destinationBuffer);
+	}
 
 	public interface IOccupySpaceInfo : ITraitInfoInterface
 	{
@@ -345,8 +351,6 @@ namespace OpenRA.Traits
 
 	[SuppressMessage("StyleCop.CSharp.NamingRules", "SA1302:InterfaceNamesMustBeginWithI", Justification = "Not a real interface, but more like a tag.")]
 	public interface Requires<T> where T : class, ITraitInfoInterface { }
-	[SuppressMessage("StyleCop.CSharp.NamingRules", "SA1302:InterfaceNamesMustBeginWithI", Justification = "Not a real interface, but more like a tag.")]
-	public interface UsesInit<T> : ITraitInfo where T : IActorInit { }
 
 	[RequireExplicitImplementation]
 	public interface INotifySelected { void Selected(Actor self); }
@@ -354,6 +358,15 @@ namespace OpenRA.Traits
 	public interface INotifySelection { void SelectionChanged(); }
 
 	public interface IWorldLoaded { void WorldLoaded(World w, WorldRenderer wr); }
+	public interface INotifyGameLoading { void GameLoading(World w); }
+	public interface INotifyGameLoaded { void GameLoaded(World w); }
+	public interface INotifyGameSaved { void GameSaved(World w); }
+
+	public interface IGameSaveTraitData
+	{
+		List<MiniYamlNode> IssueTraitData(Actor self);
+		void ResolveTraitData(Actor self, List<MiniYamlNode> data);
+	}
 
 	[RequireExplicitImplementation]
 	public interface ICreatePlayers { void CreatePlayers(World w); }
@@ -369,6 +382,7 @@ namespace OpenRA.Traits
 		void Activate(Player p);
 		void QueueOrder(Order order);
 		IBotInfo Info { get; }
+		Player Player { get; }
 	}
 
 	[RequireExplicitImplementation]

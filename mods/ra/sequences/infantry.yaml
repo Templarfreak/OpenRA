@@ -499,11 +499,21 @@ e2:
 dog:
 	stand:
 		Facings: 8
-	run:
+	walk:
 		Start: 8
 		Length: 6
 		Facings: 8
 		Tick: 80
+	run:
+		Start: 56
+		Length: 6
+		Facings: 8
+		Tick: 80
+	eat:
+		Start: 104
+		Length: 14
+		Facings: 8
+		Tick: 120
 	idle1:
 		Start: 216
 		Length: 7
@@ -537,7 +547,7 @@ dog:
 		TilesetOverrides:
 			DESERT: TEMPERAT
 			INTERIOR: TEMPERAT
-	shoot: dogbullt
+	jump: dogbullt
 		Length: 4
 		Facings: 8
 	icon: dogicon
@@ -954,8 +964,6 @@ c1:
 	stand:
 		Facings: 8
 	panic-stand:
-		Start: 8
-		Stride: 6
 		Facings: 8
 	panic-run:
 		Start: 8
@@ -1004,8 +1012,6 @@ c2:
 	stand:
 		Facings: 8
 	panic-stand:
-		Start: 8
-		Stride: 6
 		Facings: 8
 	panic-run:
 		Start: 8
@@ -1054,8 +1060,6 @@ c3:
 	stand:
 		Facings: 8
 	panic-stand:
-		Start: 8
-		Stride: 6
 		Facings: 8
 	panic-run:
 		Start: 8
@@ -1103,13 +1107,11 @@ c3:
 einstein:
 	stand:
 		Facings: 8
+	panic-stand:
+		Facings: 8
 	panic-run:
 		Start: 8
 		Length: 6
-		Facings: 8
-	panic-stand:
-		Start: 8
-		Stride: 6
 		Facings: 8
 	run:
 		Start: 56
@@ -1149,13 +1151,11 @@ einstein:
 delphi:
 	stand:
 		Facings: 8
+	panic-stand:
+		Facings: 8
 	panic-run:
 		Start: 8
 		Length: 6
-		Facings: 8
-	panic-stand:
-		Start: 8
-		Stride: 6
 		Facings: 8
 	run:
 		Start: 56
@@ -1195,13 +1195,11 @@ delphi:
 chan:
 	stand:
 		Facings: 8
+	panic-stand:
+		Facings: 8
 	panic-run:
 		Start: 8
 		Length: 6
-		Facings: 8
-	panic-stand:
-		Start: 8
-		Stride: 6
 		Facings: 8
 	run:
 		Start: 56
@@ -1306,6 +1304,56 @@ ant:
 		Length: 8
 		Tick: 300
 	die-crushed: ant1
+		Start: 104
+		Length: 8
+		Tick: 400
+		ZOffset: -511
+	icon: anticon
+
+fireant:
+	stand: ant2
+		Facings: 8
+	stand2: ant2
+		Start: 8
+		Length: 8
+	run: ant2
+		Start: 8
+		Length: 8
+		Facings: 8
+	bite: ant2
+		Start: 72
+		Length: 4
+		Facings: 8
+	die: ant2
+		Start: 104
+		Length: 8
+		Tick: 300
+	die-crushed: ant2
+		Start: 104
+		Length: 8
+		Tick: 400
+		ZOffset: -511
+	icon: anticon
+
+scoutant:
+	stand: ant3
+		Facings: 8
+	stand2: ant3
+		Start: 8
+		Length: 8
+	run: ant3
+		Start: 8
+		Length: 8
+		Facings: 8
+	bite: ant3
+		Start: 72
+		Length: 4
+		Facings: 8
+	die: ant3
+		Start: 104
+		Length: 8
+		Tick: 300
+	die-crushed: ant3
 		Start: 104
 		Length: 8
 		Tick: 400

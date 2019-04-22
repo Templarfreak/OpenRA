@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,6 +16,7 @@ using Eluant;
 using OpenRA.Activities;
 using OpenRA.Effects;
 using OpenRA.Mods.Common.Activities;
+using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Scripting;
@@ -84,24 +85,21 @@ namespace OpenRA.Mods.Common.Scripting
 				actors.Add(actor);
 
 				var actionDelay = i * interval;
-				Action actorAction = () =>
+				Activity queuedActivity = null;
+				if (af != null)
 				{
-					Context.World.Add(actor);
-					for (var j = 1; j < entryPath.Length; j++)
-						Move(actor, entryPath[j]);
-
-					if (af != null)
+					queuedActivity = new CallFunc(() =>
 					{
-						actor.QueueActivity(new CallFunc(() =>
-						{
-							using (af)
-							using (var a = actor.ToLuaValue(Context))
-								af.Call(a);
-						}));
-					}
-				};
+						using (af)
+						using (var a = actor.ToLuaValue(Context))
+							af.Call(a);
+					});
+				}
 
-				Context.World.AddFrameEndTask(w => w.Add(new DelayedAction(actionDelay, actorAction)));
+				// We need to exclude the spawn location from the movement path
+				var path = entryPath.Skip(1).ToArray();
+
+				Context.World.AddFrameEndTask(w => w.Add(new SpawnActorEffect(actor, actionDelay, path, queuedActivity)));
 			}
 
 			return actors.ToArray();
@@ -189,7 +187,7 @@ namespace OpenRA.Mods.Common.Scripting
 					}
 					else
 					{
-						transport.QueueActivity(new Land(transport, Target.FromCell(transport.World, destination)));
+						transport.QueueActivity(new Land(transport, Target.FromCell(transport.World, destination), true));
 					}
 
 					transport.QueueActivity(new Wait(15));

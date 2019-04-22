@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,11 +10,12 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
+using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
@@ -50,7 +51,8 @@ namespace OpenRA.Mods.Cnc.Traits
 
 	class ChronoshiftPower : SupportPower
 	{
-		public ChronoshiftPower(Actor self, ChronoshiftPowerInfo info) : base(self, info) { }
+		public ChronoshiftPower(Actor self, ChronoshiftPowerInfo info)
+			: base(self, info) { }
 
 		public override void SelectTarget(Actor self, string order, SupportPowerManager manager)
 		{
@@ -62,6 +64,8 @@ namespace OpenRA.Mods.Cnc.Traits
 		{
 			base.Activate(self, order, manager);
 
+			var info = (ChronoshiftPowerInfo)Info;
+			var targetDelta = self.World.Map.CellContaining(order.Target.CenterPosition) - order.ExtraLocation;
 			foreach (var target in UnitsInRange(order.ExtraLocation))
 			{
 				var cs = target.TraitsImplementing<Chronoshiftable>()
@@ -70,11 +74,10 @@ namespace OpenRA.Mods.Cnc.Traits
 				if (cs == null)
 					continue;
 
-				var targetCell = target.Location + (order.TargetLocation - order.ExtraLocation);
-				var cpi = Info as ChronoshiftPowerInfo;
+				var targetCell = target.Location + targetDelta;
 
 				if (self.Owner.Shroud.IsExplored(targetCell) && cs.CanChronoshiftTo(target, targetCell))
-					cs.Teleport(target, targetCell, cpi.Duration, cpi.KillCargo, self);
+					cs.Teleport(target, targetCell, info.Duration, info.KillCargo, self);
 			}
 		}
 
@@ -118,7 +121,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			return true;
 		}
 
-		class SelectChronoshiftTarget : IOrderGenerator
+		class SelectChronoshiftTarget : OrderGenerator
 		{
 			readonly ChronoshiftPower power;
 			readonly int range;
@@ -141,7 +144,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				tile = world.Map.Rules.Sequences.GetSequence(info.OverlaySpriteGroup, info.SourceTileSequence).GetSprite(0);
 			}
 
-			public IEnumerable<Order> Order(World world, CPos cell, int2 worldPixel, MouseInput mi)
+			protected override IEnumerable<Order> OrderInner(World world, CPos cell, int2 worldPixel, MouseInput mi)
 			{
 				world.CancelInputMode();
 				if (mi.Button == MouseButton.Left)
@@ -150,14 +153,14 @@ namespace OpenRA.Mods.Cnc.Traits
 				yield break;
 			}
 
-			public void Tick(World world)
+			protected override void Tick(World world)
 			{
 				// Cancel the og if we can't use the power
 				if (!manager.Powers.ContainsKey(order))
 					world.CancelInputMode();
 			}
 
-			public IEnumerable<IRenderable> RenderAboveShroud(WorldRenderer wr, World world)
+			protected override IEnumerable<IRenderable> RenderAboveShroud(WorldRenderer wr, World world)
 			{
 				var xy = wr.Viewport.ViewToWorld(Viewport.LastMousePos);
 				var targetUnits = power.UnitsInRange(xy).Where(a => !world.FogObscures(a));
@@ -172,7 +175,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				}
 			}
 
-			public IEnumerable<IRenderable> Render(WorldRenderer wr, World world)
+			protected override IEnumerable<IRenderable> Render(WorldRenderer wr, World world)
 			{
 				var xy = wr.Viewport.ViewToWorld(Viewport.LastMousePos);
 				var tiles = world.Map.FindTilesInCircle(xy, range);
@@ -181,13 +184,13 @@ namespace OpenRA.Mods.Cnc.Traits
 					yield return new SpriteRenderable(tile, wr.World.Map.CenterOfCell(t), WVec.Zero, -511, palette, 1f, true);
 			}
 
-			public string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
+			protected override string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
 			{
 				return ((ChronoshiftPowerInfo)power.Info).SelectionCursor;
 			}
 		}
 
-		class SelectDestination : IOrderGenerator
+		class SelectDestination : OrderGenerator
 		{
 			readonly ChronoshiftPower power;
 			readonly CPos sourceLocation;
@@ -212,7 +215,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				sourceTile = world.Map.Rules.Sequences.GetSequence(info.OverlaySpriteGroup, info.SourceTileSequence).GetSprite(0);
 			}
 
-			public IEnumerable<Order> Order(World world, CPos cell, int2 worldPixel, MouseInput mi)
+			protected override IEnumerable<Order> OrderInner(World world, CPos cell, int2 worldPixel, MouseInput mi)
 			{
 				if (mi.Button == MouseButton.Right)
 				{
@@ -239,14 +242,14 @@ namespace OpenRA.Mods.Cnc.Traits
 					};
 			}
 
-			public void Tick(World world)
+			protected override void Tick(World world)
 			{
 				// Cancel the og if we can't use the power
 				if (!manager.Powers.ContainsKey(order))
 					world.CancelInputMode();
 			}
 
-			public IEnumerable<IRenderable> RenderAboveShroud(WorldRenderer wr, World world)
+			protected override IEnumerable<IRenderable> RenderAboveShroud(WorldRenderer wr, World world)
 			{
 				var xy = wr.Viewport.ViewToWorld(Viewport.LastMousePos);
 				var palette = wr.Palette(power.Info.IconPalette);
@@ -287,7 +290,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				}
 			}
 
-			public IEnumerable<IRenderable> Render(WorldRenderer wr, World world)
+			protected override IEnumerable<IRenderable> Render(WorldRenderer wr, World world)
 			{
 				var palette = wr.Palette(power.Info.IconPalette);
 
@@ -320,7 +323,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				return canTeleport;
 			}
 
-			public string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
+			protected override string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
 			{
 				var powerInfo = (ChronoshiftPowerInfo)power.Info;
 				return IsValidTarget(cell) ? powerInfo.TargetCursor : powerInfo.TargetBlockedCursor;

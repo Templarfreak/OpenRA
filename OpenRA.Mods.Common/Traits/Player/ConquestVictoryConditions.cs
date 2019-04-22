@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,8 +9,8 @@
  */
 #endregion
 
-using System.Drawing;
 using System.Linq;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -68,7 +68,7 @@ namespace OpenRA.Mods.Common.Traits
 			mo.MarkCompleted(self.Owner, objectiveID);
 		}
 
-		public void OnPlayerLost(Player player)
+		void INotifyObjectivesUpdated.OnPlayerLost(Player player)
 		{
 			foreach (var a in player.World.ActorsWithTrait<INotifyOwnerLost>().Where(a => a.Actor.Owner == player))
 				a.Trait.OnOwnerLost(a.Actor);
@@ -84,7 +84,7 @@ namespace OpenRA.Mods.Common.Traits
 			});
 		}
 
-		public void OnPlayerWon(Player player)
+		void INotifyObjectivesUpdated.OnPlayerWon(Player player)
 		{
 			if (info.SuppressNotifications)
 				return;
@@ -97,8 +97,8 @@ namespace OpenRA.Mods.Common.Traits
 			});
 		}
 
-		public void OnObjectiveAdded(Player player, int id) { }
-		public void OnObjectiveCompleted(Player player, int id) { }
-		public void OnObjectiveFailed(Player player, int id) { }
+		void INotifyObjectivesUpdated.OnObjectiveAdded(Player player, int id) { }
+		void INotifyObjectivesUpdated.OnObjectiveCompleted(Player player, int id) { }
+		void INotifyObjectivesUpdated.OnObjectiveFailed(Player player, int id) { }
 	}
 }

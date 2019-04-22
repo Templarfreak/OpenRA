@@ -108,6 +108,8 @@ ChromeLayout:
 	cnc|chrome/color-picker.yaml
 	cnc|chrome/mapchooser.yaml
 	cnc|chrome/replaybrowser.yaml
+	cnc|chrome/gamesave-browser.yaml
+	cnc|chrome/gamesave-loading.yaml
 	cnc|chrome/ingame.yaml
 	cnc|chrome/ingame-chat.yaml
 	cnc|chrome/ingame-menu.yaml

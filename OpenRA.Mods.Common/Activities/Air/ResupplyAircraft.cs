@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,7 +16,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
 {
-	public class ResupplyAircraft : CompositeActivity
+	public class ResupplyAircraft : Activity
 	{
 		public ResupplyAircraft(Actor self) { }
 
@@ -28,31 +28,23 @@ namespace OpenRA.Mods.Common.Activities
 			if (host == null)
 				return;
 
-			if (!aircraft.Info.TakeOffOnResupply)
-			{
-				ChildActivity = ActivityUtils.SequenceActivities(
-					aircraft.GetResupplyActivities(host)
-					.Append(new AllowYieldingReservation(self))
-					.Append(new WaitFor(() => NextInQueue != null || aircraft.ReservedActor == null))
-					.ToArray());
-			}
-			else
-			{
-				// HACK: Append NextInQueue to TakeOff to avoid moving to the Rallypoint (if NextInQueue is non-null).
-				ChildActivity = ActivityUtils.SequenceActivities(
-					aircraft.GetResupplyActivities(host)
-					.Append(new AllowYieldingReservation(self))
-					.Append(new TakeOff(self))
-					.Append(NextInQueue)
-					.ToArray());
-			}
+			var resupplyActivities = aircraft.GetResupplyActivities(host).ToArray();
+			if (resupplyActivities.Any())
+				QueueChild(self, ActivityUtils.SequenceActivities(self, resupplyActivities));
+
+			QueueChild(self, new AllowYieldingReservation(self));
+
+			if (aircraft.Info.TakeOffOnResupply)
+				QueueChild(self, new TakeOff(self, (a, b, c) => NextActivity == null && b.NextActivity == null));
 		}
 
 		public override Activity Tick(Actor self)
 		{
-			// Conditional fixes being able to stop aircraft from resupplying.
-			if (IsCanceled && NextInQueue == null)
-				OnFirstRun(self);
+			if (ChildActivity != null)
+			{
+				ChildActivity = ActivityUtils.RunActivity(self, ChildActivity);
+				return this;
+			}
 
 			return NextActivity;
 		}

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using OpenRA.FileFormats;
@@ -45,13 +44,16 @@ namespace OpenRA.Mods.Common.SpriteLoaders
 		public bool TryParseSprite(Stream s, out ISpriteFrame[] frames, out TypeDictionary metadata)
 		{
 			metadata = null;
+			frames = null;
 			if (!Png.Verify(s))
-			{
-				frames = null;
 				return false;
-			}
 
 			var png = new Png(s);
+
+			// Only supports paletted images
+			if (png.Palette == null)
+				return false;
+
 			List<Rectangle> frameRegions;
 			List<float2> frameOffsets;
 

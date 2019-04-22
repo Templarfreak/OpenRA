@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -76,15 +76,13 @@ namespace OpenRA.Mods.Common.Traits
 				return EmptyPath;
 
 			var distance = source - target;
-			if (distance.LengthSquared < 3 && li.CanMoveFreelyInto(world, self, target, null, CellConditions.All))
+			if (source.Layer == target.Layer && distance.LengthSquared < 3 && li.CanMoveFreelyInto(world, self, target, null, CellConditions.All))
 				return new List<CPos> { target };
 
 			List<CPos> pb;
 			using (var fromSrc = PathSearch.FromPoint(world, li, self, target, source, true).WithIgnoredActor(ignoreActor))
 			using (var fromDest = PathSearch.FromPoint(world, li, self, source, target, true).WithIgnoredActor(ignoreActor).Reverse())
 				pb = FindBidiPath(fromSrc, fromDest);
-
-			CheckSanePath2(pb, source, target);
 
 			return pb;
 		}
@@ -197,7 +195,6 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			ret.Add(currentNode);
-			CheckSanePath(ret);
 			return ret;
 		}
 
@@ -226,35 +223,7 @@ namespace OpenRA.Mods.Common.Traits
 				ret.Add(q);
 			}
 
-			CheckSanePath(ret);
 			return ret;
-		}
-
-		[Conditional("SANITY_CHECKS")]
-		static void CheckSanePath(IList<CPos> path)
-		{
-			if (path.Count == 0)
-				return;
-			var prev = path[0];
-			foreach (var cell in path)
-			{
-				var d = cell - prev;
-				if (Math.Abs(d.X) > 1 || Math.Abs(d.Y) > 1)
-					throw new InvalidOperationException("(PathFinder) path sanity check failed");
-				prev = cell;
-			}
-		}
-
-		[Conditional("SANITY_CHECKS")]
-		static void CheckSanePath2(IList<CPos> path, CPos src, CPos dest)
-		{
-			if (path.Count == 0)
-				return;
-
-			if (path[0] != dest)
-				throw new InvalidOperationException("(PathFinder) sanity check failed: doesn't go to dest");
-			if (path[path.Count - 1] != src)
-				throw new InvalidOperationException("(PathFinder) sanity check failed: doesn't come from src");
 		}
 	}
 }

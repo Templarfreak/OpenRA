@@ -97,6 +97,8 @@ APC:
 		Cost: 600
 	Tooltip:
 		Name: APC
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 30
 		Prerequisites: pyle
@@ -107,7 +109,7 @@ APC:
 	Mobile:
 		TurnSpeed: 5
 		Speed: 132
-		RequiresCondition: !notmobile
+		PauseOnCondition: notmobile
 	Health:
 		HP: 19000
 	Repairable:
@@ -153,6 +155,8 @@ ARTY:
 		Cost: 600
 	Tooltip:
 		Name: Artillery
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 60
 		Prerequisites: anyhq, ~techlevel.medium
@@ -174,6 +178,8 @@ ARTY:
 		LocalOffset: 624,0,208
 		MuzzleSequence: muzzle
 	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
 	WithMuzzleOverlay:
 	AutoTarget:
 		InitialStanceAI: Defend
@@ -195,6 +201,8 @@ FTNK:
 		Cost: 600
 	Tooltip:
 		Name: Flame Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 50
 		Prerequisites: anyhq, ~techlevel.medium
@@ -234,6 +242,8 @@ BGGY:
 		Cost: 300
 	Tooltip:
 		Name: Nod Buggy
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 20
 		Prerequisites: afld
@@ -274,6 +284,8 @@ BIKE:
 		Cost: 500
 	Tooltip:
 		Name: Recon Bike
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 30
 		Prerequisites: afld
@@ -310,6 +322,8 @@ JEEP:
 		Cost: 400
 	Tooltip:
 		Name: Hum-Vee
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 20
 		Prerequisites: weap
@@ -350,6 +364,8 @@ LTNK:
 		Cost: 650
 	Tooltip:
 		Name: Light Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 40
 		Prerequisites: anyhq, ~techlevel.medium
@@ -393,6 +409,8 @@ MTNK:
 		Cost: 800
 	Tooltip:
 		Name: Medium Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 40
 		Prerequisites: anyhq, ~techlevel.medium
@@ -436,6 +454,8 @@ HTNK:
 		Cost: 1500
 	Tooltip:
 		Name: Mammoth Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 60
 		Prerequisites: eye, ~techlevel.high
@@ -493,6 +513,8 @@ MSAM:
 		Cost: 900
 	Tooltip:
 		Name: Rocket Launcher
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 50
 		Prerequisites: anyhq, ~techlevel.medium
@@ -520,6 +542,8 @@ MSAM:
 		Weapon: 227mm
 		LocalOffset: 213,-128,0, 213,128,0
 	AttackFrontal:
+		TargetFrozenActors: True
+		ForceFireIgnoresActors: True
 	WithSpriteTurret:
 	SpawnActorOnDeath:
 		Actor: MSAM.Husk
@@ -537,6 +561,8 @@ MLRS:
 		Cost: 600
 	Tooltip:
 		Name: Mobile S.A.M.
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 70
 		Prerequisites: anyhq, ~techlevel.medium
@@ -592,6 +618,8 @@ STNK:
 		Cost: 900
 	Tooltip:
 		Name: Stealth Tank
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		BuildPaletteOrder: 90
 		Prerequisites: tmpl, ~techlevel.high

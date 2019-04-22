@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,19 +11,19 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Lint;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Network;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	public enum ObserverStatsPanel { Basic, Economy, Production, Combat, Graph }
+	public enum ObserverStatsPanel { Basic, Economy, Production, Combat, Graph, ArmyGraph }
 
-	[ChromeLogicArgsHotkeys("StatisticsBasicKey", "StatisticsEconomyKey", "StatisticsProductionKey", "StatisticsCombatKey", "StatisticsGraphKey")]
+	[ChromeLogicArgsHotkeys("StatisticsBasicKey", "StatisticsEconomyKey", "StatisticsProductionKey", "StatisticsCombatKey", "StatisticsGraphKey", "StatisticsArmyGraphKey")]
 	public class ObserverStatsLogic : ChromeLogic
 	{
 		readonly ContainerWidget basicStatsHeaders;
@@ -31,12 +31,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly ContainerWidget productionStatsHeaders;
 		readonly ContainerWidget combatStatsHeaders;
 		readonly ContainerWidget earnedThisMinuteGraphHeaders;
+		readonly ContainerWidget armyThisMinuteGraphHeaders;
 		readonly ScrollPanelWidget playerStatsPanel;
 		readonly ScrollItemWidget basicPlayerTemplate;
 		readonly ScrollItemWidget economyPlayerTemplate;
 		readonly ScrollItemWidget productionPlayerTemplate;
 		readonly ScrollItemWidget combatPlayerTemplate;
 		readonly ContainerWidget earnedThisMinuteGraphTemplate;
+		readonly ContainerWidget armyThisMinuteGraphTemplate;
 		readonly ScrollItemWidget teamTemplate;
 		readonly IEnumerable<Player> players;
 		readonly World world;
@@ -64,6 +66,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			productionStatsHeaders = widget.Get<ContainerWidget>("PRODUCTION_STATS_HEADERS");
 			combatStatsHeaders = widget.Get<ContainerWidget>("COMBAT_STATS_HEADERS");
 			earnedThisMinuteGraphHeaders = widget.Get<ContainerWidget>("EARNED_THIS_MIN_GRAPH_HEADERS");
+			armyThisMinuteGraphHeaders = widget.Get<ContainerWidget>("ARMY_THIS_MIN_GRAPH_HEADERS");
 
 			playerStatsPanel = widget.Get<ScrollPanelWidget>("PLAYER_STATS_PANEL");
 			playerStatsPanel.Layout = new GridLayout(playerStatsPanel);
@@ -73,6 +76,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			productionPlayerTemplate = playerStatsPanel.Get<ScrollItemWidget>("PRODUCTION_PLAYER_TEMPLATE");
 			combatPlayerTemplate = playerStatsPanel.Get<ScrollItemWidget>("COMBAT_PLAYER_TEMPLATE");
 			earnedThisMinuteGraphTemplate = playerStatsPanel.Get<ContainerWidget>("EARNED_THIS_MIN_GRAPH_TEMPLATE");
+			armyThisMinuteGraphTemplate = playerStatsPanel.Get<ContainerWidget>("ARMY_THIS_MIN_GRAPH_TEMPLATE");
 
 			teamTemplate = playerStatsPanel.Get<ScrollItemWidget>("TEAM_TEMPLATE");
 
@@ -98,7 +102,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				createStatsOption("Economy", economyStatsHeaders, () => DisplayStats(EconomyStats)),
 				createStatsOption("Production", productionStatsHeaders, () => DisplayStats(ProductionStats)),
 				createStatsOption("Combat", combatStatsHeaders, () => DisplayStats(CombatStats)),
-				createStatsOption("Earnings (graph)", earnedThisMinuteGraphHeaders, () => EarnedThisMinuteGraph())
+				createStatsOption("Earnings (graph)", earnedThisMinuteGraphHeaders, () => EarnedThisMinuteGraph()),
+				createStatsOption("Army (graph)", armyThisMinuteGraphHeaders, () => ArmyThisMinuteGraph()),
 			};
 
 			Func<StatsDropDownOption, ScrollItemWidget, ScrollItemWidget> setupItem = (option, template) =>
@@ -108,7 +113,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return item;
 			};
 
-			statsDropDown.OnMouseDown = _ => statsDropDown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 150, statsDropDownOptions, setupItem);
+			statsDropDown.OnMouseDown = _ => statsDropDown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 155, statsDropDownOptions, setupItem);
 			statsDropDownOptions[(int)activePanel].OnClick();
 
 			var close = widget.GetOrNull<ButtonWidget>("CLOSE");
@@ -151,6 +156,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			productionStatsHeaders.Visible = false;
 			combatStatsHeaders.Visible = false;
 			earnedThisMinuteGraphHeaders.Visible = false;
+			armyThisMinuteGraphHeaders.Visible = false;
 		}
 
 		void EarnedThisMinuteGraph()
@@ -162,8 +168,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			graph.GetSeries = () =>
 				players.Select(p => new LineGraphSeries(
 					p.PlayerName,
-					p.Color.RGB,
+					p.Color,
 					(p.PlayerActor.TraitOrDefault<PlayerStatistics>() ?? new PlayerStatistics(p.PlayerActor)).EarnedSamples.Select(s => (float)s)));
+
+			playerStatsPanel.AddChild(template);
+			playerStatsPanel.ScrollToTop();
+		}
+
+		void ArmyThisMinuteGraph()
+		{
+			armyThisMinuteGraphHeaders.Visible = true;
+			var template = armyThisMinuteGraphTemplate.Clone();
+
+			var graph = template.Get<LineGraphWidget>("ARMY_THIS_MIN_GRAPH");
+			graph.GetSeries = () =>
+				players.Select(p => new LineGraphSeries(
+					p.PlayerName,
+					p.Color,
+					(p.PlayerActor.TraitOrDefault<PlayerStatistics>() ?? new PlayerStatistics(p.PlayerActor)).ArmySamples.Select(s => (float)s)));
 
 			playerStatsPanel.AddChild(template);
 			playerStatsPanel.ScrollToTop();
@@ -202,6 +224,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			template.Get<LabelWidget>("UNITS_DEAD").GetText = () => stats.UnitsDead.ToString();
 			template.Get<LabelWidget>("BUILDINGS_KILLED").GetText = () => stats.BuildingsKilled.ToString();
 			template.Get<LabelWidget>("BUILDINGS_DEAD").GetText = () => stats.BuildingsDead.ToString();
+			template.Get<LabelWidget>("ARMY_VALUE").GetText = () => "$" + stats.ArmyValue.ToString();
 
 			return template;
 		}

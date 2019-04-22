@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,12 +11,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Cnc.Activities;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
@@ -70,11 +70,11 @@ namespace OpenRA.Mods.Cnc.Traits
 					if (self.World.OrderGenerator is MinefieldOrderGenerator)
 						((MinefieldOrderGenerator)self.World.OrderGenerator).AddMinelayer(self, start);
 					else
-						self.World.OrderGenerator = new MinefieldOrderGenerator(self, start);
+						self.World.OrderGenerator = new MinefieldOrderGenerator(self, start, queued);
 
-					return new Order("BeginMinefield", self, Target.FromCell(self.World, start), false);
+					return new Order("BeginMinefield", self, Target.FromCell(self.World, start), queued);
 				case "PlaceMine":
-					return new Order("PlaceMine", self, Target.FromCell(self.World, self.Location), false);
+					return new Order("PlaceMine", self, Target.FromCell(self.World, self.Location), queued);
 				default:
 					return null;
 			}
@@ -89,29 +89,25 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
 		{
+			if (order.OrderString != "BeginMinefield" && order.OrderString != "PlaceMinefield" && order.OrderString != "PlaceMine")
+				return;
+
+			var cell = self.World.Map.CellContaining(order.Target.CenterPosition);
 			if (order.OrderString == "BeginMinefield")
-				minefieldStart = order.TargetLocation;
-
-			if (order.OrderString == "PlaceMine")
-			{
-				minefieldStart = order.TargetLocation;
-				Minefield = new CPos[] { order.TargetLocation };
-				self.CancelActivity();
-				self.QueueActivity(new LayMines(self));
-			}
-
-			if (order.OrderString == "PlaceMinefield")
+				minefieldStart = cell;
+			else if (order.OrderString == "PlaceMine")
+				self.QueueActivity(order.Queued, new LayMines(self, null));
+			else if (order.OrderString == "PlaceMinefield")
 			{
 				var movement = self.Trait<IPositionable>();
 
-				Minefield = GetMinefieldCells(minefieldStart, order.TargetLocation, info.MinefieldDepth)
+				Minefield = GetMinefieldCells(minefieldStart, cell, info.MinefieldDepth)
 					.Where(p => movement.CanEnterCell(p, null, false)).ToArray();
 
 				if (Minefield.Length == 1 && Minefield[0] != self.Location)
 					self.SetTargetLine(Target.FromCell(self.World, Minefield[0]), Color.Red);
 
-				self.CancelActivity();
-				self.QueueActivity(new LayMines(self));
+				self.QueueActivity(order.Queued, new LayMines(self, Minefield));
 			}
 		}
 
@@ -159,17 +155,19 @@ namespace OpenRA.Mods.Cnc.Traits
 
 		bool IRenderAboveShroudWhenSelected.SpatiallyPartitionable { get { return false; } }
 
-		class MinefieldOrderGenerator : IOrderGenerator
+		class MinefieldOrderGenerator : OrderGenerator
 		{
 			readonly List<Actor> minelayers;
 			readonly Sprite tileOk;
 			readonly Sprite tileBlocked;
 			readonly CPos minefieldStart;
+			readonly bool queued;
 
-			public MinefieldOrderGenerator(Actor a, CPos xy)
+			public MinefieldOrderGenerator(Actor a, CPos xy, bool queued)
 			{
 				minelayers = new List<Actor>() { a };
 				minefieldStart = xy;
+				this.queued = queued;
 
 				var tileset = a.World.Map.Tileset.ToLowerInvariant();
 				tileOk = a.World.Map.Rules.Sequences.GetSequence("overlay", "build-valid-{0}".F(tileset)).GetSprite(0);
@@ -181,7 +179,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				minelayers.Add(a);
 			}
 
-			public IEnumerable<Order> Order(World world, CPos cell, int2 worldPixel, MouseInput mi)
+			protected override IEnumerable<Order> OrderInner(World world, CPos cell, int2 worldPixel, MouseInput mi)
 			{
 				if (mi.Button == Game.Settings.Game.MouseButtonPreference.Cancel)
 				{
@@ -199,19 +197,19 @@ namespace OpenRA.Mods.Cnc.Traits
 				{
 					minelayers.First().World.CancelInputMode();
 					foreach (var minelayer in minelayers)
-						yield return new Order("PlaceMinefield", minelayer, Target.FromCell(world, cell), false);
+						yield return new Order("PlaceMinefield", minelayer, Target.FromCell(world, cell), queued);
 				}
 			}
 
-			public void Tick(World world)
+			protected override void Tick(World world)
 			{
 				minelayers.RemoveAll(minelayer => !minelayer.IsInWorld || minelayer.IsDead);
 				if (!minelayers.Any())
 					world.CancelInputMode();
 			}
 
-			public IEnumerable<IRenderable> Render(WorldRenderer wr, World world) { yield break; }
-			public IEnumerable<IRenderable> RenderAboveShroud(WorldRenderer wr, World world)
+			protected override IEnumerable<IRenderable> Render(WorldRenderer wr, World world) { yield break; }
+			protected override IEnumerable<IRenderable> RenderAboveShroud(WorldRenderer wr, World world)
 			{
 				var minelayer = minelayers.FirstOrDefault(m => m.IsInWorld && !m.IsDead);
 				if (minelayer == null)
@@ -232,7 +230,7 @@ namespace OpenRA.Mods.Cnc.Traits
 				}
 			}
 
-			public string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
+			protected override string GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi)
 			{
 				return "ability";
 			}

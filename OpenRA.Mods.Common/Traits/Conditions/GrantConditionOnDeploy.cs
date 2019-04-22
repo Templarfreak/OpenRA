@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -50,14 +50,16 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Facing that the actor must face before deploying. Set to -1 to deploy regardless of facing.")]
 		public readonly int Facing = -1;
 
-		[Desc("Sound to play when deploying.")]
-		public readonly string DeploySound = null;
+		[Desc("Play a randomly selected sound from this list when deploying.")]
+		public readonly string[] DeploySounds = null;
 
-		[Desc("Sound to play when undeploying.")]
-		public readonly string UndeploySound = null;
+		[Desc("Play a randomly selected sound from this list when undeploying.")]
+		public readonly string[] UndeploySounds = null;
 
 		[Desc("Skip make/deploy animation?")]
 		public readonly bool SkipMakeAnimation = false;
+
+		[VoiceReference] public readonly string Voice = "Action";
 
 		public override object Create(ActorInitializer init) { return new GrantConditionOnDeploy(init, this); }
 	}
@@ -65,7 +67,7 @@ namespace OpenRA.Mods.Common.Traits
 	public enum DeployState { Undeployed, Deploying, Deployed, Undeploying }
 
 	public class GrantConditionOnDeploy : PausableConditionalTrait<GrantConditionOnDeployInfo>, IResolveOrder, IIssueOrder, INotifyCreated,
-		INotifyDeployComplete, IIssueDeployOrder
+		INotifyDeployComplete, IIssueDeployOrder, IOrderVoice
 	{
 		readonly Actor self;
 		readonly bool checkTerrainType;
@@ -175,6 +177,11 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(new DeployForGrantedCondition(self, this));
 		}
 
+		public string VoicePhraseForOrder(Actor self, Order order)
+		{
+			return order.OrderString == "GrantConditionOnDeploy" ? Info.Voice : null;
+		}
+
 		bool IsCursorBlocked()
 		{
 			if (IsTraitPaused)
@@ -239,8 +246,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (!IsValidTerrain(self.Location))
 				return;
 
-			if (!string.IsNullOrEmpty(Info.DeploySound))
-				Game.Sound.Play(SoundType.World, Info.DeploySound, self.CenterPosition);
+			if (Info.DeploySounds != null && Info.DeploySounds.Any())
+				Game.Sound.Play(SoundType.World, Info.DeploySounds, self.World, self.CenterPosition);
 
 			// Revoke condition that is applied while undeployed.
 			if (!init)
@@ -263,8 +270,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (!init && deployState != DeployState.Deployed)
 				return;
 
-			if (!string.IsNullOrEmpty(Info.UndeploySound))
-				Game.Sound.Play(SoundType.World, Info.UndeploySound, self.CenterPosition);
+			if (Info.UndeploySounds != null && Info.UndeploySounds.Any())
+				Game.Sound.Play(SoundType.World, Info.UndeploySounds, self.World, self.CenterPosition);
 
 			if (!init)
 				OnUndeployStarted();

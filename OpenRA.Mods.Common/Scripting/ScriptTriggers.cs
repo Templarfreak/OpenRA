@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -24,7 +24,7 @@ namespace OpenRA.Mods.Common.Scripting
 		OnIdle, OnDamaged, OnKilled, OnProduction, OnOtherProduction, OnPlayerWon, OnPlayerLost,
 		OnObjectiveAdded, OnObjectiveCompleted, OnObjectiveFailed, OnCapture, OnInfiltrated,
 		OnAddedToWorld, OnRemovedFromWorld, OnDiscovered, OnPlayerDiscovered,
-		OnPassengerEntered, OnPassengerExited, OnSelling, OnSold
+		OnPassengerEntered, OnPassengerExited, OnSold
 	}
 
 	[Desc("Allows map scripts to attach triggers to this actor via the Triggers global.")]
@@ -43,6 +43,7 @@ namespace OpenRA.Mods.Common.Scripting
 		public event Action<Actor> OnKilledInternal = _ => { };
 		public event Action<Actor> OnCapturedInternal = _ => { };
 		public event Action<Actor> OnRemovedInternal = _ => { };
+		public event Action<Actor> OnAddedInternal = _ => { };
 		public event Action<Actor, Actor> OnProducedInternal = (a, b) => { };
 		public event Action<Actor, Actor> OnOtherProducedInternal = (a, b) => { };
 
@@ -151,7 +152,7 @@ namespace OpenRA.Mods.Common.Scripting
 			OnKilledInternal(self);
 		}
 
-		public void UnitProduced(Actor self, Actor other, CPos exit)
+		void INotifyProduction.UnitProduced(Actor self, Actor other, CPos exit)
 		{
 			if (world.Disposing)
 				return;
@@ -175,7 +176,7 @@ namespace OpenRA.Mods.Common.Scripting
 			OnProducedInternal(self, other);
 		}
 
-		public void OnPlayerWon(Player player)
+		void INotifyObjectivesUpdated.OnPlayerWon(Player player)
 		{
 			if (world.Disposing)
 				return;
@@ -195,7 +196,7 @@ namespace OpenRA.Mods.Common.Scripting
 			}
 		}
 
-		public void OnPlayerLost(Player player)
+		void INotifyObjectivesUpdated.OnPlayerLost(Player player)
 		{
 			if (world.Disposing)
 				return;
@@ -215,7 +216,7 @@ namespace OpenRA.Mods.Common.Scripting
 			}
 		}
 
-		public void OnObjectiveAdded(Player player, int id)
+		void INotifyObjectivesUpdated.OnObjectiveAdded(Player player, int id)
 		{
 			if (world.Disposing)
 				return;
@@ -236,7 +237,7 @@ namespace OpenRA.Mods.Common.Scripting
 			}
 		}
 
-		public void OnObjectiveCompleted(Player player, int id)
+		void INotifyObjectivesUpdated.OnObjectiveCompleted(Player player, int id)
 		{
 			if (world.Disposing)
 				return;
@@ -257,7 +258,7 @@ namespace OpenRA.Mods.Common.Scripting
 			}
 		}
 
-		public void OnObjectiveFailed(Player player, int id)
+		void INotifyObjectivesUpdated.OnObjectiveFailed(Player player, int id)
 		{
 			if (world.Disposing)
 				return;
@@ -340,6 +341,9 @@ namespace OpenRA.Mods.Common.Scripting
 					return;
 				}
 			}
+
+			// Run any internally bound callbacks
+			OnAddedInternal(self);
 		}
 
 		void INotifyRemovedFromWorld.RemovedFromWorld(Actor self)
@@ -365,26 +369,7 @@ namespace OpenRA.Mods.Common.Scripting
 			OnRemovedInternal(self);
 		}
 
-		void INotifySold.Selling(Actor self)
-		{
-			if (world.Disposing)
-				return;
-
-			// Run Lua callbacks
-			foreach (var f in Triggerables(Trigger.OnSelling))
-			{
-				try
-				{
-					f.Function.Call(f.Self).Dispose();
-				}
-				catch (Exception ex)
-				{
-					f.Context.FatalError(ex.Message);
-					return;
-				}
-			}
-		}
-
+		void INotifySold.Selling(Actor self) { }
 		void INotifySold.Sold(Actor self)
 		{
 			if (world.Disposing)
@@ -405,7 +390,7 @@ namespace OpenRA.Mods.Common.Scripting
 			}
 		}
 
-		public void UnitProducedByOther(Actor self, Actor producee, Actor produced, string productionType, TypeDictionary init)
+		void INotifyOtherProduction.UnitProducedByOther(Actor self, Actor producee, Actor produced, string productionType, TypeDictionary init)
 		{
 			if (world.Disposing)
 				return;
@@ -417,7 +402,8 @@ namespace OpenRA.Mods.Common.Scripting
 				{
 					using (var a = producee.ToLuaValue(f.Context))
 					using (var b = produced.ToLuaValue(f.Context))
-						f.Function.Call(a, b).Dispose();
+					using (var c = productionType.ToLuaValue(f.Context))
+						f.Function.Call(a, b, c).Dispose();
 				}
 				catch (Exception ex)
 				{
@@ -430,7 +416,7 @@ namespace OpenRA.Mods.Common.Scripting
 			OnOtherProducedInternal(producee, produced);
 		}
 
-		public void OnDiscovered(Actor self, Player discoverer, bool playNotification)
+		void INotifyDiscovered.OnDiscovered(Actor self, Player discoverer, bool playNotification)
 		{
 			if (world.Disposing)
 				return;

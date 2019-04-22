@@ -50,6 +50,8 @@ spicebloom:
 		CrushedByFriendlies: true
 	RadarColorFromTerrain:
 		Terrain: Spice
+	AppearsOnMapPreview:
+		Terrain: Spice
 	Immobile:
 	Health:
 		HP: 1
@@ -104,7 +106,6 @@ sandworm:
 		UseLocation: true
 	AttackSwallow:
 		AttackRequiresEnteringCell: true
-		IgnoresVisibility: true
 		AttackingCondition: attacking
 	Armament:
 		Weapon: WormJaw

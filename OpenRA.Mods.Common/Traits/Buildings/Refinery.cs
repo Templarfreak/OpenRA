@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -127,7 +127,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				var temp = currentDisplayValue;
 				if (self.Owner.IsAlliedWith(self.World.RenderPlayer))
-					self.World.AddFrameEndTask(w => w.Add(new FloatingText(self.CenterPosition, self.Owner.Color.RGB, FloatingText.FormatCashTick(temp), 30)));
+					self.World.AddFrameEndTask(w => w.Add(new FloatingText(self.CenterPosition, self.Owner.Color, FloatingText.FormatCashTick(temp), 30)));
 				currentDisplayTick = info.TickRate;
 				currentDisplayValue = 0;
 			}
@@ -144,12 +144,10 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!preventDock)
 			{
-				dockOrder.Queue(new CallFunc(() => dockedHarv = harv, false));
-				dockOrder.Queue(DockSequence(harv, self));
-				dockOrder.Queue(new CallFunc(() => dockedHarv = null, false));
+				dockOrder.QueueChild(self, new CallFunc(() => dockedHarv = harv, false));
+				dockOrder.QueueChild(self, DockSequence(harv, self));
+				dockOrder.QueueChild(self, new CallFunc(() => dockedHarv = null, false));
 			}
-
-			dockOrder.Queue(new CallFunc(() => harv.Trait<Harvester>().ContinueHarvesting(harv)));
 		}
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -36,15 +36,15 @@ namespace OpenRA.Mods.Common.Activities
 		protected override void OnFirstRun(Actor self)
 		{
 			if (self.Info.HasTraitInfo<IFacingInfo>())
-				QueueChild(new Turn(self, Facing));
+				QueueChild(self, new Turn(self, Facing));
 
 			if (self.Info.HasTraitInfo<AircraftInfo>())
-				QueueChild(new HeliLand(self, true));
+				QueueChild(self, new HeliLand(self, true));
 		}
 
 		public override Activity Tick(Actor self)
 		{
-			if (IsCanceled)
+			if (IsCanceling)
 				return NextActivity;
 
 			if (ChildActivity != null)
@@ -71,7 +71,7 @@ namespace OpenRA.Mods.Common.Activities
 				IsInterruptible = false;
 
 				// Wait forever
-				QueueChild(new WaitFor(() => false));
+				QueueChild(self, new WaitFor(() => false));
 				makeAnimation.Reverse(self, () => DoTransform(self));
 				return this;
 			}
@@ -81,7 +81,7 @@ namespace OpenRA.Mods.Common.Activities
 
 		protected override void OnLastRun(Actor self)
 		{
-			if (!IsCanceled)
+			if (!IsCanceling)
 				DoTransform(self);
 		}
 
@@ -89,7 +89,7 @@ namespace OpenRA.Mods.Common.Activities
 		{
 			self.World.AddFrameEndTask(w =>
 			{
-				if (self.IsDead)
+				if (self.IsDead || self.WillDispose)
 					return;
 
 				foreach (var nt in self.TraitsImplementing<INotifyTransform>())
@@ -132,8 +132,10 @@ namespace OpenRA.Mods.Common.Activities
 				foreach (var nt in self.TraitsImplementing<INotifyTransform>())
 					nt.AfterTransform(a);
 
+				self.ReplacedByActor = a;
+
 				if (selected)
-					w.Selection.Add(w, a);
+					w.Selection.Add(a);
 
 				if (controlgroup.HasValue)
 					w.Selection.AddToControlGroup(a, controlgroup.Value);

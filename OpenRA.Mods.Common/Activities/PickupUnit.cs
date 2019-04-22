@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,6 +11,7 @@
 
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
@@ -32,7 +33,6 @@ namespace OpenRA.Mods.Common.Activities
 		enum PickupState { Intercept, LockCarryable, MoveToCarryable, Turn, Land, Wait, Pickup, Aborted }
 
 		PickupState state;
-		Activity innerActivity;
 
 		public PickupUnit(Actor self, Actor cargo, int delay)
 		{
@@ -51,16 +51,17 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override Activity Tick(Actor self)
 		{
-			if (innerActivity != null)
+			if (ChildActivity != null)
 			{
-				innerActivity = ActivityUtils.RunActivity(self, innerActivity);
-				return this;
+				ChildActivity = ActivityUtils.RunActivity(self, ChildActivity);
+				if (ChildActivity != null)
+					return this;
 			}
 
 			if (cargo != carryall.Carryable)
 				return NextActivity;
 
-			if (cargo.IsDead || IsCanceled || carryable.IsTraitDisabled || !cargo.AppearsFriendlyTo(self))
+			if (cargo.IsDead || IsCanceling || carryable.IsTraitDisabled || !cargo.AppearsFriendlyTo(self))
 			{
 				carryall.UnreserveCarryable(self);
 				return NextActivity;
@@ -72,7 +73,7 @@ namespace OpenRA.Mods.Common.Activities
 			switch (state)
 			{
 				case PickupState.Intercept:
-					innerActivity = movement.MoveWithinRange(Target.FromActor(cargo), WDist.FromCells(4));
+					QueueChild(self, movement.MoveWithinRange(Target.FromActor(cargo), WDist.FromCells(4), targetLineColor: Color.Yellow), true);
 					state = PickupState.LockCarryable;
 					return this;
 
@@ -89,8 +90,7 @@ namespace OpenRA.Mods.Common.Activities
 					var targetPosition = cargo.CenterPosition - carryableBody.LocalToWorld(localOffset);
 					if ((self.CenterPosition - targetPosition).HorizontalLengthSquared != 0)
 					{
-						// Run the first tick of the move activity immediately to avoid a one-frame pause
-						innerActivity = ActivityUtils.RunActivity(self, new HeliFly(self, Target.FromPos(targetPosition)));
+						QueueChild(self, new HeliFly(self, Target.FromPos(targetPosition)), true);
 						return this;
 					}
 
@@ -101,7 +101,7 @@ namespace OpenRA.Mods.Common.Activities
 				case PickupState.Turn:
 					if (carryallFacing.Facing != carryableFacing.Facing)
 					{
-						innerActivity = new Turn(self, carryableFacing.Facing);
+						QueueChild(self, new Turn(self, carryableFacing.Facing), true);
 						return this;
 					}
 
@@ -120,7 +120,7 @@ namespace OpenRA.Mods.Common.Activities
 
 					if (targetPosition.Z != self.CenterPosition.Z)
 					{
-						innerActivity = new HeliLand(self, false, self.World.Map.DistanceAboveTerrain(targetPosition));
+						QueueChild(self, new HeliLand(self, false, self.World.Map.DistanceAboveTerrain(targetPosition)), true);
 						return this;
 					}
 
@@ -130,7 +130,7 @@ namespace OpenRA.Mods.Common.Activities
 
 				case PickupState.Wait:
 					state = PickupState.Pickup;
-					innerActivity = new Wait(delay, false);
+					QueueChild(self, new Wait(delay, false), true);
 					return this;
 
 				case PickupState.Pickup:
@@ -155,14 +155,6 @@ namespace OpenRA.Mods.Common.Activities
 				carryable.Attached(cargo);
 				carryall.AttachCarryable(self, cargo);
 			});
-		}
-
-		public override bool Cancel(Actor self, bool keepQueue = false)
-		{
-			if (!IsCanceled && innerActivity != null && !innerActivity.Cancel(self))
-				return false;
-
-			return base.Cancel(self, keepQueue);
 		}
 	}
 }

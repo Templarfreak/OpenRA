@@ -228,7 +228,7 @@ PROC:
 		SpawnOffset: 1,2
 		Facing: 64
 	WithBuildingBib:
-	WithResources:
+	WithResourceLevelOverlay:
 		RequiresCondition: !build-incomplete
 	Power:
 		Amount: -40
@@ -257,8 +257,9 @@ SILO:
 		Range: 4c0
 	WithBuildingBib:
 		HasMinibib: Yes
-	WithSiloAnimation:
-		RequiresCondition: !build-incomplete
+	-WithSpriteBody:
+	WithResourceLevelSpriteBody:
+		Sequence: stages
 	StoresResources:
 		PipCount: 10
 		PipColor: Green
@@ -311,6 +312,8 @@ PYLE:
 		ExitCell: 1,1
 	Production:
 		Produces: Infantry.GDI
+	GrantExternalConditionToProduced:
+		Condition: produced
 	ProductionQueue:
 		Type: Infantry.GDI
 		Group: Infantry
@@ -625,6 +628,8 @@ HQ:
 		ArrowSequence: arrow
 		ClockSequence: clock
 		CircleSequence: circles
+		TargetPlaceholderCursorAnimation: airstriketarget
+		DirectionArrowAnimation: airstrikedirection
 	SupportPowerChargeBar:
 	Power:
 		Amount: -50
@@ -921,8 +926,9 @@ OBLI:
 		Range: 8c0
 	WithBuildingBib:
 		HasMinibib: Yes
-	WithChargeAnimation:
-		RequiresCondition: !build-incomplete
+	-WithSpriteBody:
+	WithChargeSpriteBody:
+		Sequence: active
 	Armament:
 		Weapon: Laser
 		LocalOffset: 0,-85,1280

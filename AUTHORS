@@ -54,6 +54,7 @@ Also thanks to:
     * David Russell (DavidARussell)
     * DeadlySurprise
     * Dmitri Suvorov (suvjunmd)
+    * dtluna
     * Erasmus Schroder (rasco)
     * Eric Bajumpaa (SteelPhase)
     * Evgeniy Sergeev (evgeniysergeev)
@@ -102,6 +103,7 @@ Also thanks to:
     * Matthijs Benschop (Nerdie)
     * Max621
     * Max Ugrumov (katzsmile)
+    * Mazar Farran (mazarf)
     * Michael Rätzel
     * Michael Silber (frühstück)
     * Michael Sztolcman (s1w_)
@@ -137,6 +139,7 @@ Also thanks to:
     * Teemu Nieminen (Temeez)
     * Tim Mylemans (gecko)
     * Tirili
+    * Tomas Einarsson (Mesacer)
     * Tristan Keating (Kilkakon)
     * Tristan Mühlbacher (MicroBit)
     * UnknownProgrammer
@@ -159,9 +162,6 @@ the Apache 2.0 license.
 
 Using GeoLite2 data created by MaxMind and
 distributed under the CC BY-SA 3.0 license.
-
-Using SharpFont created by Robert Rouhani and
-distributed under the MIT license.
 
 Using SDL2-CS and OpenAL-CS created by Ethan
 Lee and released under the zlib license.

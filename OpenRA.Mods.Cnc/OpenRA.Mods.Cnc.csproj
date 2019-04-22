@@ -56,18 +56,20 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Drawing" />
     <Reference Include="Eluant">
       <HintPath>..\thirdparty\download\Eluant.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Activities\LeapAttack.cs" />
     <Compile Include="CncLoadScreen.cs" />
+    <Compile Include="Traits\EdibleByLeap.cs" />
     <Compile Include="Traits\Attack\AttackPopupTurreted.cs" />
     <Compile Include="Traits\Buildings\ProductionAirdrop.cs" />
     <Compile Include="Traits\Infiltration\InfiltrateForTransform.cs" />
     <Compile Include="Traits\Render\WithGunboatBody.cs" />
+    <Compile Include="Traits\Render\WithHarvesterSpriteBody.cs" />
     <Compile Include="Traits\Render\WithEmbeddedTurretSpriteBody.cs" />
     <Compile Include="Traits\Render\WithCargo.cs" />
     <Compile Include="Traits\Render\WithDeliveryAnimation.cs" />
@@ -87,8 +89,6 @@
     <Compile Include="UtilityCommands\LegacyTilesetImporter.cs" />
     <Compile Include="Traits\World\TSShroudPalette.cs" />
     <Compile Include="UtilityCommands\ImportTSMapCommand.cs" />
-    <Compile Include="Player\PlaceSimpleBeacon.cs" />
-    <Compile Include="Effects\AnimatedBeacon.cs" />
     <Compile Include="UtilityCommands\LegacyRulesImporter.cs" />
     <Compile Include="UtilityCommands\LegacySequenceImporter.cs" />
     <Compile Include="Widgets\Logic\PreReleaseWarningPrompt.cs" />
@@ -200,6 +200,14 @@
     -->
     <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(SolutionDir)mods/common/" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
     <Copy SourceFiles="$(TargetPath).mdb" DestinationFolder="$(SolutionDir)mods/common/" Condition="Exists('$(TargetPath).mdb')" />
+    <MakeDir Directories="$(SolutionDir)mods/common/"/>
+    <Copy
+      SourceFiles="$(TargetPath)"
+      DestinationFolder="$(SolutionDir)mods/common/"/>
+    <Copy
+      SourceFiles="$(TargetDir)$(TargetName).pdb"
+      DestinationFolder="$(SolutionDir)mods/common/"
+      Condition="Exists('$(TargetDir)$(TargetName).pdb')"/>
     <!-- Uncomment these lines when debugging or adding to this target
     <Message Text="DEBUG OS:                     $(OS)"/>
     <Message Text="DEBUG SolutionDir:            $(SolutionDir)"/>

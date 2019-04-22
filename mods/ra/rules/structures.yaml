@@ -495,7 +495,7 @@ PDOX:
 		InsufficientPowerSpeechNotification: InsufficientPower
 		BeginChargeSpeechNotification: ChronosphereCharging
 		EndChargeSpeechNotification: ChronosphereReady
-		Duration: 500
+		Duration: 400
 		KillCargo: yes
 		DisplayRadarPing: True
 	ChronoshiftPower@advancedchronoshift:
@@ -510,7 +510,7 @@ PDOX:
 		InsufficientPowerSpeechNotification: InsufficientPower
 		BeginChargeSpeechNotification: ChronosphereCharging
 		EndChargeSpeechNotification: ChronosphereReady
-		Duration: 500
+		Duration: 400
 		KillCargo: yes
 		DisplayRadarPing: True
 		Range: 2
@@ -729,9 +729,9 @@ HBOX:
 		Prerequisites: tent, ~structures.allies, ~techlevel.medium
 		Description: Camouflaged static defense with a fireport\nfor a garrisoned soldier.\nCan detect cloaked units.\n  Strong vs Infantry, Light armor\n  Weak vs Tanks, Aircraft
 	Valued:
-		Cost: 700
+		Cost: 750
 	CustomSellValue:
-		Value: 500
+		Value: 550
 	Health:
 		HP: 40000
 	Armor:
@@ -1273,8 +1273,9 @@ SILO:
 		Notification: CreditsStolen
 	WithBuildingBib:
 		HasMinibib: Yes
-	WithSiloAnimation:
-		RequiresCondition: !build-incomplete
+	-WithSpriteBody:
+	WithResourceLevelSpriteBody:
+		Sequence: stages
 	StoresResources:
 		PipCount: 5
 		Capacity: 3000
@@ -1460,6 +1461,8 @@ AFLD:
 		ArrowSequence: arrow
 		ClockSequence: clock
 		CircleSequence: circles
+		TargetPlaceholderCursorAnimation: paratarget
+		DirectionArrowAnimation: paradirection
 	ParatroopersPower@paratroopers:
 		OrderName: SovietParatroopers
 		Prerequisites: aircraft.soviet
@@ -1478,6 +1481,8 @@ AFLD:
 		ArrowSequence: arrow
 		ClockSequence: clock
 		CircleSequence: circles
+		TargetPlaceholderCursorAnimation: paratarget
+		DirectionArrowAnimation: paradirection
 	AirstrikePower@parabombs:
 		OrderName: UkraineParabombs
 		Prerequisites: aircraft.ukraine
@@ -1497,6 +1502,8 @@ AFLD:
 		ArrowSequence: arrow
 		ClockSequence: clock
 		CircleSequence: circles
+		TargetPlaceholderCursorAnimation: paratarget
+		DirectionArrowAnimation: paradirection
 	ProductionBar:
 		ProductionType: Aircraft
 	SupportPowerChargeBar:
@@ -1691,6 +1698,8 @@ BARR:
 		ProductionTypes: Soldier, Infantry
 	Production:
 		Produces: Infantry, Soldier
+	GrantExternalConditionToProduced:
+		Condition: produced
 	PrimaryBuilding:
 		PrimaryCondition: primary
 		SelectionNotification: PrimaryBuildingSelected
@@ -1835,6 +1844,8 @@ TENT:
 		ProductionTypes: Soldier, Infantry
 	Production:
 		Produces: Infantry, Soldier
+	GrantExternalConditionToProduced:
+		Condition: produced
 	PrimaryBuilding:
 		PrimaryCondition: primary
 		SelectionNotification: PrimaryBuildingSelected

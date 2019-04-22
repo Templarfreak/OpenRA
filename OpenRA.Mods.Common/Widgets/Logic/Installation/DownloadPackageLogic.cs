@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -15,6 +15,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Net;
 using System.Text;
+using ICSharpCode.SharpZipLib.Zip;
 using OpenRA.Primitives;
 using OpenRA.Support;
 using OpenRA.Widgets;
@@ -144,7 +145,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				try
 				{
 					using (var stream = File.OpenRead(file))
-					using (var z = ZipFileHelper.Create(stream))
+					using (var z = new ZipFile(stream))
 					{
 						foreach (var kv in download.Extract)
 						{

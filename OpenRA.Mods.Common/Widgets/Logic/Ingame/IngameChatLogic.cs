@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,11 +11,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Mods.Common.Commands;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Network;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
@@ -85,8 +85,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					else if (chatTraits != null)
 					{
 						var text = chatText.Text.Trim();
+						var from = world.IsReplay ? null : orderManager.LocalClient.Name;
 						foreach (var trait in chatTraits)
-							trait.OnChat(orderManager.LocalClient.Name, text);
+							trait.OnChat(from, text);
 					}
 				}
 

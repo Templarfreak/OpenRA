@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,8 +10,8 @@
 #endregion
 
 using System;
-using System.Drawing;
 using System.Runtime.InteropServices;
+using OpenRA.Primitives;
 using SDL2;
 
 namespace OpenRA.Platforms.Default
@@ -114,6 +114,31 @@ namespace OpenRA.Platforms.Default
 					windowSize.Width, windowSize.Height, windowFlags);
 
 				SDL.SDL_SetWindowTitle(window, windowname);
+
+				// Work around an issue in macOS's GL backend where the window remains permanently black
+				// (if dark mode is enabled) unless we drain the event queue before initializing GL
+				if (Platform.CurrentPlatform == PlatformType.OSX)
+				{
+					SDL.SDL_Event e;
+					while (SDL.SDL_PollEvent(out e) != 0)
+					{
+						// We can safely ignore all mouse/keyboard events and window size changes
+						// (these will be caught in the window setup below), but do need to process focus
+						if (e.type == SDL.SDL_EventType.SDL_WINDOWEVENT)
+						{
+							switch (e.window.windowEvent)
+							{
+								case SDL.SDL_WindowEventID.SDL_WINDOWEVENT_FOCUS_LOST:
+									Game.HasInputFocus = false;
+									break;
+
+								case SDL.SDL_WindowEventID.SDL_WINDOWEVENT_FOCUS_GAINED:
+									Game.HasInputFocus = true;
+									break;
+							}
+						}
+					}
+				}
 
 				surfaceSize = windowSize;
 				windowScale = 1;

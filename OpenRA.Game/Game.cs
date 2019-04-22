@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,8 +12,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -41,6 +39,7 @@ namespace OpenRA
 		public static ModData ModData;
 		public static Settings Settings;
 		public static ICursor Cursor;
+		public static bool HideCursor;
 		static WorldRenderer worldRenderer;
 
 		internal static OrderManager OrderManager;
@@ -534,31 +533,19 @@ namespace OpenRA
 
 		static void TakeScreenshotInner()
 		{
-			Log.Write("debug", "Taking screenshot");
-
-			Bitmap bitmap;
-			using (new PerfTimer("Renderer.TakeScreenshot"))
-				bitmap = Renderer.Context.TakeScreenshot();
-
-			ThreadPool.QueueUserWorkItem(_ =>
+			using (new PerfTimer("Renderer.SaveScreenshot"))
 			{
 				var mod = ModData.Manifest.Metadata;
 				var directory = Platform.ResolvePath(Platform.SupportDirPrefix, "Screenshots", ModData.Manifest.Id, mod.Version);
 				Directory.CreateDirectory(directory);
 
 				var filename = TimestampedFilename(true);
-				var format = Settings.Graphics.ScreenshotFormat;
-				var extension = ImageCodecInfo.GetImageEncoders().FirstOrDefault(x => x.FormatID == format.Guid)
-					.FilenameExtension.Split(';').First().ToLowerInvariant().Substring(1);
-				var destination = Path.Combine(directory, string.Concat(filename, extension));
+				var path = Path.Combine(directory, string.Concat(filename, ".png"));
+				Log.Write("debug", "Taking screenshot " + path);
 
-				using (new PerfTimer("Save Screenshot ({0})".F(format)))
-					bitmap.Save(destination, format);
-
-				bitmap.Dispose();
-
-				RunAfterTick(() => Debug("Saved screenshot " + filename));
-			});
+				Renderer.Context.SaveScreenshot(path);
+				Debug("Saved screenshot " + filename);
+			}
 		}
 
 		static void InnerLogicTick(OrderManager orderManager)
@@ -574,11 +561,11 @@ namespace OpenRA
 				var integralTickTimestep = (uiTickDelta / Timestep) * Timestep;
 				Ui.LastTickTime += integralTickTimestep >= TimestepJankThreshold ? integralTickTimestep : Timestep;
 
-				Sync.CheckSyncUnchanged(world, Ui.Tick);
+				Sync.RunUnsynced(Settings.Debug.SyncCheckUnsyncedCode, world, Ui.Tick);
 				Cursor.Tick();
 			}
 
-			var worldTimestep = world == null ? Timestep : world.Timestep;
+			var worldTimestep = world == null ? Timestep : world.IsLoadingGameSave ? 1 : world.Timestep;
 			var worldTickDelta = tick - orderManager.LastTickTime;
 			if (worldTimestep != 0 && worldTickDelta >= worldTimestep)
 			{
@@ -592,7 +579,7 @@ namespace OpenRA
 					orderManager.LastTickTime += integralTickTimestep >= TimestepJankThreshold ? integralTickTimestep : worldTimestep;
 
 					Sound.Tick();
-					Sync.CheckSyncUnchanged(world, orderManager.TickImmediate);
+					Sync.RunUnsynced(Settings.Debug.SyncCheckUnsyncedCode, world, orderManager.TickImmediate);
 
 					if (world == null)
 						return;
@@ -611,7 +598,7 @@ namespace OpenRA
 						if (isNetTick)
 							orderManager.Tick();
 
-						Sync.CheckSyncUnchanged(world, () =>
+						Sync.RunUnsynced(Settings.Debug.SyncCheckUnsyncedCode, world, () =>
 						{
 							world.OrderGenerator.Tick(world);
 							world.Selection.Tick(world);
@@ -626,7 +613,7 @@ namespace OpenRA
 
 					// Wait until we have done our first world Tick before TickRendering
 					if (orderManager.LocalFrameNumber > 0)
-						Sync.CheckSyncUnchanged(world, () => world.TickRender(worldRenderer));
+						Sync.RunUnsynced(Settings.Debug.SyncCheckUnsyncedCode, world, () => world.TickRender(worldRenderer));
 				}
 			}
 		}
@@ -662,7 +649,10 @@ namespace OpenRA
 				{
 					Renderer.BeginFrame(worldRenderer.Viewport.TopLeft, worldRenderer.Viewport.Zoom);
 					Sound.SetListenerPosition(worldRenderer.Viewport.CenterPosition);
-					worldRenderer.Draw();
+
+					// Use worldRenderer.World instead of OrderManager.World to avoid a rendering mismatch while processing orders
+					if (!worldRenderer.World.IsLoadingGameSave)
+						worldRenderer.Draw();
 				}
 				else
 					Renderer.BeginFrame(int2.Zero, 1f);
@@ -677,8 +667,13 @@ namespace OpenRA
 
 					if (ModData != null && ModData.CursorProvider != null)
 					{
-						Cursor.SetCursor(Ui.Root.GetCursorOuter(Viewport.LastMousePos) ?? "default");
-						Cursor.Render(Renderer);
+						if (HideCursor)
+							Cursor.SetCursor(null);
+						else
+						{
+							Cursor.SetCursor(Ui.Root.GetCursorOuter(Viewport.LastMousePos) ?? "default");
+							Cursor.Render(Renderer);
+						}
 					}
 				}
 
@@ -755,6 +750,13 @@ namespace OpenRA
 				var maxFramerate = Settings.Graphics.CapFramerate ? Settings.Graphics.MaxFramerate.Clamp(1, 1000) : 1000;
 				var renderInterval = 1000 / maxFramerate;
 
+				// Tick as fast as possible while restoring game saves, capping rendering at 5 FPS
+				if (OrderManager.World != null && OrderManager.World.IsLoadingGameSave)
+				{
+					logicInterval = 1;
+					renderInterval = 200;
+				}
+
 				var now = RunTime;
 
 				// If the logic has fallen behind too much, skip it and catch up
@@ -774,7 +776,7 @@ namespace OpenRA
 						LogicTick();
 
 						// Force at least one render per tick during regular gameplay
-						if (OrderManager.World != null && !OrderManager.World.IsReplay)
+						if (OrderManager.World != null && !OrderManager.World.IsLoadingGameSave)
 							forceRender = true;
 					}
 

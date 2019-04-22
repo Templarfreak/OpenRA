@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using OpenRA.Graphics;
@@ -106,11 +107,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var missionMapPaths = kv.Value.Nodes.Select(n => n.Key).ToList();
 
 					var previews = modData.MapCache
-						.Where(p => p.Status == MapStatus.Available)
+						.Where(p => p.Class == MapClassification.System && p.Status == MapStatus.Available)
 						.Select(p => new
 						{
 							Preview = p,
-							Index = missionMapPaths.IndexOf(Platform.UnresolvePath(p.Package.Name))
+							Index = missionMapPaths.IndexOf(Path.GetFileName(p.Package.Name))
 						})
 						.Where(x => x.Index != -1)
 						.OrderBy(x => x.Index)

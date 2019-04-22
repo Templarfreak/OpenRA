@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,12 +10,11 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Effects;
-using OpenRA.Mods.Common.Graphics;
 using OpenRA.Orders;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
@@ -48,12 +47,11 @@ namespace OpenRA.Mods.Common.Widgets
 
 		void DrawRollover(Actor unit)
 		{
-			// TODO: Integrate this with SelectionDecorations to unhardcode the *Renderable
-			if (unit.Info.HasTraitInfo<SelectableInfo>())
-			{
-				var bounds = unit.TraitsImplementing<IDecorationBounds>().FirstNonEmptyBounds(unit, worldRenderer);
-				new SelectionBarsRenderable(unit, bounds, true, true).Render(worldRenderer);
-			}
+			var selectionDecorations = unit.TraitOrDefault<ISelectionDecorations>();
+			if (selectionDecorations == null)
+				return;
+
+			selectionDecorations.DrawRollover(unit, worldRenderer);
 		}
 
 		public override void Draw()
@@ -84,6 +82,14 @@ namespace OpenRA.Mods.Common.Widgets
 
 			var multiClick = mi.MultiTapCount >= 2;
 
+			if (!(World.OrderGenerator is UnitOrderGenerator))
+			{
+				ApplyOrders(World, mi);
+				isDragging = false;
+				YieldMouseFocus(mi);
+				return true;
+			}
+
 			if (mi.Button == MouseButton.Left && mi.Event == MouseInputEvent.Down)
 			{
 				if (!TakeMouseFocus(mi))
@@ -91,15 +97,6 @@ namespace OpenRA.Mods.Common.Widgets
 
 				dragStart = mousePos;
 				isDragging = true;
-
-				// Place buildings, use support powers, and other non-unit things
-				if (!(World.OrderGenerator is UnitOrderGenerator))
-				{
-					ApplyOrders(World, mi);
-					isDragging = false;
-					YieldMouseFocus(mi);
-					return true;
-				}
 			}
 
 			if (mi.Button == MouseButton.Left && mi.Event == MouseInputEvent.Up)
@@ -225,7 +222,7 @@ namespace OpenRA.Mods.Common.Widgets
 
 		public override string GetCursor(int2 screenPos)
 		{
-			return Sync.CheckSyncUnchanged(World, () =>
+			return Sync.RunUnsynced(Game.Settings.Debug.SyncCheckUnsyncedCode, World, () =>
 			{
 				// Always show an arrow while selecting
 				if (IsValidDragbox)

@@ -215,16 +215,11 @@ Container@EDITOR_WORLD_ROOT:
 					Visible: false
 				Sprite@DRAG_LAYER_PREVIEW:
 					Visible: false
-				Container@ACTOR_SELECT_BORDER:
-					X: 32
-					Y: 32
-					Width: 32
-					Height: 32
 				Background@ACTOR_EDIT_PANEL:
 					X: 32
 					Y: 32
 					Width: 294
-					Height: 144
+					Height: 114
 					Children:
 						Label@ACTOR_TYPE_LABEL:
 							X: 15
@@ -241,34 +236,53 @@ Container@EDITOR_WORLD_ROOT:
 							Text: ID
 							Align: Right
 						TextField@ACTOR_ID:
-							X: 80
+							X: 84
 							Y: 45
-							Width: 200
+							Width: 192
 							Height: 25
 						Label@ACTOR_ID_ERROR_LABEL:
-							X: 80
+							X: 84
 							Y: 70
-							Width: 260
+							Width: 192
 							Height: 15
 							Font: TinyBold
 							TextColor: FF0000
 						Container@ACTOR_INIT_CONTAINER:
-							Y: 75
+							Y: 73
 							Width: PARENT_RIGHT
 							Children:
-								Label@OWNERS_LABEL:
-									X: 15
-									Width: 55
-									Height: 24
-									Text: Owner
-									Align: Right
-								DropDownButton@OWNERS_DROPDOWN:
-									X: 80
-									Width: 200
-									Height: 25
-									Font: Bold
+								Container@SLIDER_OPTION_TEMPLATE:
+									Width: PARENT_RIGHT
+									Height: 22
+									Children:
+										Label@LABEL:
+											X: 15
+											Width: 55
+											Height: 16
+											Align: Right
+										Slider@OPTION:
+											X: 75
+											Y: 1
+											Width: 210
+											Height: 20
+								Container@DROPDOWN_OPTION_TEMPLATE:
+									Width: PARENT_RIGHT
+									Height: 27
+									Children:
+										Label@LABEL:
+											X: 15
+											Y: 1
+											Width: 55
+											Height: 24
+											Align: Right
+										DropDownButton@OPTION:
+											X: 84
+											Y: 1
+											Width: 192
+											Height: 25
+											Font: Bold
 						Container@BUTTON_CONTAINER:
-							Y: 105
+							Y: 75
 							Children:
 								Button@DELETE_BUTTON:
 									X: 15
@@ -494,9 +508,19 @@ Container@EDITOR_WORLD_ROOT:
 			Width: 90
 			Height: 25
 			Text: Copy/Paste
+			TooltipTemplate: BUTTON_TOOLTIP
+			TooltipText: Copy
+			TooltipContainer: TOOLTIP_CONTAINER
+			Font: Bold
+			Key: c ctrl
+		DropDownButton@COPYFILTER_BUTTON:
+			X: 270
+			Width: 140
+			Height: 25
+			Text: Copy Filters
 			Font: Bold
 		Button@GRID_BUTTON:
-			X: 270
+			X: 420
 			Width: 70
 			Height: 25
 			Text: Grid
@@ -506,7 +530,7 @@ Container@EDITOR_WORLD_ROOT:
 			Font: Bold
 			Key: f1
 		Label@ZOOM_LABEL:
-			X: 345
+			X: 495
 			Width: 50
 			Height: 25
 			Text: Zoom:
@@ -514,27 +538,30 @@ Container@EDITOR_WORLD_ROOT:
 			Font: Bold
 			Contrast: true
 		DropDownButton@ZOOM_BUTTON:
-			X: 400
+			X: 550
 			Width: 70
 			Height: 25
 			Font: Bold
 			Key: TogglePixelDouble
+			TooltipTemplate: BUTTON_TOOLTIP
+			TooltipText: Zoom
+			TooltipContainer: TOOLTIP_CONTAINER
 		Label@COORDINATE_LABEL:
-			X: 485
+			X: 635
 			Width: 50
 			Height: 25
 			Align: Left
 			Font: Bold
 			Contrast: true
 		Label@CASH_LABEL:
-			X: 600
+			X: 750
 			Width: 50
 			Height: 25
 			Align: Left
 			Font: Bold
 			Contrast: true
 
-ScrollPanel@ACTOR_CATEGORY_FILTER_PANEL:
+ScrollPanel@CATEGORY_FILTER_PANEL:
 	Width: 170
 	Children:
 		Container@SELECT_CATEGORIES_BUTTONS:
@@ -555,6 +582,17 @@ ScrollPanel@ACTOR_CATEGORY_FILTER_PANEL:
 					Height: 25
 					Text: None
 					Font: Bold
+		Checkbox@CATEGORY_TEMPLATE:
+			X: 5
+			Y: 5
+			Width: PARENT_RIGHT - 29
+			Height: 20
+			Visible: false
+
+ScrollPanel@COPY_FILTER_PANEL:
+	Width: 140
+	Height: 65
+	Children:
 		Checkbox@CATEGORY_TEMPLATE:
 			X: 5
 			Y: 5

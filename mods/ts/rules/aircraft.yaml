@@ -11,6 +11,7 @@ DPOD:
 		Speed: 149
 		InitialFacing: 0
 		LandableTerrainTypes: Clear,Road,Rail,DirtRoad,Rough,Tiberium,BlueTiberium,Veins
+		Crushes: crate, infantry
 	Health:
 		HP: 6000
 	Armor:
@@ -38,12 +39,15 @@ DSHP:
 		Cost: 1000
 	Tooltip:
 		Name: Dropship
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Aircraft:
 		LandWhenIdle: true
 		TurnSpeed: 5
 		Speed: 168
 		InitialFacing: 0
 		LandableTerrainTypes: Clear,Road,Rail,DirtRoad,Rough,Tiberium,BlueTiberium,Veins
+		Crushes: crate, infantry
 		TakeoffSounds: dropup1.aud
 		LandingSounds: dropdwn1.aud
 		IdealSeparation: 1275
@@ -72,6 +76,8 @@ ORCA:
 		Cost: 1000
 	Tooltip:
 		Name: Orca Fighter
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 10
@@ -120,6 +126,8 @@ ORCAB:
 		Cost: 1600
 	Tooltip:
 		Name: Orca Bomber
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 30
@@ -173,6 +181,8 @@ ORCATRAN:
 		Cost: 1200
 	Tooltip:
 		Name: Orca Transport
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 50
@@ -184,6 +194,7 @@ ORCATRAN:
 		Speed: 84
 		InitialFacing: 0
 		LandableTerrainTypes: Clear,Road,Rail,DirtRoad,Rough,Tiberium,BlueTiberium,Veins
+		Crushes: crate, infantry
 		TakeoffSounds: orcaup1.aud
 		LandingSounds: orcadwn1.aud
 		IdealSeparation: 1275
@@ -209,6 +220,8 @@ TRNSPORT:
 		Cost: 750
 	Tooltip:
 		Name: Carryall
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 60
@@ -220,6 +233,7 @@ TRNSPORT:
 		Speed: 149
 		InitialFacing: 0
 		LandableTerrainTypes: Clear,Road,Rail,DirtRoad,Rough,Tiberium,BlueTiberium,Veins
+		Crushes: crate, infantry
 		TakeoffSounds: dropup1.aud
 		LandingSounds: dropdwn1.aud
 		AltitudeVelocity: 64
@@ -249,6 +263,8 @@ SCRIN:
 		Cost: 1500
 	Tooltip:
 		Name: Banshee Fighter
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 40
@@ -305,6 +321,8 @@ APACHE:
 		Cost: 1000
 	Tooltip:
 		Name: Harpy
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Air
 		BuildPaletteOrder: 20
@@ -360,10 +378,6 @@ HUNTER:
 		HP: 50000
 	Armor:
 		Type: Light
-	AttackSuicides:
-	Explodes:
-		Weapon: SuicideBomb
-		EmptyWeapon: SuicideBomb
 	Aircraft:
 		TurnSpeed: 16
 		Speed: 355
@@ -371,6 +385,14 @@ HUNTER:
 		CanHover: True
 		CruisingCondition: cruising
 		VTOL: true
+	AttackAircraft:
+		FacingTolerance: 128
+	Armament@PRIMARY:
+		Weapon: SuicideBomb
+	GrantConditionOnAttack:
+		Condition: triggered
+	KillsSelf:
+		RequiresCondition: triggered
 	Targetable:
 		TargetTypes: Ground, Vehicle
 	HiddenUnderFog:
@@ -389,7 +411,6 @@ HUNTER:
 	Interactable:
 	SelectionDecorations:
 		Palette: pips
-	ActorLostNotification:
 	HitShape:
 	MapEditorData:
 		Categories: System

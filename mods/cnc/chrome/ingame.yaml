@@ -10,7 +10,8 @@ Container@INGAME_ROOT:
 				TakeScreenshotKey: TakeScreenshot
 				MuteAudioKey: ToggleMute
 		LogicKeyListener@WORLD_KEYHANDLER:
-			Logic: CycleBasesHotkeyLogic, CycleProductionActorsHotkeyLogic, JumpToLastEventHotkeyLogic, JumpToSelectedActorsHotkeyLogic, TogglePixelDoubleHotkeyLogic, TogglePlayerStanceColorHotkeyLogic, CycleStatusBarsHotkeyLogic, PauseHotkeyLogic
+			Logic: CycleBasesHotkeyLogic, CycleProductionActorsHotkeyLogic, JumpToLastEventHotkeyLogic, JumpToSelectedActorsHotkeyLogic, TogglePixelDoubleHotkeyLogic, TogglePlayerStanceColorHotkeyLogic, CycleStatusBarsHotkeyLogic, PauseHotkeyLogic, RemoveFromControlGroupHotkeyLogic
+				RemoveFromControlGroupKey: RemoveFromControlGroup
 				CycleBasesKey: CycleBase
 				CycleProductionActorsKey: CycleProductionBuildings
 				JumpToLastEventKey: ToLastEvent
@@ -111,6 +112,7 @@ Container@OBSERVER_WIDGETS:
 		StatisticsProductionKey: StatisticsProduction
 		StatisticsCombatKey: StatisticsCombat
 		StatisticsGraphKey: StatisticsGraph
+		StatisticsArmyGraphKey: StatisticsArmyGraph
 	Children:
 		LogicKeyListener@OBSERVER_KEY_LISTENER:
 		MenuButton@OPTIONS_BUTTON:
@@ -358,7 +360,7 @@ Container@PLAYER_WIDGETS:
 					Background: command-button
 					DisableKeySound: true
 					TooltipText: Force Attack
-					TooltipDesc: Selected units will attack the targeted unit or location\nignoring their default activity for the target.\n\nLeft-click icon then right-click on target.\nHold {(Ctrl)} to activate temporarily while commanding units.
+					TooltipDesc: Selected units will attack the targeted unit or location\n - Default activity for the target is suppressed\n - Allows targeting of own or ally forces\n - Long-range artillery units will always target the\n   location, ignoring units and buildings\n\nLeft-click icon then right-click on target.\nHold {(Ctrl)} to activate temporarily while commanding units.
 					TooltipContainer: TOOLTIP_CONTAINER
 					TooltipTemplate: BUTTON_WITH_DESC_HIGHLIGHT_TOOLTIP
 					Children:

@@ -174,7 +174,7 @@
 	Mobile:
 		TurnSpeed: 5
 		Locomotor: vehicle
-		RequiresCondition: !notmobile
+		PauseOnCondition: notmobile
 	SelectionDecorations:
 	WithSpriteControlGroupDecoration:
 	Selectable:
@@ -188,7 +188,7 @@
 	HiddenUnderFog:
 	ActorLostNotification:
 	Repairable:
-		RepairBuildings: repair_pad
+		RepairActors: repair_pad
 	Guard:
 		Voice: Guard
 	Guardable:
@@ -229,6 +229,7 @@
 		Type: light
 	HiddenUnderFog:
 		Type: CenterPosition
+		AlwaysVisibleStances: None
 	Tooltip:
 		GenericName: Destroyed Unit
 	ScriptTriggers:
@@ -262,6 +263,7 @@
 		Spins: False
 		Moves: True
 		Explosion: UnitExplodeLarge
+	-MapEditorData:
 
 ^Infantry:
 	Inherits@1: ^ExistsInWorld

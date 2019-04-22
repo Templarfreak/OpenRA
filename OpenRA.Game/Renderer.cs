@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,9 +11,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 using OpenRA.Support;
 
 namespace OpenRA
@@ -39,6 +39,7 @@ namespace OpenRA
 		readonly Stack<Rectangle> scissorState = new Stack<Rectangle>();
 
 		SheetBuilder fontSheetBuilder;
+		readonly IPlatform platform;
 
 		float depthScale;
 		float depthOffset;
@@ -51,6 +52,7 @@ namespace OpenRA
 
 		public Renderer(IPlatform platform, GraphicSettings graphicSettings, string windowname)
 		{
+			this.platform = platform;
 			var resolution = GetResolution(graphicSettings);
 
 			Window = platform.CreateWindow(new Size(resolution.Width, resolution.Height), graphicSettings.Mode, graphicSettings.BatchSize, windowname);
@@ -214,7 +216,7 @@ namespace OpenRA
 		{
 			// Must remain inside the current scissor rect
 			if (scissorState.Any())
-				rect.Intersect(scissorState.Peek());
+				rect = Rectangle.Intersect(rect, scissorState.Peek());
 
 			Flush();
 			Context.EnableScissor(rect.Left, rect.Top, rect.Width, rect.Height);
@@ -289,6 +291,11 @@ namespace OpenRA
 		public string GLVersion
 		{
 			get { return Context.GLVersion; }
+		}
+
+		public IFont CreateFont(byte[] data)
+		{
+			return platform.CreateFont(data);
 		}
 	}
 }

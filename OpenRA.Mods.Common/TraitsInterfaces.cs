@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,12 +9,11 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
-using System.Drawing;
 using OpenRA.Activities;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Activities;
-using OpenRA.Mods.Common.AI;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -368,6 +367,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		byte Index { get; }
 		bool InteractsWithDefaultLayer { get; }
+		bool ReturnToGroundLayerOnIdle { get; }
 
 		bool EnabledForActor(ActorInfo a, LocomotorInfo li);
 		int EntryMovementCost(ActorInfo a, LocomotorInfo li, CPos cell);
@@ -397,17 +397,20 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		Activity MoveTo(CPos cell, int nearEnough);
 		Activity MoveTo(CPos cell, Actor ignoreActor);
-		Activity MoveWithinRange(Target target, WDist range);
-		Activity MoveWithinRange(Target target, WDist minRange, WDist maxRange);
-		Activity MoveFollow(Actor self, Target target, WDist minRange, WDist maxRange);
+		Activity MoveWithinRange(Target target, WDist range,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null);
+		Activity MoveWithinRange(Target target, WDist minRange, WDist maxRange,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null);
+		Activity MoveFollow(Actor self, Target target, WDist minRange, WDist maxRange,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null);
+		Activity MoveToTarget(Actor self, Target target,
+			WPos? initialTargetPosition = null, Color? targetLineColor = null);
 		Activity MoveIntoWorld(Actor self, CPos cell, SubCell subCell = SubCell.Any);
-		Activity MoveToTarget(Actor self, Target target);
 		Activity MoveIntoTarget(Actor self, Target target);
 		Activity VisualMove(Actor self, WPos fromPos, WPos toPos);
 		int EstimatedMoveDuration(Actor self, WPos fromPos, WPos toPos);
 		CPos NearestMoveableCell(CPos target);
-		bool IsMoving { get; set; }
-		bool IsMovingVertically { get; set; }
+		MovementType CurrentMovementTypes { get; set; }
 		bool CanEnterTargetNow(Actor self, Target target);
 	}
 
@@ -424,6 +427,7 @@ namespace OpenRA.Mods.Common.Traits
 		int ExitDelay { get; }
 	}
 
+	[RequireExplicitImplementation]
 	public interface INotifyObjectivesUpdated
 	{
 		void OnPlayerWon(Player winner);
@@ -450,4 +454,112 @@ namespace OpenRA.Mods.Common.Traits
 
 	[RequireExplicitImplementation]
 	public interface IBotTick { void BotTick(IBot bot); }
+
+	[RequireExplicitImplementation]
+	public interface IBotRespondToAttack { void RespondToAttack(IBot bot, Actor self, AttackInfo e); }
+
+	[RequireExplicitImplementation]
+	public interface IBotPositionsUpdated
+	{
+		void UpdatedBaseCenter(CPos newLocation);
+		void UpdatedDefenseCenter(CPos newLocation);
+	}
+
+	[RequireExplicitImplementation]
+	public interface IBotNotifyIdleBaseUnits
+	{
+		void UpdatedIdleBaseUnits(List<Actor> idleUnits);
+	}
+
+	[RequireExplicitImplementation]
+	public interface IBotRequestUnitProduction
+	{
+		void RequestUnitProduction(IBot bot, string requestedActor);
+		int RequestedProductionCount(IBot bot, string requestedActor);
+	}
+
+	[RequireExplicitImplementation]
+	public interface IBotRequestPauseUnitProduction
+	{
+		bool PauseUnitProduction { get; }
+	}
+
+	[RequireExplicitImplementation]
+	public interface IEditorActorOptions : ITraitInfoInterface
+	{
+		IEnumerable<EditorActorOption> ActorOptions(ActorInfo ai, World world);
+	}
+
+	public abstract class EditorActorOption
+	{
+		public readonly string Name;
+		public readonly int DisplayOrder;
+
+		public EditorActorOption(string name, int displayOrder)
+		{
+			Name = name;
+			DisplayOrder = displayOrder;
+		}
+	}
+
+	public class EditorActorSlider : EditorActorOption
+	{
+		public readonly float MinValue;
+		public readonly float MaxValue;
+		public readonly int Ticks;
+		public readonly Func<EditorActorPreview, float> GetValue;
+		public readonly Action<EditorActorPreview, float> OnChange;
+
+		public EditorActorSlider(string name, int displayOrder,
+			float minValue, float maxValue, int ticks,
+			Func<EditorActorPreview, float> getValue,
+			Action<EditorActorPreview, float> onChange)
+			: base(name, displayOrder)
+		{
+			MinValue = minValue;
+			MaxValue = maxValue;
+			Ticks = ticks;
+			GetValue = getValue;
+			OnChange = onChange;
+		}
+	}
+
+	public class EditorActorDropdown : EditorActorOption
+	{
+		public readonly Dictionary<string, string> Labels;
+		public readonly Func<EditorActorPreview, string> GetValue;
+		public readonly Action<EditorActorPreview, string> OnChange;
+
+		public EditorActorDropdown(string name, int displayOrder,
+			Dictionary<string, string> labels,
+			Func<EditorActorPreview, string> getValue,
+			Action<EditorActorPreview, string> onChange)
+			: base(name, displayOrder)
+		{
+			Labels = labels;
+			GetValue = getValue;
+			OnChange = onChange;
+		}
+	}
+
+	[RequireExplicitImplementation]
+	public interface IPreventMapSpawn
+	{
+		bool PreventMapSpawn(World world, ActorReference actorReference);
+	}
+
+	[Flags]
+	public enum MovementType
+	{
+		None = 0,
+		Horizontal = 1,
+		Vertical = 2,
+		Turn = 4
+	}
+
+	[RequireExplicitImplementation]
+	public interface INotifyMoving
+	{
+		void MovementTypeChanged(Actor self, MovementType type);
+	}
 }

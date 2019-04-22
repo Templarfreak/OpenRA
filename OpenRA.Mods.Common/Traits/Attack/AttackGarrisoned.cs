@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits.Render;
@@ -162,7 +161,7 @@ namespace OpenRA.Mods.Common.Traits
 			base.ResolveOrder(self, order);
 		}
 
-		public override void DoAttack(Actor self, Target target, IEnumerable<Armament> armaments = null)
+		public override void DoAttack(Actor self, Target target)
 		{
 
 			if (!CanAttack(self, target))
@@ -179,7 +178,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (Info.PickRandomTargets && !ForcedAttack)
 				{
-					new_target = Target.FromActor(a.Actor.TraitOrDefault<AutoTarget>().ScanForTarget(a.Actor, false));
+					new_target = a.Actor.TraitOrDefault<AutoTarget>().ScanForTarget(a.Actor, false);
 
 					if (new_target.Type == TargetType.Invalid)
 						new_target = target;

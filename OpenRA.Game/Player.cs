@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using Eluant;
 using Eluant.ObjectBinding;
@@ -45,7 +44,7 @@ namespace OpenRA
 		}
 
 		public readonly Actor PlayerActor;
-		public readonly HSLColor Color;
+		public readonly Color Color;
 
 		public readonly string PlayerName;
 		public readonly string InternalName;
@@ -56,6 +55,8 @@ namespace OpenRA
 		public readonly PlayerReference PlayerReference;
 		public readonly bool IsBot;
 		public readonly string BotType;
+		public readonly Shroud Shroud;
+		public readonly FrozenActorLayer FrozenActorLayer;
 
 		/// <summary>The faction (including Random, etc) that was selected in the lobby.</summary>
 		public readonly FactionInfo DisplayFaction;
@@ -65,7 +66,6 @@ namespace OpenRA
 		public bool HasObjectives = false;
 		public bool Spectating;
 
-		public Shroud Shroud;
 		public World World { get; private set; }
 
 		readonly bool inMissionMap;
@@ -156,6 +156,7 @@ namespace OpenRA
 			var playerActorType = world.Type == WorldType.Editor ? "EditorPlayer" : "Player";
 			PlayerActor = world.CreateActor(playerActorType, new TypeDictionary { new OwnerInit(this) });
 			Shroud = PlayerActor.Trait<Shroud>();
+			FrozenActorLayer = PlayerActor.TraitOrDefault<FrozenActorLayer>();
 
 			// Enable the bot logic on the host
 			IsBot = BotType != null;

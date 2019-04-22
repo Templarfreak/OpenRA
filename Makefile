@@ -1,7 +1,7 @@
 ############################# INSTRUCTIONS #############################
 #
 # to compile, run:
-#   make [DEBUG=false]
+#   make [DEBUG=true]
 #
 # to check unit tests (requires NUnit version >= 2.6), run:
 #  make nunit [NUNIT_CONSOLE=<path-to/nunit[2]-console>] [NUNIT_LIBS_PATH=<path-to-libs-dir>] [NUNIT_LIBS=<nunit-libs>]
@@ -37,15 +37,26 @@
 
 ############################## TOOLCHAIN ###############################
 #
-SDK         ?=
-CSC         = mcs $(SDK)
-CSFLAGS     = -nologo -warn:4 -codepage:utf8 -langversion:5 -unsafe -warnaserror
+CSC         = csc
+CSFLAGS     = -nologo -warn:4 -langversion:5 -unsafe -warnaserror
 DEFINE      = TRACE
-COMMON_LIBS = System.dll System.Core.dll System.Data.dll System.Data.DataSetExtensions.dll System.Drawing.dll System.Numerics.dll System.Xml.dll thirdparty/download/ICSharpCode.SharpZipLib.dll thirdparty/download/FuzzyLogicLibrary.dll thirdparty/download/MaxMind.Db.dll thirdparty/download/Eluant.dll thirdparty/download/rix0rrr.BeaconLib.dll
+COMMON_LIBS = System.dll System.Core.dll System.Numerics.dll thirdparty/download/ICSharpCode.SharpZipLib.dll thirdparty/download/FuzzyLogicLibrary.dll thirdparty/download/MaxMind.Db.dll thirdparty/download/Eluant.dll thirdparty/download/rix0rrr.BeaconLib.dll
+
+# List of .NET assemblies that we can guarantee exist
+# OpenRA.Game.dll is a harmless false positive that we can ignore
+WHITELISTED_OPENRA_ASSEMBLIES = $(game_TARGET) $(utility_TARGET) $(pdefault_TARGET) $(mod_common_TARGET) $(mod_cnc_TARGET) $(mod_d2k_TARGET) OpenRA.Game.dll
+
+# These are explicitly shipped alongside our core files by the packaging script
+WHITELISTED_THIRDPARTY_ASSEMBLIES = ICSharpCode.SharpZipLib.dll FuzzyLogicLibrary.dll MaxMind.Db.dll Eluant.dll rix0rrr.BeaconLib.dll Open.Nat.dll SDL2-CS.dll OpenAL-CS.dll 
+
+# These are shipped in our custom minimal mono runtime and also available in the full system-installed .NET/mono stack
+# This list *must* be kept in sync with the files packaged by the AppImageSupport and OpenRALauncherOSX repositories
+WHITELISTED_CORE_ASSEMBLIES = mscorlib.dll System.dll System.Configuration.dll System.Core.dll System.Numerics.dll System.Security.dll System.Xml.dll Mono.Security.dll
+
 NUNIT_LIBS_PATH :=
 NUNIT_LIBS  := $(NUNIT_LIBS_PATH)nunit.framework.dll
 
-DEBUG = true
+DEBUG = false
 ifeq ($(DEBUG), $(filter $(DEBUG),false no n off 0))
 CSFLAGS   += -debug:pdbonly -optimize+
 else
@@ -102,7 +113,7 @@ endif
 game_SRCS := $(shell find OpenRA.Game/ -iname '*.cs')
 game_TARGET = OpenRA.Game.exe
 game_KIND = winexe
-game_LIBS = $(COMMON_LIBS) $(game_DEPS) thirdparty/download/SharpFont.dll thirdparty/download/Open.Nat.dll
+game_LIBS = $(COMMON_LIBS) $(game_DEPS) thirdparty/download/Open.Nat.dll
 PROGRAMS += game
 game: $(game_TARGET)
 
@@ -164,6 +175,9 @@ check-scripts:
 	@luac -p $(shell find lua/* -iname '*.lua')
 
 check: utility stylecheck mods
+	@echo
+	@echo "Checking runtime assemblies..."
+	@mono --debug OpenRA.Utility.exe all --check-runtime-assemblies $(WHITELISTED_OPENRA_ASSEMBLIES) $(WHITELISTED_THIRDPARTY_ASSEMBLIES) $(WHITELISTED_CORE_ASSEMBLIES)
 	@echo
 	@echo "Checking for explicit interface violations..."
 	@mono --debug OpenRA.Utility.exe all --check-explicit-interfaces
@@ -280,16 +294,17 @@ $(foreach prog,$(PROGRAMS),$(eval $(call BUILD_ASSEMBLY,$(prog))))
 
 ########################## MAKE/INSTALL RULES ##########################
 #
-default: core
+default: dependencies core
 
-core: dependencies game platforms mods utility server
+core: game platforms mods utility server
 
 mods: mod_common mod_cnc mod_d2k
 
 all: dependencies core stylecheck
 
 clean:
-	@-$(RM_F) *.exe *.dll *.dylib *.dll.config ./OpenRA*/*.dll ./OpenRA*/*.mdb *.mdb mods/**/*.dll mods/**/*.mdb *.resources
+	@-$(RM_F) $(shell find . -maxdepth 1 -iname '*.dll.config' -a ! -iname 'OpenRA.Platforms.Default.dll.config')
+	@-$(RM_F) *.exe *.dll *.dylib ./OpenRA*/*.dll ./OpenRA*/*.mdb *.mdb mods/**/*.dll mods/**/*.mdb *.resources
 	@-$(RM_RF) ./*/bin ./*/obj
 	@-$(RM_RF) ./thirdparty/download
 
@@ -340,6 +355,7 @@ install-engine:
 	@-echo "Installing OpenRA engine to $(DATA_INSTALL_DIR)"
 	@$(INSTALL_DIR) "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) $(foreach prog,$(CORE),$($(prog)_TARGET)) "$(DATA_INSTALL_DIR)"
+	@$(CP) OpenRA.Platforms.Default.dll.config "$(DATA_INSTALL_DIR)"
 
 	@$(INSTALL_DATA) "GeoLite2-Country.mmdb.gz" "$(DATA_INSTALL_DIR)/GeoLite2-Country.mmdb.gz"
 	@$(INSTALL_DATA) VERSION "$(DATA_INSTALL_DIR)/VERSION"
@@ -353,8 +369,7 @@ install-engine:
 	@$(CP) Eluant* "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) ICSharpCode.SharpZipLib.dll "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) FuzzyLogicLibrary.dll "$(DATA_INSTALL_DIR)"
-	@$(INSTALL_PROGRAM) SharpFont.dll "$(DATA_INSTALL_DIR)"
-	@$(CP) SharpFont.dll.config "$(DATA_INSTALL_DIR)"
+	@$(CP) OpenRA.Platforms.Default.dll.config "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) Open.Nat.dll "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) MaxMind.Db.dll "$(DATA_INSTALL_DIR)"
 	@$(INSTALL_PROGRAM) rix0rrr.BeaconLib.dll "$(DATA_INSTALL_DIR)"

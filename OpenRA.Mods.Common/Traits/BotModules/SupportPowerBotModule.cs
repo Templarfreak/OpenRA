@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Mods.Common.AI;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -41,7 +40,6 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly World world;
 		readonly Player player;
-		FrozenActorLayer frozenLayer;
 		SupportPowerManager supportPowerManager;
 		Dictionary<SupportPowerInstance, int> waitingPowers = new Dictionary<SupportPowerInstance, int>();
 		Dictionary<string, SupportPowerDecision> powerDecisions = new Dictionary<string, SupportPowerDecision>();
@@ -55,7 +53,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		protected override void TraitEnabled(Actor self)
 		{
-			frozenLayer = player.PlayerActor.TraitOrDefault<FrozenActorLayer>();
 			supportPowerManager = player.PlayerActor.Trait<SupportPowerManager>();
 			foreach (var decision in Info.Decisions)
 				powerDecisions.Add(decision.OrderName, decision);
@@ -140,7 +137,7 @@ namespace OpenRA.Mods.Common.Traits
 					var wbr = world.Map.CenterOfCell(br.ToCPos(map));
 					var targets = world.ActorMap.ActorsInBox(wtl, wbr);
 
-					var frozenTargets = frozenLayer != null ? frozenLayer.FrozenActorsInRegion(region) : Enumerable.Empty<FrozenActor>();
+					var frozenTargets = player.FrozenActorLayer != null ? player.FrozenActorLayer.FrozenActorsInRegion(region) : Enumerable.Empty<FrozenActor>();
 					var consideredAttractiveness = powerDecision.GetAttractiveness(targets, player) + powerDecision.GetAttractiveness(frozenTargets, player);
 					if (consideredAttractiveness <= bestAttractiveness || consideredAttractiveness < powerDecision.MinimumAttractiveness)
 						continue;
@@ -176,7 +173,7 @@ namespace OpenRA.Mods.Common.Traits
 					var y = checkPos.Y + j;
 					var pos = world.Map.CenterOfCell(new CPos(x, y));
 					var consideredAttractiveness = 0;
-					consideredAttractiveness += powerDecision.GetAttractiveness(pos, player, frozenLayer);
+					consideredAttractiveness += powerDecision.GetAttractiveness(pos, player);
 
 					if (consideredAttractiveness <= bestAttractiveness || consideredAttractiveness < powerDecision.MinimumAttractiveness)
 						continue;

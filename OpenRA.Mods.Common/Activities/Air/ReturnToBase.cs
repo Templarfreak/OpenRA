@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Activities
@@ -26,6 +27,7 @@ namespace OpenRA.Mods.Common.Activities
 		readonly bool alwaysLand;
 		readonly bool abortOnResupply;
 		bool isCalculated;
+		bool resupplied;
 		Actor dest;
 		WPos w1, w2, w3;
 
@@ -46,17 +48,14 @@ namespace OpenRA.Mods.Common.Activities
 				return null;
 
 			return self.World.ActorsHavingTrait<Reservable>()
-				.Where(a => a.Owner == self.Owner
+				.Where(a => !a.IsDead
+					&& a.Owner == self.Owner
 					&& rearmInfo.RearmActors.Contains(a.Info.Name)
 					&& (!unreservedOnly || !Reservable.IsReserved(a, aircraft)))
 				.ClosestTo(self);
 		}
 
-		int CalculateTurnRadius(int speed)
-		{
-			return 45 * speed / aircraft.Info.TurnSpeed;
-		}
-
+		// Calculates non-CanHover/non-VTOL approach vector and waypoints
 		void Calculate(Actor self)
 		{
 			if (dest == null || dest.IsDead || Reservable.IsReserved(dest, aircraft))
@@ -68,7 +67,10 @@ namespace OpenRA.Mods.Common.Activities
 
 			aircraft.MakeReservation(dest);
 
-			var landPos = aircraft.reservation.Second;
+			var exit = dest.FirstExitOrDefault(null);
+			var offset = exit != null ? exit.Info.SpawnOffset : WVec.Zero;
+
+			var landPos = dest.CenterPosition + offset;
 			var altitude = aircraft.Info.CruiseAltitude.Length;
 
 			// Distance required for descent.
@@ -79,7 +81,7 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Add 10% to the turning radius to ensure we have enough room
 			var speed = aircraft.MovementSpeed * 32 / 35;
-			var turnRadius = CalculateTurnRadius(speed);
+			var turnRadius = Fly.CalculateTurnRadius(speed, aircraft.Info.TurnSpeed);
 
 			// Find the center of the turning circles for clockwise and counterclockwise turns
 			var angle = WAngle.FromFacing(aircraft.Facing);
@@ -117,7 +119,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (alwaysLand)
 				return true;
 
-			if (repairableInfo != null && repairableInfo.RepairBuildings.Contains(dest.Info.Name) && self.GetDamageState() != DamageState.Undamaged)
+			if (repairableInfo != null && repairableInfo.RepairActors.Contains(dest.Info.Name) && self.GetDamageState() != DamageState.Undamaged)
 				return true;
 
 			return rearmable != null && rearmable.Info.RearmActors.Contains(dest.Info.Name)
@@ -126,13 +128,33 @@ namespace OpenRA.Mods.Common.Activities
 
 		public override Activity Tick(Actor self)
 		{
+			if (ChildActivity != null)
+			{
+				ChildActivity = ActivityUtils.RunActivity(self, ChildActivity);
+				if (ChildActivity != null)
+					return this;
+			}
+
 			// Refuse to take off if it would land immediately again.
 			// Special case: Don't kill other deploy hotkey activities.
 			if (aircraft.ForceLanding)
 				return NextActivity;
 
-			if (IsCanceled || self.IsDead)
+			// If a Cancel was triggered at this point, it's unlikely that previously queued child activities finished,
+			// so 'resupplied' needs to be set to false, else it + abortOnResupply might cause another Cancel
+			// that would cancel any other activities that were queued after the first Cancel was triggered.
+			// TODO: This is a mess, we need to somehow make the activity cancelling a bit less tricky.
+			if (resupplied && IsCanceling)
+				resupplied = false;
+
+			if (resupplied && abortOnResupply)
+				Cancel(self);
+
+			if (resupplied || IsCanceling || self.IsDead)
 				return NextActivity;
+
+			if (dest == null || dest.IsDead || !Reservable.IsAvailableFor(dest, self))
+				dest = ChooseResupplier(self, true);
 
 			if (!isCalculated)
 				Calculate(self);
@@ -148,7 +170,8 @@ namespace OpenRA.Mods.Common.Activities
 				{
 					List<Activity> _landingProcedures = new List<Activity>();
 
-					var _turnRadius = CalculateTurnRadius(aircraft.Info.Speed);
+					var speed = aircraft.MovementSpeed * 32 / 35;
+					var _turnRadius = Fly.CalculateTurnRadius(speed, aircraft.Info.Speed);
 
 					_landingProcedures.Add(new Fly(self, Target.FromPos(w1), WDist.Zero, new WDist(_turnRadius * 3)));
 					_landingProcedures.Add(new Fly(self, Target.FromPos(w2)));
@@ -161,7 +184,7 @@ namespace OpenRA.Mods.Common.Activities
 						aircraft.MakeReservation(dest);
 						var landPos = aircraft.reservation.Second;
 
-						_landingProcedures.Add(new Land(self, Target.FromPos(landPos)));
+						_landingProcedures.Add(new Land(self, Target.FromPos(landPos), false));
 						_landingProcedures.Add(new ResupplyAircraft(self));
 					}
 				}
@@ -179,7 +202,7 @@ namespace OpenRA.Mods.Common.Activities
 
 						var target = Target.FromPos(nearestResupplier.CenterPosition + randomPosition);
 
-						return ActivityUtils.SequenceActivities(new Fly(self, target, WDist.Zero, aircraft.Info.WaitDistanceFromResupplyBase),
+						return ActivityUtils.SequenceActivities(self, new Fly(self, target, WDist.Zero, aircraft.Info.WaitDistanceFromResupplyBase),
 							new FlyCircle(self, aircraft.Info.NumberOfTicksToVerifyAvailableAirport), this);
 					}
 
@@ -188,29 +211,44 @@ namespace OpenRA.Mods.Common.Activities
 				}
 			}
 
-			List<Activity> landingProcedures = new List<Activity>();
+			var exit = dest.FirstExitOrDefault(null);
+			var offset = exit != null ? exit.Info.SpawnOffset : WVec.Zero;
 
-			var turnRadius = CalculateTurnRadius(aircraft.Info.Speed);
+			if (aircraft.Info.CanHover)
+				QueueChild(self, new HeliFly(self, Target.FromPos(dest.CenterPosition + offset)), true);
+			else if (aircraft.Info.VTOL)
+				QueueChild(self, new Fly(self, Target.FromPos(dest.CenterPosition + offset)), true);
+			else
+			{
+				var turnRadius = Fly.CalculateTurnRadius(aircraft.Info.Speed, aircraft.Info.TurnSpeed);
 
-			landingProcedures.Add(new Fly(self, Target.FromPos(w1), WDist.Zero, new WDist(turnRadius * 3)));
-			landingProcedures.Add(new Fly(self, Target.FromPos(w2)));
+				QueueChild(self, new Fly(self, Target.FromPos(w1), WDist.Zero, new WDist(turnRadius * 3)), true);
+				QueueChild(self, new Fly(self, Target.FromPos(w2)), true);
 
-			// Fix a problem when the airplane is send to resupply near the airport
-			landingProcedures.Add(new Fly(self, Target.FromPos(w3), WDist.Zero, new WDist(turnRadius / 2)));
+				// Fix a problem when the airplane is sent to resupply near the airport
+				QueueChild(self, new Fly(self, Target.FromPos(w3), WDist.Zero, new WDist(turnRadius / 2)), true);
+			}
 
 			if (ShouldLandAtBuilding(self, dest))
 			{
 				aircraft.MakeReservation(dest);
 				var landPos = aircraft.reservation.Second;
 
-				landingProcedures.Add(new Land(self, Target.FromPos(landPos)));
-				landingProcedures.Add(new ResupplyAircraft(self));
+				if (aircraft.Info.VTOL)
+				{
+					if (aircraft.Info.TurnToDock)
+						QueueChild(self, new Turn(self, aircraft.Info.InitialFacing), true);
+
+					QueueChild(self, new HeliLand(self, true, dest), true);
+				}
+				else
+					QueueChild(self, new Land(self, Target.FromPos(dest.CenterPosition + offset), true, dest), true);
+
+				QueueChild(self, new ResupplyAircraft(self), true);
+				resupplied = true;
 			}
 
-			if (!abortOnResupply)
-				landingProcedures.Add(NextActivity);
-
-			return ActivityUtils.SequenceActivities(landingProcedures.ToArray());
+			return this;
 		}
 	}
 }

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -145,20 +145,6 @@ namespace OpenRA
 				.GetInterfaces()
 				.Where(t => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Requires<>))
 				.Select(t => t.GetGenericArguments()[0]);
-		}
-
-		public IEnumerable<Pair<string, Type>> GetInitKeys()
-		{
-			var inits = traits.WithInterface<ITraitInfo>().SelectMany(
-				t => t.GetType().GetInterfaces()
-					.Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(UsesInit<>))
-					.Select(i => i.GetGenericArguments()[0])).ToList();
-
-			inits.Add(typeof(OwnerInit));		/* not exposed by a trait; this is used by the Actor itself */
-
-			return inits.Select(
-				i => Pair.New(
-					i.Name.Replace("Init", ""), i));
 		}
 
 		public bool HasTraitInfo<T>() where T : ITraitInfoInterface { return traits.Contains<T>(); }

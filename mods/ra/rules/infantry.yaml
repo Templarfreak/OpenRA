@@ -11,6 +11,8 @@ DOG:
 	Tooltip:
 		Name: Attack Dog
 		GenericName: Dog
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Selectable:
 		Bounds: 12,17,-1,-4
 		DecorationBounds: 12,17,-1,-4
@@ -20,18 +22,26 @@ DOG:
 	Mobile:
 		Speed: 99
 		Voice: Move
+		PauseOnCondition: attack-cooldown || eating
 	Guard:
 		Voice: Move
 	Passenger:
 		Voice: Move
 	RevealsShroud:
-		Range: 5c0
+		Range: 5c512
 	Armament:
 		Weapon: DogJaw
+		ReloadingCondition: attack-cooldown
 	AttackLeap:
 		Voice: Attack
+		PauseOnCondition: attacking || attack-cooldown
 	AttackMove:
 		Voice: Move
+	GrantConditionOnAttack:
+		Condition: eating
+		RevokeDelay: 45
+	GrantConditionWhileAiming:
+		Condition: run
 	AutoTarget:
 		InitialStance: AttackAnything
 	AutoTargetPriority@DEFAULT:
@@ -39,8 +49,16 @@ DOG:
 	Targetable:
 		TargetTypes: Ground, Infantry
 	WithInfantryBody:
-		DefaultAttackSequence: shoot
+		MoveSequence: walk
 		StandSequences: stand
+		DefaultAttackSequence: eat
+		RequiresCondition: !run
+	WithInfantryBody@RUN:
+		MoveSequence: run
+		RequiresCondition: run
+	SpeedMultiplier:
+		Modifier: 150
+		RequiresCondition: run
 	IgnoresDisguise:
 	DetectCloaked:
 		CloakTypes: Cloak, Thief
@@ -63,6 +81,8 @@ E1:
 		Cost: 100
 	Tooltip:
 		Name: Rifle Infantry
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 5000
 	Armament@PRIMARY:
@@ -103,6 +123,8 @@ E2:
 		Cost: 160
 	Tooltip:
 		Name: Grenadier
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 5000
 	Mobile:
@@ -146,6 +168,8 @@ E3:
 		Cost: 300
 	Tooltip:
 		Name: Rocket Soldier
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 4500
 	Armament@PRIMARY:
@@ -194,6 +218,8 @@ E4:
 		Cost: 300
 	Tooltip:
 		Name: Flamethrower
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 4000
 	Armament@PRIMARY:
@@ -228,9 +254,11 @@ E6:
 		Prerequisites: ~barracks, ~techlevel.infonly
 		Description: Infiltrates and captures\nenemy structures.\n  Unarmed
 	Valued:
-		Cost: 500
+		Cost: 400
 	Tooltip:
 		Name: Engineer
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	WithInfantryBody:
 		RequiresCondition: !parachute
 	WithInfantryBody@PARACHUTE:
@@ -277,6 +305,8 @@ SPY:
 	DisguiseTooltip:
 		Name: Spy
 		GenericName: Soldier
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	-Guard:
 	Mobile:
 		Voice: Move
@@ -345,6 +375,8 @@ E7:
 		Cost: 1200
 	Tooltip:
 		Name: Tanya
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 10000
 	Mobile:
@@ -372,7 +404,10 @@ E7:
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
 		StandSequences: stand
+	ExternalCondition@PRODUCED:
+		Condition: produced
 	VoiceAnnouncement:
+		RequiresCondition: produced
 		Voice: Build
 	AnnounceOnKill:
 	DetectCloaked:
@@ -394,8 +429,12 @@ MEDI:
 		Cost: 200
 	Tooltip:
 		Name: Medic
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 6000
+	Mobile:
+		Speed: 50
 	RevealsShroud:
 		Range: 3c0
 	Passenger:
@@ -429,9 +468,12 @@ MECH:
 		Cost: 500
 	Tooltip:
 		Name: Mechanic
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 8000
 	Mobile:
+		Speed: 50
 		Voice: Move
 	RevealsShroud:
 		Range: 3c0
@@ -445,7 +487,7 @@ MECH:
 		TargetStances: Ally
 		ForceTargetStances: None
 	AttackFrontal:
-		Voice: Move
+		Voice: Action
 	CaptureManager:
 	Captures:
 		CaptureTypes: husk
@@ -532,6 +574,8 @@ THF:
 		Cost: 500
 	Tooltip:
 		Name: Thief
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 5000
 	RevealsShroud:
@@ -565,7 +609,7 @@ THF:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
 	Mobile:
-		Speed: 85
+		Speed: 71
 
 SHOK:
 	Inherits: ^Soldier
@@ -580,6 +624,8 @@ SHOK:
 		Cost: 350
 	Tooltip:
 		Name: Shock Trooper
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 5000
 	Mobile:
@@ -619,6 +665,8 @@ SNIPER:
 		Cost: 700
 	Tooltip:
 		Name: Sniper
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
@@ -670,6 +718,8 @@ Zombie:
 		Cost: 100
 	Tooltip:
 		Name: Zombie
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
@@ -700,6 +750,8 @@ Ant:
 	Tooltip:
 		Name: Giant Ant
 		GenericName: Ant
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
@@ -733,3 +785,52 @@ Ant:
 	HitShape:
 		Type: Circle
 			Radius: 469
+
+FireAnt:
+	Inherits: Ant
+	Tooltip:
+		Name: Fire Ant
+		GenericVisibility: none
+	Mobile:
+		Speed: 80
+	Armament:
+		Weapon: AntFireball
+	Health:
+		HP: 7500
+	Armor:
+		Type: Heavy
+	Buildable:
+		Prerequisites: ~disabled
+
+ScoutAnt:
+	Inherits: Ant
+	Tooltip:
+		Name: Scout Ant
+		GenericVisibility: none
+	Health:
+		HP: 8500
+	Armor:
+		Type: Light
+	AutoTarget:
+		ScanRadius: 7
+	Buildable:
+		Prerequisites: ~disabled
+
+WarriorAnt:
+	Inherits: Ant
+	Tooltip:
+		Name: Warrior Ant
+		GenericVisibility: none
+	Mobile:
+		Speed: 65
+	Health:
+		HP: 12500
+	Armor:
+		Type: Heavy
+	Armament:
+		Weapon: MandibleHeavy
+	Buildable:
+		Prerequisites: ~disabled
+	RenderSprites:
+		Image: Ant
+

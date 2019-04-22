@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,6 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Primitives;
@@ -31,6 +30,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Sabotage damage expressed as a percentage of maximum target health.")]
 		public readonly int SabotageHPRemoval = 50;
+
+		[Desc("Damage types that applied with the sabotage damage.")]
+		public readonly BitSet<DamageType> SabotageDamageTypes = default(BitSet<DamageType>);
 
 		[Desc("Delay (in ticks) that to wait next to the target before initiating the capture.")]
 		public readonly int CaptureDelay = 0;
@@ -92,15 +94,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (order.OrderString != "CaptureActor" || IsTraitDisabled)
 				return;
 
-			var target = self.ResolveFrozenActorOrder(order, Color.Red);
-			if (target.Type != TargetType.Actor)
-				return;
-
 			if (!order.Queued)
 				self.CancelActivity();
 
-			self.SetTargetLine(target, Color.Red);
-			self.QueueActivity(new CaptureActor(self, target.Actor));
+			self.SetTargetLine(order.Target, Color.Red);
+			self.QueueActivity(new CaptureActor(self, order.Target));
 		}
 
 		protected override void TraitEnabled(Actor self) { captureManager.RefreshCaptures(self); }

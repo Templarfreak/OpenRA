@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,7 +10,6 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Activities;
@@ -245,12 +244,11 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (order.OrderString == "DeliverUnit")
 				{
-					var cell = self.World.Map.Clamp(order.TargetLocation);
-
+					var cell = self.World.Map.Clamp(self.World.Map.CellContaining(order.Target.CenterPosition));
 					if (!aircraftInfo.MoveIntoShroud && !self.Owner.Shroud.IsExplored(cell))
 						return;
 
-					var targetLocation = move.NearestMoveableCell(order.TargetLocation);
+					var targetLocation = move.NearestMoveableCell(cell);
 					self.SetTargetLine(Target.FromCell(self.World, targetLocation), Color.Yellow);
 					self.QueueActivity(order.Queued, new DeliverUnit(self, targetLocation));
 				}
@@ -265,18 +263,17 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				if (order.OrderString == "PickupUnit")
 				{
-					var target = self.ResolveFrozenActorOrder(order, Color.Yellow);
-					if (target.Type != TargetType.Actor)
+					if (order.Target.Type != TargetType.Actor)
 						return;
 
-					if (!ReserveCarryable(self, target.Actor))
+					if (!ReserveCarryable(self, order.Target.Actor))
 						return;
 
 					if (!order.Queued)
 						self.CancelActivity();
 
-					self.SetTargetLine(target, Color.Yellow);
-					self.QueueActivity(order.Queued, new PickupUnit(self, target.Actor, Info.LoadingDelay));
+					self.SetTargetLine(order.Target, Color.Yellow);
+					self.QueueActivity(order.Queued, new PickupUnit(self, order.Target.Actor, Info.LoadingDelay));
 				}
 			}
 		}
