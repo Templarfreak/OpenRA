@@ -15,11 +15,10 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Effects;
 using OpenRA.Graphics;
-using System.Drawing.Imaging;
+using OpenRA.Primitives;
 using OpenRA.Mods.Shock.Traits;
 
 /*

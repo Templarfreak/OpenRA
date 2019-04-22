@@ -13,8 +13,8 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 using OpenRA.Mods.Shock.Graphics;
 using OpenRA.Traits;
 using System.Linq;

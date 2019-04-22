@@ -133,7 +133,7 @@ namespace OpenRA.Mods.Shock.Traits
 
 			public override Activity Tick(Actor self)
 			{
-				if (IsCanceled || attack.InUse == false && attack.Master == null)
+				if (IsCanceling || attack.InUse == false && attack.Master == null)
 					return NextActivity;
 
 				return this;

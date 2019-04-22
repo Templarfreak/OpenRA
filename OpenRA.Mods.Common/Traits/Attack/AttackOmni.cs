@@ -35,7 +35,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			readonly AttackOmni attack;
 			readonly bool allowMove;
-			Target target;
+			public Target target;
 
 			public SetTarget(AttackOmni attack, Target target, bool allowMove)
 			{

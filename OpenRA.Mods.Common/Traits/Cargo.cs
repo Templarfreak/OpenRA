@@ -88,7 +88,7 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		public readonly CargoInfo Info;
 		readonly Actor self;
-		List<Actor> cargo = new List<Actor>();
+		public List<Actor> cargo = new List<Actor>();
 		readonly HashSet<Actor> reserves = new HashSet<Actor>();
 		readonly Dictionary<string, Stack<int>> passengerTokens = new Dictionary<string, Stack<int>>();
 		readonly Lazy<IFacing> facing;

@@ -71,11 +71,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="Experimental\" />
     <Folder Include="Traits\World\Sound\" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Experimental\GrantTimedCondition.cs" />
-    <Compile Include="Experimental\hp.cs" />
     <Compile Include="Extensions\Dictionary.cs" />
     <Compile Include="Extensions\Color.cs" />
     <Compile Include="Graphics\Tint.cs" />

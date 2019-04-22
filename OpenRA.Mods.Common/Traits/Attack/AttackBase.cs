@@ -131,6 +131,15 @@ namespace OpenRA.Mods.Common.Traits
 				a.CheckFire(self, facing, target);
 		}
 
+		public virtual void DoAttack(Actor self, Target target, IEnumerable<Armament> armaments = null)
+		{
+			if (!CanAttack(self, target))
+				return;
+
+			foreach (var a in Armaments)
+				a.CheckFire(self, facing, target);
+		}
+
 		IEnumerable<IOrderTargeter> IIssueOrder.Orders
 		{
 			get

@@ -14,11 +14,11 @@
 /* Works without base engine modification */
 
 using System.Collections.Generic;
-using System.Drawing;
 using OpenRA.GameRules;
 using OpenRA.Graphics;
 using OpenRA.Mods.Shock.Graphics;
 using OpenRA.Traits;
+using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Shock.Projectiles
 {
@@ -62,7 +62,7 @@ namespace OpenRA.Mods.Shock.Projectiles
 
 		public IProjectile Create(ProjectileArgs args)
 		{
-			var c = UsePlayerColor ? args.SourceActor.Owner.Color.RGB : Color;
+			var c = UsePlayerColor ? args.SourceActor.Owner.Color : Color;
 			return new RadBeam(args, this, c);
 		}
 	}

@@ -53,7 +53,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (aircraft.ForceLanding)
 				return NextActivity;
 
-			if (IsCanceled)
+			if (IsCanceling)
 				return NextActivity;
 
 			if (dest == null || dest.IsDead || Reservable.IsReserved(dest, aircraft))
@@ -70,7 +70,13 @@ namespace OpenRA.Mods.Common.Activities
 				if (nearestResupplier == null && aircraft.Info.LandWhenIdle)
 				{
 					if (aircraft.Info.TurnToLand)
-						return ActivityUtils.SequenceActivities(new Turn(self, initialFacing), new HeliLand(self, true));
+					{
+						var activities3 = new Activity[2];
+						activities3[0] = new Turn(self, initialFacing);
+						activities3[1] = new HeliLand(self, true);
+						return ActivityUtils.SequenceActivities(self, activities3);
+					}
+						
 
 					return new HeliLand(self, true);
 				}
@@ -88,7 +94,11 @@ namespace OpenRA.Mods.Common.Activities
 
 						var target = Target.FromPos(nearestResupplier.CenterPosition + randomPosition);
 
-						return ActivityUtils.SequenceActivities(new HeliFly(self, target, WDist.Zero, aircraft.Info.WaitDistanceFromResupplyBase), this);
+						var activities2 = new Activity[2];
+						activities2[0] = new HeliFly(self, target, WDist.Zero, aircraft.Info.WaitDistanceFromResupplyBase);
+						activities2[1] = this;
+
+						return ActivityUtils.SequenceActivities(self, activities2);
 					}
 
 					return this;
@@ -103,18 +113,21 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				aircraft.MakeReservation(dest);
 				landPos = aircraft.reservation.Second;
+				var activities1 = new Activity[5];
+				activities1[0] = new HeliFly(self, Target.FromPos(landPos + offset));
+				activities1[1] = new Turn(self, initialFacing);
+				activities1[2] = new HeliLand(self, false);
+				activities1[3] = new ResupplyAircraft(self);
+				activities1[4] = !abortOnResupply ? NextActivity : null;
 
-				return ActivityUtils.SequenceActivities(
-					new HeliFly(self, Target.FromPos(landPos + offset)),
-					new Turn(self, initialFacing),
-					new HeliLand(self, false),
-					new ResupplyAircraft(self),
-					!abortOnResupply ? NextActivity : null);
+				return ActivityUtils.SequenceActivities(self, activities1);
 			}
 
-			return ActivityUtils.SequenceActivities(
-				new HeliFly(self, Target.FromPos(landPos + offset)),
-				NextActivity);
+			var activities = new Activity[2];
+			activities[0] = new HeliFly(self, Target.FromPos(landPos + offset));
+			activities[1] = NextActivity;
+
+			return ActivityUtils.SequenceActivities(self, activities);
 		}
 
 		bool ShouldLandAtBuilding(Actor self, Actor dest)
@@ -122,7 +135,7 @@ namespace OpenRA.Mods.Common.Activities
 			if (alwaysLand)
 				return true;
 
-			if (repairableInfo != null && repairableInfo.RepairBuildings.Contains(dest.Info.Name) && self.GetDamageState() != DamageState.Undamaged)
+			if (repairableInfo != null && repairableInfo.RepairActors.Contains(dest.Info.Name) && self.GetDamageState() != DamageState.Undamaged)
 				return true;
 
 			return rearmable != null && rearmable.Info.RearmActors.Contains(dest.Info.Name)

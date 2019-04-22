@@ -13,8 +13,8 @@
 
 /* Works without base engine modification */
 
-using System.Drawing;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Shock.Graphics
 {
@@ -58,6 +58,7 @@ namespace OpenRA.Mods.Shock.Graphics
 		public IRenderable AsDecoration() { return this; }
 
 		public IFinalizedRenderable PrepareRender(WorldRenderer wr) { return this; }
+
 		public void Render(WorldRenderer wr)
 		{
 			if (sourceToTarget == WVec.Zero)

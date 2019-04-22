@@ -49,7 +49,7 @@ namespace OpenRA.Mods.Common.Activities
 			inner = ActivityUtils.RunActivity(self, inner);
 
 			if (self.CenterPosition.Z == aircraft.Info.CruiseAltitude.Length)
-				return NextInQueue;
+				return NextActivity;
 			else
 				return this;
 		}

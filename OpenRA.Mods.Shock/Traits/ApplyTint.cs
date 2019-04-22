@@ -16,8 +16,8 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Graphics;
-using System.Drawing;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 /* Modifications to World and WorldRenderer necessary. */

@@ -11,7 +11,6 @@
 
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
-using System.Drawing;
 using OpenRA.Primitives;
 using OpenRA.Mods.Common.Effects;
 

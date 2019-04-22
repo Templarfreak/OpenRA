@@ -14,11 +14,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using OpenRA.Graphics;
 using System.Linq;
 using OpenRA.Mods.Shock.Graphics;
 using OpenRA.Traits;
+using OpenRA.Primitives;
 using Shock.Extensions;
 
 /* Works without base engine modification */

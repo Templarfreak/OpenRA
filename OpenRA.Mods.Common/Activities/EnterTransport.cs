@@ -61,7 +61,6 @@ namespace OpenRA.Mods.Common.Activities
 
 				enterCargo.Load(enterActor, self);
 				w.Remove(self);
-				var a = new Actor();
 
 				// Preemptively cancel any activities to avoid an edge-case where successively queued
 				// EnterTransports corrupt the actor state. Activities are cancelled again on unload

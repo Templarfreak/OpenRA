@@ -1,6 +1,6 @@
 using System;
-using System.Drawing;
 using OpenRA;
+using OpenRA.Primitives;
 
 namespace Shock.Extensions
 {
