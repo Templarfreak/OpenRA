@@ -488,12 +488,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (cargo.Any(c => c.IsDead))
 			{
 				var stack = cargo.Where(c => !c.IsDead);
-				Stack<Actor> new_stack = new Stack<Actor>();
+				List<Actor> new_stack = new List<Actor>();
 
 				foreach (var a in stack)
 				{
 					Unload(a);
-					new_stack.Push(a);
+					new_stack.Add(a);
 				}
 
 				cargo = new_stack;
