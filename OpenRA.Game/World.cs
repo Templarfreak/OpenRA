@@ -150,6 +150,9 @@ namespace OpenRA
 			set
 			{
 				Sync.AssertUnsynced("The current order generator may not be changed from synced code");
+				if (orderGenerator != null)
+					orderGenerator.Deactivate();
+
 				orderGenerator = value;
 			}
 		}
@@ -551,6 +554,9 @@ namespace OpenRA
 		public void Dispose()
 		{
 			Disposing = true;
+
+			if (OrderGenerator != null)
+				OrderGenerator.Deactivate();
 
 			frameEndActions.Clear();
 

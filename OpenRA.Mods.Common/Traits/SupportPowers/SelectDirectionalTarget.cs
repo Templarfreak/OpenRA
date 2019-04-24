@@ -22,24 +22,29 @@ namespace OpenRA.Mods.Common.Traits
 		readonly string order;
 		readonly SupportPowerManager manager;
 		readonly string cursor;
+		readonly string targetPlaceholderCursorPalette;
+		readonly string directionArrowPalette;
 		readonly Animation targetCursor;
 
 		readonly string[] arrows = { "arrow-t", "arrow-tl", "arrow-l", "arrow-bl", "arrow-b", "arrow-br", "arrow-r", "arrow-tr" };
 		readonly Arrow[] directionArrows;
 
 		CPos targetCell;
-		int2 location;
+		int2 targetLocation;
 		int2 dragLocation;
-		bool beginDrag;
+		bool activated;
 		bool dragStarted;
+		bool hideMouse = true;
 		Arrow currentArrow;
 
 		public SelectDirectionalTarget(World world, string order, SupportPowerManager manager, string cursor, string targetPlaceholderCursorAnimation,
-			string directionArrowAnimation)
+			string directionArrowAnimation, string targetPlaceholderCursorPalette, string directionArrowPalette)
 		{
 			this.order = order;
 			this.manager = manager;
 			this.cursor = cursor;
+			this.targetPlaceholderCursorPalette = targetPlaceholderCursorPalette;
+			this.directionArrowPalette = directionArrowPalette;
 
 			targetCursor = new Animation(world, targetPlaceholderCursorAnimation);
 			targetCursor.PlayRepeating("cursor");
@@ -60,27 +65,26 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (mi.Button == MouseButton.Left && mi.Event == MouseInputEvent.Down)
 			{
-				if (!beginDrag)
+				if (!activated)
 				{
 					targetCell = cell;
-					location = mi.Location;
-					beginDrag = true;
+					targetLocation = mi.Location;
+					activated = true;
 				}
 
 				yield break;
 			}
 
+			if (!activated)
+				yield break;
+
 			if (mi.Event == MouseInputEvent.Move)
 			{
-				if (beginDrag)
-				{
-					dragLocation = mi.Location;
-					var angle = AngleBetween(location, dragLocation);
-					currentArrow = GetArrow(angle);
-					dragStarted = true;
+				dragLocation = mi.Location;
 
-					yield break;
-				}
+				var angle = AngleBetween(targetLocation, dragLocation);
+				currentArrow = GetArrow(angle);
+				dragStarted = true;
 			}
 
 			if (mi.Button == MouseButton.Left && mi.Event == MouseInputEvent.Up)
@@ -106,28 +110,45 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IsOutsideDragZone
 		{
-			get { return dragStarted && (dragLocation - location).Length > 20; }
+			get { return dragStarted && (dragLocation - targetLocation).Length > 20; }
 		}
 
 		IEnumerable<IRenderable> IOrderGenerator.Render(WorldRenderer wr, World world) { yield break; }
 
 		IEnumerable<IRenderable> IOrderGenerator.RenderAboveShroud(WorldRenderer wr, World world)
 		{
-			if (!beginDrag)
+			if (!activated)
 				return Enumerable.Empty<IRenderable>();
 
-			var palette = wr.Palette("chrome");
+			var targetPalette = wr.Palette(targetPlaceholderCursorPalette);
+
+			var location = activated ? targetLocation : Viewport.LastMousePos;
 			var worldPx = wr.Viewport.ViewToWorldPx(location);
 			var worldPos = wr.ProjectedPosition(worldPx);
-			var renderables = new List<IRenderable>(targetCursor.Render(worldPos, WVec.Zero, -511, palette, 1 / wr.Viewport.Zoom));
+			var renderables = new List<IRenderable>(targetCursor.Render(worldPos, WVec.Zero, -511, targetPalette, 1 / wr.Viewport.Zoom));
 
 			if (IsOutsideDragZone)
-				renderables.Add(new SpriteRenderable(currentArrow.Sprite, worldPos, WVec.Zero, -511, palette, 1 / wr.Viewport.Zoom, true));
+			{
+				var directionPalette = wr.Palette(directionArrowPalette);
+				renderables.Add(new SpriteRenderable(currentArrow.Sprite, worldPos, WVec.Zero, -511, directionPalette, 1 / wr.Viewport.Zoom, true));
+			}
+
+			if (hideMouse)
+			{
+				hideMouse = false;
+				Game.RunAfterTick(() => Game.HideCursor = true);
+			}
 
 			return renderables;
 		}
 
-		string IOrderGenerator.GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi) { return beginDrag ? "invisible" : cursor; }
+		string IOrderGenerator.GetCursor(World world, CPos cell, int2 worldPixel, MouseInput mi) { return cursor; }
+
+		void IOrderGenerator.Deactivate()
+		{
+			if (activated)
+				Game.HideCursor = false;
+		}
 
 		// Starting at (0, -1) and rotating in CCW
 		static double AngleBetween(int2 p1, int2 p2)

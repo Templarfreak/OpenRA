@@ -52,7 +52,7 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var init in inits)
 				td.Add(init);
 
-			if (self.OccupiesSpace != null)
+			if (exitinfo != null && self.OccupiesSpace != null && producee.HasTraitInfo<IOccupySpaceInfo>())
 			{
 				exit = self.Location + exitinfo.ExitCell;
 				var spawn = self.CenterPosition + exitinfo.SpawnOffset;
@@ -85,7 +85,7 @@ namespace OpenRA.Mods.Common.Traits
 				newUnit.TraitOrDefault<Valued>().payedfor = newUnit.Info.TraitInfo<ValuedInfo>().GetFinalCost(newUnit.Owner);
 
 				var move = newUnit.TraitOrDefault<IMove>();
-				if (move != null)
+				if (exitinfo != null && move != null)
 				{
 					if (exitinfo.MoveIntoWorld)
 					{
@@ -128,11 +128,11 @@ namespace OpenRA.Mods.Common.Traits
 			// Pick a spawn/exit point pair
 			var exit = SelectExit(self, producee, productionType);
 
-			if (exit != null || self.OccupiesSpace == null)
+			if (exit != null || self.OccupiesSpace == null || !producee.HasTraitInfo<IOccupySpaceInfo>())
 			{
 				for (var i = 0; i < count; i++)
 				{
-					DoProduction(self, producee, exit.Info, productionType, inits);
+					DoProduction(self, producee, exit == null ? null : exit.Info, productionType, inits);
 				}
 
 				return true;
