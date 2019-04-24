@@ -24,10 +24,7 @@ namespace OpenRA.Network
 
 		static Player FindPlayerByClient(this World world, Session.Client c)
 		{
-			/* TODO: this is still a hack.
-			 * the cases we're trying to avoid are the extra players on the host's client -- Neutral, other MapPlayers,..*/
-			return world.Players.FirstOrDefault(
-				p => (p.ClientIndex == c.Index && p.PlayerReference.Playable));
+			return world.Players.FirstOrDefault(p => (p.ClientIndex == c.Index && p.PlayerReference.Playable));
 		}
 
 		internal static void ProcessOrder(OrderManager orderManager, World world, int clientId, Order order)
@@ -41,36 +38,13 @@ namespace OpenRA.Network
 
 			switch (order.OrderString)
 			{
-				case "Chat":
-					{
-						var client = orderManager.LobbyInfo.ClientWithIndex(clientId);
-
-						// Cut chat messages to the hard limit to avoid exploits
-						var message = order.TargetString;
-						if (message.Length > ChatMessageMaxLength)
-							message = order.TargetString.Substring(0, ChatMessageMaxLength);
-
-						if (client != null)
-						{
-							var player = world != null ? world.FindPlayerByClient(client) : null;
-							var suffix = (player != null && player.WinState == WinState.Lost) ? " (Dead)" : "";
-							suffix = client.IsObserver ? " (Spectator)" : suffix;
-
-							if (orderManager.LocalClient != null && client != orderManager.LocalClient && client.Team > 0 && client.Team == orderManager.LocalClient.Team)
-								suffix += " (Ally)";
-
-							Game.AddChatLine(client.Color, client.Name + suffix, message);
-						}
-						else
-							Game.AddChatLine(Color.White, "(player {0})".F(clientId), message);
-						break;
-					}
-
-				case "Message": // Server message
+				// Server message
+				case "Message":
 					Game.AddChatLine(Color.White, ServerChatName, order.TargetString);
 					break;
 
-				case "Disconnected": /* reports that the target player disconnected */
+				// Reports that the target player disconnected
+				case "Disconnected":
 					{
 						var client = orderManager.LobbyInfo.ClientWithIndex(clientId);
 						if (client != null)
@@ -78,28 +52,63 @@ namespace OpenRA.Network
 						break;
 					}
 
-				case "TeamChat":
+				case "Chat":
 					{
 						var client = orderManager.LobbyInfo.ClientWithIndex(clientId);
+						if (client == null)
+							break;
 
-						if (client != null)
+						// Cut chat messages to the hard limit to avoid exploits
+						var message = order.TargetString;
+						if (message.Length > ChatMessageMaxLength)
+							message = order.TargetString.Substring(0, ChatMessageMaxLength);
+
+						// ExtraData 0 means this is a normal chat order, everything else is team chat
+						if (order.ExtraData == 0)
 						{
-							if (world == null)
-							{
-								if (orderManager.LocalClient != null && client.Team == orderManager.LocalClient.Team)
-									Game.AddChatLine(client.Color, "[Team] " + client.Name, order.TargetString);
-							}
-							else
-							{
-								var player = world.FindPlayerByClient(client);
-								if (player != null && player.WinState == WinState.Lost)
-									Game.AddChatLine(client.Color, client.Name + " (Dead)", order.TargetString);
-								else if ((player != null && world.LocalPlayer != null && player.Stances[world.LocalPlayer] == Stance.Ally) || (world.IsReplay && player != null))
-									Game.AddChatLine(client.Color, "[Team" + (world.IsReplay ? " " + client.Team : "") + "] " + client.Name, order.TargetString);
-								else if ((orderManager.LocalClient != null && orderManager.LocalClient.IsObserver && client.IsObserver) || (world.IsReplay  && client.IsObserver))
-									Game.AddChatLine(client.Color, "[Spectators] " + client.Name, order.TargetString);
-							}
+							var p = world != null ? world.FindPlayerByClient(client) : null;
+							var suffix = (p != null && p.WinState == WinState.Lost) ? " (Dead)" : "";
+							suffix = client.IsObserver ? " (Spectator)" : suffix;
+
+							if (orderManager.LocalClient != null && client != orderManager.LocalClient && client.Team > 0 && client.Team == orderManager.LocalClient.Team)
+								suffix += " (Ally)";
+
+							Game.AddChatLine(client.Color, client.Name + suffix, message);
+							break;
 						}
+
+						// We are still in the lobby
+						if (world == null)
+						{
+							var prefix = order.ExtraData == uint.MaxValue ? "[Spectators] " : "[Team] ";
+							if (orderManager.LocalClient != null && client.Team == orderManager.LocalClient.Team)
+								Game.AddChatLine(client.Color, prefix + client.Name, message);
+
+							break;
+						}
+
+						if (orderManager.LocalClient == null)
+							break;
+
+						var player = world.FindPlayerByClient(client);
+						var localClientIsObserver = orderManager.LocalClient.IsObserver || (world.LocalPlayer != null && world.LocalPlayer.WinState != WinState.Undefined);
+
+						// ExtraData gives us the team number, uint.MaxValue means Spectators
+						if (order.ExtraData == uint.MaxValue && (localClientIsObserver || world.IsReplay))
+						{
+							// Validate before adding the line
+							if (client.IsObserver || (player != null && player.WinState != WinState.Undefined))
+								Game.AddChatLine(client.Color, "[Spectators] " + client.Name, message);
+
+							break;
+						}
+
+						var valid = client.Team == order.ExtraData && player != null && player.WinState == WinState.Undefined;
+						var isSameTeam = order.ExtraData == orderManager.LocalClient.Team && world.LocalPlayer != null
+							&& world.LocalPlayer.WinState == WinState.Undefined;
+
+						if (valid && (isSameTeam || world.IsReplay))
+							Game.AddChatLine(client.Color, "[Team" + (world.IsReplay ? " " + order.ExtraData : "") + "] " + client.Name, message);
 
 						break;
 					}

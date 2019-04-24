@@ -111,6 +111,7 @@ namespace OpenRA.Mods.Common.Traits
 		PowerManager playerPower;
 		public PlayerResources PlayerResources;
 		protected DeveloperMode developerMode;
+		protected TechTree techTree;
 
 		public Actor Actor { get { return self; } }
 
@@ -129,6 +130,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			self = init.Self;
 			Info = info;
+
 			PlayerResources = playerActor.Trait<PlayerResources>();
 			developerMode = playerActor.Trait<DeveloperMode>();
 
@@ -149,8 +151,15 @@ namespace OpenRA.Mods.Common.Traits
 			// so we must query other player traits from self, knowing that
 			// it refers to the same actor as self.Owner.PlayerActor
 
-			playerPower = (self.Info.Name == "player" ? self : self.Owner.PlayerActor).TraitOrDefault<PowerManager>();
+			var playerActor = self.Info.Name == "player" ? self : self.Owner.PlayerActor;
+
+			playerPower = playerActor.TraitOrDefault<PowerManager>();
+			PlayerResources = playerActor.Trait<PlayerResources>();
+			developerMode = playerActor.Trait<DeveloperMode>();
+			techTree = playerActor.Trait<TechTree>();
+
 			productionTraits = self.TraitsImplementing<Production>().Where(p => p.Info.Produces.Contains(Info.Type)).ToArray();
+			CacheProducibles(playerActor);
 		}
 
 		protected void ClearQueue()
@@ -171,6 +180,7 @@ namespace OpenRA.Mods.Common.Traits
 			playerPower = newOwner.PlayerActor.Trait<PowerManager>();
 			PlayerResources = newOwner.PlayerActor.Trait<PlayerResources>();
 			developerMode = newOwner.PlayerActor.Trait<DeveloperMode>();
+			techTree = newOwner.PlayerActor.Trait<TechTree>();
 
 			if (!Info.Sticky)
 			{
@@ -181,7 +191,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Regenerate the producibles and tech tree state
 			oldOwner.PlayerActor.Trait<TechTree>().Remove(this);
 			CacheProducibles(newOwner.PlayerActor);
-			newOwner.PlayerActor.Trait<TechTree>().Update();
+			techTree.Update();
 		}
 
 		void INotifyKilled.Killed(Actor killed, AttackInfo e) { if (killed == self) { ClearQueue(); Enabled = false; } }
@@ -198,18 +208,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (!Enabled)
 				return;
 
-			var ttc = playerActor.Trait<TechTree>();
-
 			foreach (var a in AllBuildables(Info.Type))
 			{
 				var bi = a.TraitInfoOrDefault<BuildableInfo>();
 
 				producible.Add(a, new ProductionState());
-				ttc.Add(a.Name, bi.Prerequisites, bi.BuildLimit, this);
-				foreach (var t in a.TraitInfos<ValuedInfo>())
-				{
-					playerActor.World.Add(t);
-				}
+				techTree.Add(a.Name, bi.Prerequisites, bi.BuildLimit, this);
 			}
 		}
 
@@ -498,7 +502,7 @@ namespace OpenRA.Mods.Common.Traits
 					float div = (float)((float)counttobuild / (float)bi.Count);
 					int result = (int)(valued.GetFinalCost(self.Owner) * div);
 					var cost = valued != null ? result : 0;
-					var time = GetBuildTime(unit, bi, self.Owner);
+					var time = GetBuildTime(unit, bi);
 					var amountToBuild = Math.Min(fromLimit, order.ExtraData);
 
 					for (var n = 0; n < amountToBuild; n++)
@@ -587,27 +591,44 @@ namespace OpenRA.Mods.Common.Traits
 			return hasPlayedSound;
 		}
 
-		public virtual int GetBuildTime(ActorInfo unit, BuildableInfo bi, Player builder)
+		public virtual int GetBuildTime(ActorInfo unit, BuildableInfo bi)
 		{
 			if (developerMode.FastBuild)
 				return 0;
 
 			var time = bi.BuildDuration;
 			if (time == -1)
+				time = GetProductionCost(unit);
+				
+
+			var modifiers = unit.TraitInfos<IProductionTimeModifierInfo>()
+				.Select(t => t.GetProductionTimeModifier(techTree, Info.Type))
+				.Append(bi.BuildDurationModifier)
+				.Append(Info.BuildDurationModifier);
+
+			return Util.ApplyPercentageModifiers(time, modifiers);
+		}
+		
+		public virtual int GetProductionCost(ActorInfo unit)
+		{
+			var valued = unit.TraitInfoOrDefault<ValuedInfo>();
+			if (valued == null)
+				return 0;
+
+			int cost;
+
+			if (valued.BuildtimeScalesByInflation)
 			{
-				var valued = unit.TraitInfoOrDefault<ValuedInfo>();
-				if (valued.BuildtimeScalesByInflation)
-				{
-					time = valued != null ? valued.GetFinalCost(builder) : 0;
-				}
-				else
-				{
-					time = valued != null ? valued.Cost : 0;
-				}
+				cost = valued.GetFinalCost(self.Owner);
+			}
+			else
+			{
+				cost = valued.Cost;
 			}
 
-			time = time * bi.BuildDurationModifier * Info.BuildDurationModifier / 10000;
-			return time;
+			var modifiers = unit.TraitInfos<IProductionCostModifierInfo>()
+				.Select(t => t.GetProductionCostModifier(techTree, Info.Type));
+			return Util.ApplyPercentageModifiers(cost, modifiers);
 		}
 
 		protected virtual void CancelProduction(ProductionItem itemName, uint numberToCancel)
@@ -807,7 +828,7 @@ namespace OpenRA.Mods.Common.Traits
 			this.pm = pm;
 			ai = Queue.Actor.World.Map.Rules.Actors[Item];
 			bi = ai.TraitInfo<BuildableInfo>();
-			TotalTime = Math.Max(1, Queue.GetBuildTime(ai, bi, Queue.Actor.Owner));
+			TotalTime = Math.Max(1, Queue.GetBuildTime(ai, bi));
 			RemainingTime = TotalTime;
 			Infinite = false;
 		}
@@ -816,7 +837,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			if (!Started)
 			{
-				var time = Queue.GetBuildTime(ai, bi, Queue.Actor.Owner);
+				var time = Queue.GetBuildTime(ai, bi);
 				if (time > 0)
 					RemainingTime = TotalTime = time;
 
