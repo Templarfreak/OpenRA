@@ -133,6 +133,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			PlayerResources = playerActor.Trait<PlayerResources>();
 			developerMode = playerActor.Trait<DeveloperMode>();
+			techTree = playerActor.Trait<TechTree>();
 
 			Faction = init.Contains<FactionInit>() ? init.Get<FactionInit, string>() : self.Owner.Faction.InternalName;
 			IsValidFaction = !info.Factions.Any() || info.Factions.Contains(Faction);

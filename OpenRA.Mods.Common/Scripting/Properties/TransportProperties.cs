@@ -21,39 +21,58 @@ namespace OpenRA.Mods.Common.Scripting
 	public class TransportProperties : ScriptActorProperties, Requires<CargoInfo>
 	{
 		readonly Cargo cargo;
+		readonly Cargo[] cargos;
 
-		public TransportProperties(ScriptContext context, Actor self, int whichcargo = 0)
+		public TransportProperties(ScriptContext context, Actor self)
 			: base(context, self)
 		{
-			var cargos = self.TraitsImplementing<Cargo>();
+			
+			var cargos_count = self.TraitsImplementing<Cargo>().Count();
+			var cargos = new Cargo[cargos_count];
+			var cargosimplemnted = self.TraitsImplementing<Cargo>();
 
-			if (whichcargo == 0)
+			for (var i = 0; i < cargos_count; i++)
 			{
-				cargo = cargos.First();
+				cargos[i] = cargosimplemnted.ElementAt(i);
 			}
-			else
-			{
-				cargo = cargos.ToList().ElementAt(whichcargo);
-			}
+
+			this.cargos = cargos;
+			this.cargo = cargos.First();
 		}
 
-		[Desc("Specifies whether transport has any passengers.")]
-		public bool HasPassengers { get { return cargo.Passengers.Any(); } }
+		[Desc("Specifies whether transport has any passengers, in any cargo hold.")]
+		public bool HasAnyPassengers { get { return cargos.Any(c => c.Passengers.Any()); } }
 
-		[Desc("Specifies the amount of passengers.")]
-		public int PassengerCount { get { return cargo.Passengers.Count(); } }
+		[Desc("Specifies whether transport has any passengers in a specific cargo hold.")]
+		public bool HasPassengers(int c) { return cargos[c].Passengers.Any(); }
 
-		[Desc("Teleport an existing actor inside this transport.")]
-		public void LoadPassenger(Actor a) { cargo.Load(Self, a); }
+		[Desc("Specifies the total amount of passengers in all cargo holds.")]
+		public int AllPassengerCount { get { int cnt = 0; foreach(Cargo c in cargos) { cnt += c.PassengerCount; } return cnt; } }
+
+		[Desc("Specifies the total amount of passengers in a specific cargo hold.")]
+		public int PassengerCount(int c) { return cargos[c].PassengerCount; }
+
+		[Desc("Teleport an existing actor inside this transport's top-most cargo hold.")]
+		public void LoadPassenger(Actor a) { cargos.First().Load(Self, a); }
+
+		[Desc("Teleport an existing actor inside a specific cargo hold of this transport.")]
+		public void LoadPassengerWithCargohold(Actor a, int c) { cargos[c].Load(Self, a); }
 
 		[Desc("Remove the first actor from the transport.  This actor is not added to the world.")]
-		public Actor UnloadPassenger() { return cargo.Unload(Self); }
+		public Actor UnloadPassenger() { return cargos.Where(c => c.PassengerCount > 0).First().Unload(Self); }
+
+		[Desc("Remove the first actor from the specific cargo hold of the transport.  This actor is not added to the world.")]
+		public Actor UnloadPassengerFromCargohold(int c) { return cargos[c].Unload(Self); }
+
+		[Desc("Remove the specific actor from this transport.")]
+		public void UnloadSpecificPassenger(Actor a) { if (cargos.Any(c => c.cargo.Contains(a)))
+				cargos.First(c => c.cargo.Contains(a)).Unload(a); }
 
 		[ScriptActorPropertyActivity]
 		[Desc("Command transport to unload passengers from the specified cargo hold.")]
-		public void UnloadPassengers(Cargo cargo)
+		public void UnloadPassengers(int c)
 		{
-			Self.QueueActivity(new UnloadCargo(Self, cargo, true));
+			Self.QueueActivity(new UnloadCargo(Self, cargos[c], true));
 		}
 
 		[ScriptActorPropertyActivity]

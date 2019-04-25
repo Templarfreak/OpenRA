@@ -23,6 +23,7 @@ _ReSharper.*/
 mods/*/*.dll
 mods/*/*.mdb
 mods/*/*.pdb
+mods/*/*.exe
 OpenRA.Mods.Cnc/mods/*/*/.dll
 OpenRA.Mods.Cnc/mods/*/*.mdb
 OpenRA.Mods.Cnc/mods/*/*.pdb
@@ -38,6 +39,7 @@ OpenRA.Mods.Cnc/mods/common/*.pdb
 OpenRA.Mods.D2K/mods/common/*.dll
 OpenRA.Mods.D2K/mods/common/*.mdb
 OpenRA.Mods.D2K/mods/common/*.pdb
+OpenRA.Mods.D2K/mods/common/*.exe
 /*.dll
 /*.dll.config
 /*.so
@@ -148,3 +150,4 @@ OpenRA.Mods.Shock/Experimental/GrantTimedCondition.cs
 *.exe
 OpenRA.Mods.Shock/Traits/Warheads/FireShrapnelWarheadAS.cs
 ru/Microsoft.Build.Utilities.v3.5.resources.dll
+
