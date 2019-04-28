@@ -69,8 +69,15 @@ namespace OpenRA.Mods.Common.Scripting
 				cargos.First(c => c.cargo.Contains(a)).Unload(a); }
 
 		[ScriptActorPropertyActivity]
+		[Desc("Command transport to unload all passengers from the top-most cargo hold.")]
+		public void UnloadPassengers()
+		{
+			Self.QueueActivity(new UnloadCargo(Self, cargos.First(), true));
+		}
+
+		[ScriptActorPropertyActivity]
 		[Desc("Command transport to unload passengers from the specified cargo hold.")]
-		public void UnloadPassengers(int c)
+		public void UnloadSpecificPassengers(int c)
 		{
 			Self.QueueActivity(new UnloadCargo(Self, cargos[c], true));
 		}

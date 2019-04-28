@@ -69,6 +69,10 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly string PaletteWidget = null;
 		public readonly string TypesContainer = null;
 		public readonly string BackgroundContainer = null;
+		public readonly string ForegroundContainer = null;
+
+		//Use ClassicProductionQueue-style RowTemplates instead of IconTemplates
+		public readonly bool UseRows = false;
 
 		public readonly int TabWidth = 30;
 		public readonly int ArrowWidth = 20;

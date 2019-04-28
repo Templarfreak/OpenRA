@@ -18,6 +18,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 	public class ProductionTabsLogic : ChromeLogic
 	{
 		readonly ProductionTabsWidget tabs;
+		readonly ProductionPaletteWidget palette;
 		readonly World world;
 
 		void SetupProductionGroupButton(ProductionTypeButtonWidget button)
@@ -51,6 +52,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			this.world = world;
 			tabs = widget.Get<ProductionTabsWidget>("PRODUCTION_TABS");
+			palette = tabs.Parent.Get<ProductionPaletteWidget>(tabs.PaletteWidget);
 			world.ActorAdded += tabs.ActorChanged;
 			world.ActorRemoved += tabs.ActorChanged;
 			Game.BeforeGameStart += UnregisterEvents;
@@ -60,32 +62,124 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				SetupProductionGroupButton(i as ProductionTypeButtonWidget);
 
 			var background = Ui.Root.GetOrNull(tabs.BackgroundContainer);
+			var foreground = Ui.Root.GetOrNull(tabs.ForegroundContainer);
+
+			if (tabs.BackgroundContainer == null) { background = null; }
+			if (tabs.ForegroundContainer == null) { foreground = null; }
+
 			if (background != null)
 			{
 				var palette = tabs.Parent.Get<ProductionPaletteWidget>(tabs.PaletteWidget);
-				var icontemplate = background.Get("ICON_TEMPLATE");
+				Widget background_template = null;
+				Widget foreground_template = null;
+				Action<int, int> updateBackground = (oldCount, newCount) => { };
 
-				Action<int, int> updateBackground = (oldCount, newCount) =>
+				if (tabs.UseRows)
 				{
-					background.RemoveChildren();
+					background_template = background.Get("ROW_TEMPLATE");
+					var backgroundBottom = background.GetOrNull("BOTTOM_CAP");
 
-					for (var i = 0; i < newCount; i++)
+					updateBackground = (_, icons) =>
 					{
-						var x = i % palette.Columns;
-						var y = i / palette.Columns;
+						var rows = Math.Max(palette.MinimumRows, (icons + palette.Columns - 1) / palette.Columns);
+						rows = Math.Min(rows, palette.MaximumRows);
 
-						var bg = icontemplate.Clone();
-						bg.Bounds.X = palette.IconSize.X * x;
-						bg.Bounds.Y = palette.IconSize.Y * y;
-						background.AddChild(bg);
-					}
-				};
+						background.RemoveChildren();
+
+						var rowHeight = background_template.Bounds.Height;
+						var rowStartY = background_template.Bounds.Y;
+						for (var i = 0; i < rows; i++)
+						{
+							var row = background_template.Clone();
+							row.Bounds.Y = (i * rowHeight) + rowStartY;
+							background.AddChild(row);
+						}
+
+						if (backgroundBottom == null)
+							return;
+
+						backgroundBottom.Bounds.Y = rows * rowHeight;
+						background.AddChild(backgroundBottom);
+
+						if (foreground != null)
+						{
+							foreground_template = foreground.Get("ROW_TEMPLATE");
+
+							foreground.RemoveChildren();
+
+							rowHeight = foreground_template.Bounds.Height;
+							for (var i = 0; i < rows; i++)
+							{
+								var row = foreground_template.Clone();
+								row.Bounds.Y = i * rowHeight;
+								foreground.AddChild(row);
+							}
+						}
+					};
+				}
+				else
+				{
+					background_template = background.Get("ICON_TEMPLATE");
+
+					updateBackground = (oldCount, newCount) =>
+					{
+						background.RemoveChildren();
+
+						for (var i = 0; i < newCount; i++)
+						{
+							var x = i % palette.Columns;
+							var y = i / palette.Columns;
+
+							var bg = background_template.Clone();
+							bg.Bounds.X = palette.IconSize.X * x;
+							bg.Bounds.Y = palette.IconSize.Y * y;
+							background.AddChild(bg);
+						}
+
+						if (foreground != null)
+						{
+							foreground_template = foreground.Get("ICON_TEMPLATE");
+
+							for (var i = 0; i < newCount; i++)
+							{
+								var x = i % palette.Columns;
+								var y = i / palette.Columns;
+
+								var bg = foreground_template.Clone();
+								bg.Bounds.X = palette.IconSize.X * x;
+								bg.Bounds.Y = palette.IconSize.Y * y;
+								background.AddChild(bg);
+							}
+						}
+					};
+				}
 
 				palette.OnIconCountChanged += updateBackground;
 
 				// Set the initial palette state
 				updateBackground(0, 0);
 			}
+
+			// Hook up scroll up and down buttons on the palette
+			var scrollDown = typesContainer.GetOrNull<ButtonWidget>("SCROLL_DOWN_BUTTON");
+
+			if (scrollDown != null)
+			{
+				scrollDown.OnClick = palette.ScrollDown;
+				scrollDown.IsVisible = () => palette.TotalIconCount > (palette.MaxIconRowOffset * palette.Columns);
+				scrollDown.IsDisabled = () => !palette.CanScrollDown;
+			}
+
+			var scrollUp = typesContainer.GetOrNull<ButtonWidget>("SCROLL_UP_BUTTON");
+
+			if (scrollUp != null)
+			{
+				scrollUp.OnClick = palette.ScrollUp;
+				scrollUp.IsVisible = () => palette.TotalIconCount > (palette.MaxIconRowOffset * palette.Columns);
+				scrollUp.IsDisabled = () => !palette.CanScrollUp;
+			}
+
+			SetMaximumVisibleRows(palette);
 		}
 
 		void UnregisterEvents()
@@ -93,6 +187,25 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Game.BeforeGameStart -= UnregisterEvents;
 			world.ActorAdded -= tabs.ActorChanged;
 			world.ActorRemoved -= tabs.ActorChanged;
+		}
+
+		static void SetMaximumVisibleRows(ProductionPaletteWidget productionPalette)
+		{
+			var screenHeight = Game.Renderer.Resolution.Height;
+
+			// Get height of currently displayed icons
+			var containerWidget = Ui.Root.GetOrNull<ContainerWidget>("SIDEBAR_PRODUCTION");
+
+			if (containerWidget == null)
+				return;
+
+			var sidebarProductionHeight = containerWidget.Bounds.Y;
+
+			// Check if icon heights exceed y resolution
+			var maxItemsHeight = screenHeight - sidebarProductionHeight;
+
+			var maxIconRowOffest = (maxItemsHeight / productionPalette.IconSize.Y) - 1;
+			productionPalette.MaxIconRowOffset = Math.Min(maxIconRowOffest, productionPalette.MaximumRows);
 		}
 	}
 }

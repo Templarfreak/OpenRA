@@ -318,6 +318,26 @@ Background@SETTINGS_PANEL:
 					Width: 250
 					Height: 20
 					Ticks: 7
+				ExponentialSlider@MOVE_POOL:
+					X: PARENT_RIGHT - WIDTH - 15
+					Y: 133
+					Width: 250
+					Height: 20
+					Ticks: 7
+				Label@MOVE_LABEL:
+					X: PARENT_RIGHT - WIDTH - 300
+					Y: 127
+					Width: 95
+					Height: 25
+					Align: Right
+					Text: Move Sounds:
+				Label@MOVE_SPECIFIC:
+					X: PARENT_RIGHT - WIDTH - 270
+					Y: 127
+					Width: 20
+					Height: 25
+					Align: Right
+					Text: 
 				Label@VIDEO_LABEL:
 					X: PARENT_RIGHT - WIDTH - 270
 					Y: 97
