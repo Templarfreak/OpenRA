@@ -33,7 +33,7 @@ namespace OpenRA.Mods.Common.Activities
 			var targetOwner = targetActor.Owner;
 			var donated = targetOwner.PlayerActor.Trait<PlayerResources>().ChangeCash(payload);
 
-			var exp = self.Owner.PlayerActor.TraitOrDefault<PlayerExperience>();
+			var exp = self.Owner.PlayerActor.TraitOrDefault<PlayerStatistics>().experience;
 			if (exp != null && targetOwner != self.Owner)
 				exp.GiveExperience(playerExperience);
 

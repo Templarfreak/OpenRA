@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Scripting;
 using OpenRA.Traits;
@@ -18,24 +19,39 @@ namespace OpenRA.Mods.Common.Scripting
 	[ScriptPropertyGroup("Player")]
 	public class PlayerExperienceProperties : ScriptPlayerProperties, Requires<PlayerExperienceInfo>
 	{
-		readonly PlayerExperience exp;
+		readonly PlayerExperience[] exp;
 
 		public PlayerExperienceProperties(ScriptContext context, Player player)
 			: base(context, player)
 		{
-			exp = player.PlayerActor.Trait<PlayerExperience>();
+			exp = player.PlayerActor.TraitsImplementing<PlayerExperience>().ToArray();
+		}
+
+		public int GetSpecificExperience(int e)
+		{
+			return exp[e].Experience;
+		}
+
+		public void SetSpecificExperience(int e, int ex)
+		{
+			exp[e].SetExperience(ex);
+		}
+
+		public void ModifyExperience(int e, int ex)
+		{
+			exp[e].GiveExperience(ex);
 		}
 
 		public int Experience
 		{
 			get
 			{
-				return exp.Experience;
+				return exp.First().Experience;
 			}
 
 			set
 			{
-				exp.GiveExperience(value - exp.Experience);
+				exp.First().SetExperience(value);
 			}
 		}
 	}

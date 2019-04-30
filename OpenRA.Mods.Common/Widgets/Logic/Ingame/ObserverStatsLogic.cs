@@ -45,6 +45,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly WorldRenderer worldRenderer;
 
 		readonly string clickSound = ChromeMetrics.Get<string>("ClickSound");
+		readonly string exptype = "score";
 
 		[ObjectCreator.UseCtor]
 		public ObserverStatsLogic(World world, ModData modData, WorldRenderer worldRenderer, Widget widget,
@@ -60,6 +61,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				statsHotkeys[i] = logicArgs.TryGetValue("Statistics" + keyNames[i] + "Key", out yaml) ? modData.Hotkeys[yaml.Value] : new HotkeyReference();
 
 			players = world.Players.Where(p => !p.NonCombatant);
+
+
+			exptype = logicArgs.TryGetValue("PlayerExperience", out yaml) ?
+				yaml.Nodes.Where(n => n.Key == "PlayerExperience").First().Value.Value : "score";
+				
 
 			basicStatsHeaders = widget.Get<ContainerWidget>("BASIC_STATS_HEADERS");
 			economyStatsHeaders = widget.Get<ContainerWidget>("ECONOMY_STATS_HEADERS");
@@ -163,13 +169,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			earnedThisMinuteGraphHeaders.Visible = true;
 			var template = earnedThisMinuteGraphTemplate.Clone();
+			PlayerStatisticsInfo info = new PlayerStatisticsInfo();
+			info.WhichExperience = exptype;
 
 			var graph = template.Get<LineGraphWidget>("EARNED_THIS_MIN_GRAPH");
 			graph.GetSeries = () =>
 				players.Select(p => new LineGraphSeries(
 					p.PlayerName,
 					p.Color,
-					(p.PlayerActor.TraitOrDefault<PlayerStatistics>() ?? new PlayerStatistics(p.PlayerActor)).EarnedSamples.Select(s => (float)s)));
+					(p.PlayerActor.TraitOrDefault<PlayerStatistics>() ?? new PlayerStatistics(p.PlayerActor, 
+					info)).EarnedSamples.Select(s => (float)s)));
 
 			playerStatsPanel.AddChild(template);
 			playerStatsPanel.ScrollToTop();
@@ -179,13 +188,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			armyThisMinuteGraphHeaders.Visible = true;
 			var template = armyThisMinuteGraphTemplate.Clone();
+			PlayerStatisticsInfo info = new PlayerStatisticsInfo();
+			info.WhichExperience = exptype;
 
 			var graph = template.Get<LineGraphWidget>("ARMY_THIS_MIN_GRAPH");
 			graph.GetSeries = () =>
 				players.Select(p => new LineGraphSeries(
 					p.PlayerName,
 					p.Color,
-					(p.PlayerActor.TraitOrDefault<PlayerStatistics>() ?? new PlayerStatistics(p.PlayerActor)).ArmySamples.Select(s => (float)s)));
+					(p.PlayerActor.TraitOrDefault<PlayerStatistics>() ?? new PlayerStatistics(p.PlayerActor,
+					info)).ArmySamples.Select(s => (float)s)));
 
 			playerStatsPanel.AddChild(template);
 			playerStatsPanel.ScrollToTop();

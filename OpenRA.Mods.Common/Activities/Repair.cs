@@ -88,7 +88,7 @@ namespace OpenRA.Mods.Common.Activities
 			{
 				if (host.Actor.Owner != self.Owner)
 				{
-					var exp = host.Actor.Owner.PlayerActor.TraitOrDefault<PlayerExperience>();
+					var exp = host.Actor.Owner.PlayerActor.TraitOrDefault<PlayerStatistics>().experience;
 					if (exp != null)
 						exp.GiveExperience(repairsUnits.Info.PlayerExperience);
 				}

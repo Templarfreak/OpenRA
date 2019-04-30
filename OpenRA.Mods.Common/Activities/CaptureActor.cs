@@ -114,7 +114,7 @@ namespace OpenRA.Mods.Common.Activities
 
 				if (self.Owner.Stances[oldOwner].HasStance(captures.Info.PlayerExperienceStances))
 				{
-					var exp = self.Owner.PlayerActor.TraitOrDefault<PlayerExperience>();
+					var exp = self.Owner.PlayerActor.TraitOrDefault<PlayerStatistics>().experience;
 					if (exp != null)
 						exp.GiveExperience(captures.Info.PlayerExperience);
 				}

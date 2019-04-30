@@ -18,7 +18,14 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("This actor will play a fire animation over its body and take damage over time.")]
 	class BurnsInfo : ITraitInfo, Requires<RenderSpritesInfo>
 	{
-		public readonly string Anim = "1";
+		[Desc("The sequence name that defines the Burns sprite.")]
+		public readonly string Anim = "fire";
+
+		[Desc("The sequence of Anim to use.")]
+		public readonly string Sequence = "1";
+
+		public readonly string Palette = "effect";
+		public readonly WVec Offset = WVec.Zero;
 		public readonly int Damage = 1;
 		public readonly int Interval = 8;
 
@@ -33,11 +40,12 @@ namespace OpenRA.Mods.Common.Traits
 		public Burns(Actor self, BurnsInfo info)
 		{
 			this.info = info;
+			var rs = self.Trait<RenderSprites>();
 
-			var anim = new Animation(self.World, "fire", () => 0);
+			var anim = new Animation(self.World, info.Anim, () => 0);
 			anim.IsDecoration = true;
-			anim.PlayRepeating(info.Anim);
-			self.Trait<RenderSprites>().Add(anim);
+			anim.PlayRepeating(info.Sequence);
+			rs.Add(new AnimationWithOffset(anim, () => info.Offset, () => false), info.Palette);
 		}
 
 		void ITick.Tick(Actor self)

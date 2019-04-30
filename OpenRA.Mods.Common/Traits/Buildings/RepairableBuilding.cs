@@ -175,7 +175,7 @@ namespace OpenRA.Mods.Common.Traits
 						if (r == self.Owner)
 							return;
 
-						var exp = r.PlayerActor.TraitOrDefault<PlayerExperience>();
+						var exp = r.PlayerActor.TraitOrDefault<PlayerStatistics>().experience;
 						if (exp != null)
 							exp.GiveExperience(Info.PlayerExperience);
 					});

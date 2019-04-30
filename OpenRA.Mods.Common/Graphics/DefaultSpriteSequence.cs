@@ -241,6 +241,7 @@ namespace OpenRA.Mods.Common.Graphics
 					foreach (var sub in combine.Nodes)
 					{
 						var sd = sub.Value.ToDictionary();
+						var sp = sub.Value.Value == null ? sub.Key : sub.Value.Value;
 
 						// Allow per-sprite offset, flipping, start, and length
 						var subStart = LoadField(sd, "Start", 0);
@@ -260,7 +261,7 @@ namespace OpenRA.Mods.Common.Graphics
 							return Enumerable.Range(subStart, subLength);
 						};
 
-						var subSrc = GetSpriteSrc(modData, tileSet, sequence, animation, sub.Key, sd);
+						var subSrc = GetSpriteSrc(modData, tileSet, sequence, animation, sp, sd);
 						var subSprites = cache[subSrc, subGetUsedFrames].Select(
 							s => s != null ? new Sprite(s.Sheet,
 								FlipRectangle(s.Bounds, subFlipX, subFlipY), ZRamp,

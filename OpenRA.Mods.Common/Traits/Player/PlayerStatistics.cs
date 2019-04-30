@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Linq;
 using System.Collections.Generic;
 using OpenRA.Traits;
 
@@ -17,13 +18,17 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Attach this to the player actor to collect observer stats.")]
 	public class PlayerStatisticsInfo : ITraitInfo
 	{
-		public object Create(ActorInitializer init) { return new PlayerStatistics(init.Self); }
+		[Desc("Which PlayerExperience trait on the player to use.")]
+		public string WhichExperience = "score";
+
+		public object Create(ActorInitializer init) { return new PlayerStatistics(init.Self, this); }
 	}
 
 	public class PlayerStatistics : ITick, IResolveOrder, INotifyCreated
 	{
 		PlayerResources resources;
-		PlayerExperience experience;
+		public PlayerExperience experience;
+		PlayerStatisticsInfo info;
 
 		public int OrderCount;
 
@@ -59,12 +64,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		public int ArmyValue;
 
-		public PlayerStatistics(Actor self) { }
+		public PlayerStatistics(Actor self, PlayerStatisticsInfo info) { this.info = info; }
 
 		void INotifyCreated.Created(Actor self)
 		{
 			resources = self.TraitOrDefault<PlayerResources>();
-			experience = self.TraitOrDefault<PlayerExperience>();
+			//experience = self.TraitOrDefault<PlayerExperience>();
+			experience = self.TraitsImplementing<PlayerExperience>().Where(p => p.info.Type == info.WhichExperience).First();
 		}
 
 		void UpdateEarnedThisMinute()

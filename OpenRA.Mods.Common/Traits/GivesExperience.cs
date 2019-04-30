@@ -29,6 +29,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Percentage of the `Experience` value that is being granted to the player owning the killing actor.")]
 		public readonly int PlayerExperienceModifier = 0;
 
+		[Desc("Which PlayerExperience trait to give the experience to.")]
+		public readonly string WhichExperience = "score";
+
 		public object Create(ActorInitializer init) { return new GivesExperience(init.Self, this); }
 	}
 
@@ -66,7 +69,9 @@ namespace OpenRA.Mods.Common.Traits
 				killer.GiveExperience(Util.ApplyPercentageModifiers(exp, killerExperienceModifier));
 			}
 
-			var attackerExp = e.Attacker.Owner.PlayerActor.TraitOrDefault<PlayerExperience>();
+			var attackerExp = e.Attacker.Owner.PlayerActor.TraitsImplementing<PlayerExperience>().Where(
+				p => p.info.Type == info.WhichExperience).First();
+
 			if (attackerExp != null)
 				attackerExp.GiveExperience(Util.ApplyPercentageModifiers(exp, new[] { info.PlayerExperienceModifier }));
 		}

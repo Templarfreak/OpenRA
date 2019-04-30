@@ -56,7 +56,7 @@ namespace OpenRA.Mods.Common.Activities
 
 			enterGainsExperience.GiveLevels(level);
 
-			var exp = self.Owner.PlayerActor.TraitOrDefault<PlayerExperience>();
+			var exp = self.Owner.PlayerActor.TraitOrDefault<PlayerStatistics>().experience;
 			if (exp != null && enterActor.Owner != self.Owner)
 				exp.GiveExperience(playerExperience);
 

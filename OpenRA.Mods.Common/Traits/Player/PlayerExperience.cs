@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -18,16 +19,33 @@ namespace OpenRA.Mods.Common.Traits
 		"Attach this to the player actor.")]
 	public class PlayerExperienceInfo : ITraitInfo
 	{
-		public object Create(ActorInitializer init) { return new PlayerExperience(); }
+		[Desc("The type of player experience this is.")]
+		public readonly string Type = "score";
+
+		[Desc("Maximum experience this PlayerExperience can get. Default is 32-bit Integer limit (~4 billion).")]
+		public int Maximum = int.MaxValue;
+
+		public object Create(ActorInitializer init) { return new PlayerExperience(this); }
 	}
 
 	public class PlayerExperience : ISync
 	{
 		[Sync] public int Experience { get; private set; }
+		public PlayerExperienceInfo info;
+
+		public PlayerExperience(PlayerExperienceInfo info)
+		{
+			this.info = info;
+		}
 
 		public void GiveExperience(int num)
 		{
-			Experience += num;
+			Experience = Math.Min(Experience + num, info.Maximum);
+		}
+
+		public void SetExperience(int num)
+		{
+			Experience = Math.Min(num, info.Maximum);
 		}
 	}
 }

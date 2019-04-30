@@ -64,7 +64,7 @@ namespace OpenRA.Mods.Cnc.Activities
 			foreach (var t in targetActor.TraitsImplementing<INotifyInfiltrated>())
 				t.Infiltrated(targetActor, self, infiltrates.Info.Types);
 
-			var exp = self.Owner.PlayerActor.TraitOrDefault<PlayerExperience>();
+			var exp = self.Owner.PlayerActor.TraitOrDefault<PlayerStatistics>().experience;
 			if (exp != null)
 				exp.GiveExperience(infiltrates.Info.PlayerExperience);
 
