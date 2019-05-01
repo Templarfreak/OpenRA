@@ -39,44 +39,12 @@ namespace OpenRA.Mods.Common.Traits
 			if (self.World.Map.DistanceAboveTerrain(self.CenterPosition).Length < aircraftInfo.MinAirborneAltitude)
 				return;
 
-
-			if (!aircraftInfo.CanHover)
-			{
-				var returntobase = new ReturnToBase(self, aircraftInfo.AbortOnResupply);
-				var resupplier = returntobase.ChooseResupplier(self, true);
-
-				if (resupplier != null)
-				{
-					aircraft.MakeReservation(resupplier);
-
-					self.QueueActivity(new ReturnToBase(self, aircraftInfo.AbortOnResupply, resupplier));
-					self.QueueActivity(new ResupplyAircraft(self));
-				}
-				else
-				{
-					CantLand(self);
-				}
-			}
+			var resupplier = ReturnToBase.ChooseResupplier(self, true);
+			if (resupplier != null)
+				self.QueueActivity(new ReturnToBase(self, aircraftInfo.AbortOnResupply, resupplier));
 			else
 			{
-				var returntobase = new HeliReturnToBase(self, aircraftInfo.AbortOnResupply);
-				var resupplier = returntobase.ChooseResupplier(self, true);
-				
-
-				if (resupplier != null)
-				{
-					aircraft.MakeReservation(resupplier);
-					var dock = aircraft.reservation.Second;
-
-					self.QueueActivity(new HeliFly(self, Target.FromPos(dock)));
-					self.QueueActivity(new Turn(self, aircraftInfo.InitialFacing));
-					self.QueueActivity(new HeliLand(self, false));
-					self.QueueActivity(new ResupplyAircraft(self));
-				}
-				else
-				{
-					CantLand(self);
-				}
+				CantLand(self);
 			}
 		}
 

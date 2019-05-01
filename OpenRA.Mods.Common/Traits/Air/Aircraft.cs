@@ -545,16 +545,6 @@ namespace OpenRA.Mods.Common.Traits
 			return Info.LandableTerrainTypes.Contains(type);
 		}
 
-		public bool CanRearmAt(Actor host)
-		{
-			return rearmable != null && rearmable.Info.RearmActors.Contains(host.Info.Name) && rearmable.RearmableAmmoPools.Any(p => !p.FullAmmo());
-		}
-
-		public bool CanRepairAt(Actor host)
-		{
-			return repairable != null && repairable.Info.RepairActors.Contains(host.Info.Name) && self.GetDamageState() != DamageState.Undamaged;
-		}
-
 		bool IsBlockedBy(Actor self, Actor otherActor, Actor ignoreActor)
 		{
 			// We are not blocked by the actor we are ignoring.
@@ -584,14 +574,14 @@ namespace OpenRA.Mods.Common.Traits
 			return true;
 		}
 
-		public virtual IEnumerable<Activity> GetResupplyActivities(Actor a)
+		public bool CanRearmAt(Actor host)
 		{
-			// The ResupplyAircraft activity guarantees that we're on the helipad/repair depot
-			if (CanRearmAt(a))
-				yield return new Rearm(self, a, WDist.Zero);
+			return rearmable != null && rearmable.Info.RearmActors.Contains(host.Info.Name) && rearmable.RearmableAmmoPools.Any(p => !p.FullAmmo());
+		}
 
-			if (CanRepairAt(a))
-				yield return new Repair(self, a, WDist.Zero);
+		public bool CanRepairAt(Actor host)
+		{
+			return repairable != null && repairable.Info.RepairActors.Contains(host.Info.Name) && self.GetDamageState() != DamageState.Undamaged;
 		}
 
 		public void ModifyDeathActorInit(Actor self, TypeDictionary init)
@@ -609,7 +599,7 @@ namespace OpenRA.Mods.Common.Traits
 			var atLandAltitude = self.World.Map.DistanceAboveTerrain(CenterPosition) == Info.LandAltitude;
 
 			// Work-around to prevent players from accidentally canceling resupply by pressing 'Stop',
-			// by re-queueing ResupplyAircraft as long as resupply hasn't finished and aircraft is still on resupplier.
+			// by re-queueing Resupply as long as resupply hasn't finished and aircraft is still on resupplier.
 			// TODO: Investigate moving this back to ResolveOrder's "Stop" handling,
 			// once conflicts with other traits' "Stop" orders have been fixed.
 			if (atLandAltitude)
@@ -617,7 +607,7 @@ namespace OpenRA.Mods.Common.Traits
 				var host = GetActorBelow();
 				if (host != null && (CanRearmAt(host) || CanRepairAt(host)))
 				{
-					self.QueueActivity(new ResupplyAircraft(self));
+					self.QueueActivity(new Resupply(self, host, WDist.Zero));
 					return;
 				}
 			}

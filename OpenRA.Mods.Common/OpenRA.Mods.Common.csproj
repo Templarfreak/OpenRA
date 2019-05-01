@@ -57,6 +57,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Activities\Air\AllowYieldingReservation.cs" />
+    <ProjectReference Include="..\OpenRA.Game\OpenRA.Game.csproj">
+      <Project>{0dfb103f-2962-400f-8c6d-e2c28ccba633}</Project>
+      <Name>OpenRA.Game</Name>
+      <Private>False</Private>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="Activities\Air\FallToEarth.cs" />
     <Compile Include="Activities\Air\Fly.cs" />
     <Compile Include="Activities\Air\FlyAttack.cs" />
@@ -70,7 +77,6 @@
     <Compile Include="Activities\Air\HeliLand.cs" />
     <Compile Include="Activities\Air\HeliReturnToBase.cs" />
     <Compile Include="Activities\Air\Land.cs" />
-    <Compile Include="Activities\Air\ResupplyAircraft.cs" />
     <Compile Include="Activities\Air\ReturnToBase.cs" />
     <Compile Include="Activities\Air\ScriptedFly.cs" />
     <Compile Include="Activities\Air\ScriptedTakeOff.cs" />
@@ -96,9 +102,8 @@
     <Compile Include="Activities\Move\MoveWithinRange.cs" />
     <Compile Include="Activities\Move\VisualMoveIntoTarget.cs" />
     <Compile Include="Activities\Parachute.cs" />
-    <Compile Include="Activities\Rearm.cs" />
     <Compile Include="Activities\RemoveSelf.cs" />
-    <Compile Include="Activities\Repair.cs" />
+    <Compile Include="Activities\Resupply.cs" />
     <Compile Include="Activities\RepairBridge.cs" />
     <Compile Include="Activities\RepairBuilding.cs" />
     <Compile Include="Activities\Sell.cs" />
