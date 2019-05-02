@@ -26,22 +26,24 @@ namespace OpenRA.Mods.Common.Activities
 		readonly Rearmable rearmable;
 		readonly bool alwaysLand;
 		readonly bool abortOnResupply;
+		readonly bool requireSpace;
 		bool isCalculated;
 		bool resupplied;
 		Actor dest;
 		WPos w1, w2, w3;
 
-		public ReturnToBase(Actor self, bool abortOnResupply, Actor dest = null, bool alwaysLand = true)
+		public ReturnToBase(Actor self, bool abortOnResupply, Actor dest = null, bool alwaysLand = true, bool RequiresSpace = true)
 		{
 			this.dest = dest;
 			this.alwaysLand = alwaysLand;
 			this.abortOnResupply = abortOnResupply;
+			requireSpace = RequiresSpace;
 			aircraft = self.Trait<Aircraft>();
 			repairableInfo = self.Info.TraitInfoOrDefault<RepairableInfo>();
 			rearmable = self.TraitOrDefault<Rearmable>();
 		}
 
-		public Actor ChooseResupplier(Actor self, bool unreservedOnly)
+		public static Actor ChooseResupplier(Actor self, bool unreservedOnly)
 		{
 			var rearmInfo = self.Info.TraitInfoOrDefault<RearmableInfo>();
 			if (rearmInfo == null)
@@ -51,21 +53,15 @@ namespace OpenRA.Mods.Common.Activities
 				.Where(a => !a.IsDead
 					&& a.Owner == self.Owner
 					&& rearmInfo.RearmActors.Contains(a.Info.Name)
-					&& (!unreservedOnly || !Reservable.IsReserved(a, aircraft)))
+					&& (!unreservedOnly || Reservable.IsAvailableFor(a, self)))
 				.ClosestTo(self);
 		}
 
 		// Calculates non-CanHover/non-VTOL approach vector and waypoints
 		void Calculate(Actor self)
 		{
-			if (dest == null || dest.IsDead || Reservable.IsReserved(dest, aircraft))
-				dest = ChooseResupplier(self, true);
-
 			if (dest == null)
 				return;
-
-
-			aircraft.MakeReservation(dest);
 
 			var exit = dest.FirstExitOrDefault(null);
 			var offset = exit != null ? exit.Info.SpawnOffset : WVec.Zero;
@@ -154,58 +150,56 @@ namespace OpenRA.Mods.Common.Activities
 				return NextActivity;
 
 			if (dest == null || dest.IsDead || !Reservable.IsAvailableFor(dest, self))
-				dest = ChooseResupplier(self, true);
+				dest = ReturnToBase.ChooseResupplier(self, true);
 
 			if (!isCalculated)
 				Calculate(self);
 
-			if (dest == null || dest.IsDead || Reservable.IsReserved(dest, aircraft))
-				dest = ChooseResupplier(self, true);
-
-			if (dest == null || dest.IsDead)
+			if (dest == null)
 			{
 				var nearestResupplier = ChooseResupplier(self, false);
 
-				if (nearestResupplier == null && aircraft.Info.LandWhenIdle)
+				if (nearestResupplier != null)
 				{
-					List<Activity> _landingProcedures = new List<Activity>();
-
-					var speed = aircraft.MovementSpeed * 32 / 35;
-					var _turnRadius = Fly.CalculateTurnRadius(speed, aircraft.Info.Speed);
-
-					_landingProcedures.Add(new Fly(self, Target.FromPos(w1), WDist.Zero, new WDist(_turnRadius * 3)));
-					_landingProcedures.Add(new Fly(self, Target.FromPos(w2)));
-
-					// Fix a problem when the airplane is send to resupply near the airport
-					_landingProcedures.Add(new Fly(self, Target.FromPos(w3), WDist.Zero, new WDist(_turnRadius / 2)));
-
-					if (ShouldLandAtBuilding(self, dest))
+					if (aircraft.Info.CanHover)
 					{
-						aircraft.MakeReservation(dest);
-						var landPos = aircraft.reservation.Second;
+						var distanceFromResupplier = (nearestResupplier.CenterPosition - self.CenterPosition).HorizontalLength;
+						var distanceLength = aircraft.Info.WaitDistanceFromResupplyBase.Length;
 
-						_landingProcedures.Add(new Land(self, Target.FromPos(landPos), false));
-						_landingProcedures.Add(new ResupplyAircraft(self));
+						// If no pad is available, move near one and wait
+						if (distanceFromResupplier > distanceLength)
+						{
+							var randomPosition = WVec.FromPDF(self.World.SharedRandom, 2) * distanceLength / 1024;
+							var target = Target.FromPos(nearestResupplier.CenterPosition + randomPosition);
+
+							QueueChild(self, new HeliFly(self, target, WDist.Zero, aircraft.Info.WaitDistanceFromResupplyBase, targetLineColor: Color.Green), true);
+						}
+
+						return this;
+					}
+					else
+					{
+						QueueChild(self,
+							new Fly(self, Target.FromActor(nearestResupplier), WDist.Zero, aircraft.Info.WaitDistanceFromResupplyBase, targetLineColor: Color.Green),
+							true);
+
+						QueueChild(self, new FlyCircle(self, aircraft.Info.NumberOfTicksToVerifyAvailableAirport), true);
+						return this;
 					}
 				}
-				else if (nearestResupplier == null && !aircraft.Info.LandWhenIdle)
-					return null;
+				else if (nearestResupplier == null && aircraft.Info.VTOL && aircraft.Info.LandWhenIdle)
+				{
+					// Using Queue instead of QueueChild here is intentional, as we want VTOLs with LandWhenIdle to land and stay there in this situation
+					Cancel(self);
+					if (aircraft.Info.TurnToLand)
+						Queue(self, new Turn(self, aircraft.Info.InitialFacing));
+
+					Queue(self, new HeliLand(self, requireSpace));
+					return NextActivity;
+				}
 				else
 				{
-					var distanceFromResupplier = (nearestResupplier.CenterPosition - self.CenterPosition).HorizontalLength;
-					var distanceLength = aircraft.Info.WaitDistanceFromResupplyBase.Length;
-
-					// If no pad is available, move near one and wait
-					if (distanceFromResupplier > distanceLength)
-					{
-						var randomPosition = WVec.FromPDF(self.World.SharedRandom, 2) * distanceLength / 1024;
-
-						var target = Target.FromPos(nearestResupplier.CenterPosition + randomPosition);
-
-						return ActivityUtils.SequenceActivities(self, new Fly(self, target, WDist.Zero, aircraft.Info.WaitDistanceFromResupplyBase),
-							new FlyCircle(self, aircraft.Info.NumberOfTicksToVerifyAvailableAirport), this);
-					}
-
+					// Prevent an infinite loop in case we'd return to the activity that called ReturnToBase in the first place. Go idle instead.
 					Cancel(self);
 					return NextActivity;
 				}
@@ -232,7 +226,6 @@ namespace OpenRA.Mods.Common.Activities
 			if (ShouldLandAtBuilding(self, dest))
 			{
 				aircraft.MakeReservation(dest);
-				var landPos = aircraft.reservation.Second;
 
 				if (aircraft.Info.VTOL)
 				{
@@ -242,7 +235,7 @@ namespace OpenRA.Mods.Common.Activities
 					QueueChild(self, new HeliLand(self, true, dest), true);
 				}
 				else
-					QueueChild(self, new Land(self, Target.FromPos(dest.CenterPosition + offset), true, dest), true);
+					QueueChild(self, new Land(self, Target.FromPos(aircraft.reservation.Second), requireSpace, dest));
 
 				QueueChild(self, new Resupply(self, dest, WDist.Zero), true);
 				resupplied = true;

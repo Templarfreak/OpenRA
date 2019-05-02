@@ -26,7 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class PlayerStatistics : ITick, IResolveOrder, INotifyCreated
 	{
-		PlayerResources resources;
+		public PlayerResources resources;
 		public PlayerExperience experience;
 		PlayerStatisticsInfo info;
 
@@ -69,7 +69,6 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			resources = self.TraitOrDefault<PlayerResources>();
-			//experience = self.TraitOrDefault<PlayerExperience>();
 			experience = self.TraitsImplementing<PlayerExperience>().Where(p => p.info.Type == info.WhichExperience).First();
 		}
 

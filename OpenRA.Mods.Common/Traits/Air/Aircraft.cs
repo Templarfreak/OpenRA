@@ -463,7 +463,7 @@ namespace OpenRA.Mods.Common.Traits
 			var reservable = target.TraitOrDefault<Reservable>();
 			if (reservable != null)
 			{
-				reservation = reservable.Reserve(target, self, this);
+				reservation = reservable.Reserve(target, this);
 				ReservedActor = target;
 			}
 		}
@@ -866,7 +866,7 @@ namespace OpenRA.Mods.Common.Traits
 			get
 			{
 				yield return new EnterAlliedActorTargeter<BuildingInfo>("Enter", 5,
-					target => AircraftCanEnter(target), target => !Reservable.IsReserved(target, this));
+					target => AircraftCanEnter(target), target => !Reservable.IsReserved(target, self));
 
 				yield return new AircraftMoveOrderTargeter(Info);
 			}
@@ -944,51 +944,16 @@ namespace OpenRA.Mods.Common.Traits
 					UnReserve();
 
 				var targetActor = order.Target.Actor;
-				if (Reservable.IsReserved(targetActor, this))
+				if (!Reservable.IsReserved(targetActor, self))
 				{
-					if (!Info.CanHover)
-						self.QueueActivity(new ReturnToBase(self, Info.AbortOnResupply));
-					else
-						self.QueueActivity(new HeliReturnToBase(self, Info.AbortOnResupply));
+					self.QueueActivity(new ReturnToBase(self, Info.AbortOnResupply, null, true, false));
 				}
 				else
 				{
 					if (Reservable.IsAvailableFor(targetActor, self))
 						self.SetTargetLine(Target.FromActor(targetActor), Color.Green);
 
-					if (!Info.CanHover && !Info.VTOL)
-					{
-						MakeReservation(targetActor);
-
-						Action enter = () =>
-						{
-							var dock = reservation.Second;
-
-							self.QueueActivity(new Fly(self, Target.FromPos(dock)));
-							self.QueueActivity(new ReturnToBase(self, Info.AbortOnResupply, targetActor));
-							self.QueueActivity(new ResupplyAircraft(self));
-
-
-						};
-
-						self.QueueActivity(order.Queued, new CallFunc(enter));
-					}
-					else
-					{
-						MakeReservation(targetActor);
-
-						Action enter = () =>
-						{
-							var dock = reservation.Second;
-
-							self.QueueActivity(new HeliFly(self, Target.FromPos(dock)));
-							self.QueueActivity(new Turn(self, Info.InitialFacing));
-							self.QueueActivity(new HeliLand(self, false));
-							self.QueueActivity(new ResupplyAircraft(self));
-						};
-
-						self.QueueActivity(order.Queued, new CallFunc(enter));
-					}
+					self.QueueActivity(order.Queued, new ReturnToBase(self, Info.AbortOnResupply, targetActor, true, false));
 				}
 			}
 			else if (order.OrderString == "Stop")
@@ -1013,7 +978,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Aircraft with TakeOffOnResupply would immediately take off again, so there's no point in forcing them to land
 				// on a resupplier. For aircraft without it, it makes more sense to land than to idle above a free resupplier, though.
-				self.QueueActivity(order.Queued, new ReturnToBase(self, Info.AbortOnResupply, null, !Info.TakeOffOnResupply));
+				self.QueueActivity(order.Queued, new ReturnToBase(self, Info.AbortOnResupply, null, !Info.TakeOffOnResupply, false));
 			}
 			else if (order.OrderString == "Scatter")
 				Nudge(self);

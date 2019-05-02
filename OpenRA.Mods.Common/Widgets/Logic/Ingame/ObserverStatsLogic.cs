@@ -61,12 +61,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				statsHotkeys[i] = logicArgs.TryGetValue("Statistics" + keyNames[i] + "Key", out yaml) ? modData.Hotkeys[yaml.Value] : new HotkeyReference();
 
 			players = world.Players.Where(p => !p.NonCombatant);
-
-
 			exptype = logicArgs.TryGetValue("PlayerExperience", out yaml) ?
 				yaml.Nodes.Where(n => n.Key == "PlayerExperience").First().Value.Value : "score";
 				
-
 			basicStatsHeaders = widget.Get<ContainerWidget>("BASIC_STATS_HEADERS");
 			economyStatsHeaders = widget.Get<ContainerWidget>("ECONOMY_STATS_HEADERS");
 			productionStatsHeaders = widget.Get<ContainerWidget>("PRODUCTION_STATS_HEADERS");

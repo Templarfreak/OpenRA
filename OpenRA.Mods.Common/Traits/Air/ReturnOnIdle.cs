@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			var resupplier = ReturnToBase.ChooseResupplier(self, true);
 			if (resupplier != null)
-				self.QueueActivity(new ReturnToBase(self, aircraftInfo.AbortOnResupply, resupplier));
+				self.QueueActivity(new ReturnToBase(self, aircraftInfo.AbortOnResupply, resupplier, true, false));
 			else
 			{
 				CantLand(self);

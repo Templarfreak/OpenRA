@@ -24,6 +24,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Name(s) of AmmoPool(s) that use this trait to rearm.")]
 		public readonly HashSet<string> AmmoPools = new HashSet<string> { "primary" };
 
+		[Desc("Cost to rearm.")]
+		public readonly int Cost = 0;
+
 		public object Create(ActorInitializer init) { return new Rearmable(this); }
 	}
 

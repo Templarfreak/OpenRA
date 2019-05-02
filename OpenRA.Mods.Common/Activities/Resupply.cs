@@ -193,6 +193,12 @@ namespace OpenRA.Mods.Common.Activities
 				{
 					if (--ammoPool.RemainingTicks <= 0)
 					{
+						if (!self.Owner.PlayerActor.Trait<PlayerResources>().TakeCash(rearmable.Info.Cost, true))
+						{
+							ammoPool.RemainingTicks = 1;
+							return;
+						}
+
 						ammoPool.RemainingTicks = ammoPool.Info.ReloadDelay;
 						if (!string.IsNullOrEmpty(ammoPool.Info.RearmSound))
 							Game.Sound.PlayToPlayer(SoundType.World, self.Owner, ammoPool.Info.RearmSound, self.CenterPosition);

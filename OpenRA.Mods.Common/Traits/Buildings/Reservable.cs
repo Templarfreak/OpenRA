@@ -74,50 +74,29 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		public Pair<DisposableAction, WPos> Reserve(Actor self, Actor forActor, Aircraft forAircraft)
+		public Pair<DisposableAction, WPos> Reserve(Actor self, Aircraft forAircraft)
 		{
-			var index = reservedAircrafts.All(a => a != null) ? -1 : reservedAircrafts.IndexOf(reservedAircrafts.First(a => a == null));
-
-
-			if (index == -1 && reservedAircrafts.Any(a => a == null))
-			{
-				index = reservedAircrafts.IndexOf(reservedAircrafts.First(a => a == null));
-			}
-
-			if (index == -1 && reservedAircrafts.Any(a => a == forAircraft))
-			{
-				index = reservedAircrafts.IndexOf(reservedAircrafts.First(a => a == forAircraft));
-			}
+			var index = reservedAircrafts.Any(a => a == null) ? reservedAircrafts.IndexOf(reservedAircrafts.First(a => a == null)) : -1;
+			var forActor = forAircraft.self;
 
 			if (index == -1)
 			{
-				var has_ammo = forAircraft.self.TraitsImplementing<AmmoPool>().Count() > 0;
-				var ammo = !has_ammo || forAircraft.self.TraitsImplementing<AmmoPool>().Any(am => !am.FullAmmo());
-				var full_health = forAircraft.self.TraitsImplementing<IHealth>().Any(h => h.HP < h.MaxHP);
+				index = AvailablePort(forAircraft);
 
-				if (reservedAircrafts.Any(ac => ac.MayYieldReservation && forAircraft.Info.DontForceYield) && ((ammo || full_health)))
-				{
-					index = reservedAircrafts.IndexOf(reservedAircrafts.First(a => a.MayYieldReservation));
-				}
-				else if (reservedAircrafts.Any(ac => ac.MayYieldReservation && !forAircraft.Info.DontForceYield))
-				{
-					index = reservedAircrafts.IndexOf(reservedAircrafts.First(a => a.MayYieldReservation));
-				}
-			}
+				if (index == -1)
+					return Pair.New(new DisposableAction(() => { return; }, () => { return; }), new WPos());
 
-			if (index != -1)
-			{
 				if (reservedAircrafts[index] != null)
 				{
 					reservedAircrafts[index].UnReserve();
 				}
-
-				reservedActors[index] = forActor;
-				reservedAircrafts[index] = forAircraft;
 			}
 
 			if (index != -1)
 			{
+				reservedActors[index] = forActor;
+				reservedAircrafts[index] = forAircraft;
+
 				if (reservedAircrafts[index] == forAircraft)
 				{
 					return Pair.New(new DisposableAction(
@@ -132,48 +111,85 @@ namespace OpenRA.Mods.Common.Traits
 				}
 			}
 
-
 			return Pair.New(new DisposableAction(() => { return; }, () => { return; }), new WPos());
 		}
 
-		public static bool IsReserved(Actor a, Aircraft air = null)
+		public int AvailablePort(Aircraft forAircraft)
 		{
-			var res = a.TraitOrDefault<Reservable>();
+			var index = -1;
+			var has_ammo = forAircraft.self.TraitsImplementing<AmmoPool>().Count() > 0;
+			var ammo = !has_ammo || forAircraft.self.TraitsImplementing<AmmoPool>().Any(am => !am.FullAmmo());
+			var full_health = forAircraft.self.TraitsImplementing<IHealth>().Any(h => h.HP < h.MaxHP);
+
+			if (reservedAircrafts.All(ac => ac == null))
+			{
+				return index = 0;
+			}
+
+			if (reservedAircrafts.Any(ac => ac == null))
+			{
+				return index = reservedAircrafts.IndexOf(reservedAircrafts.First(ac => ac == null));
+			}
+
+			if (reservedAircrafts.All(ac => ac != null))
+			{
+				if (reservedAircrafts.Any(ac => ac.MayYieldReservation && forAircraft.Info.DontForceYield) && ((ammo || full_health)))
+				{
+					index = reservedAircrafts.IndexOf(reservedAircrafts.First(a => a.MayYieldReservation));
+				}
+				else if (reservedAircrafts.Any(ac => ac.MayYieldReservation && !forAircraft.Info.DontForceYield))
+				{
+					index = reservedAircrafts.IndexOf(reservedAircrafts.First(a => a.MayYieldReservation));
+				}
+			}
+
+			return index;
+		}
+
+		public static bool IsReserved(Actor reservable, Actor forActor = null)
+		{
+			var res = reservable.TraitOrDefault<Reservable>();
 			var fully_reserved = false;
 
 			if (res != null)
 			{
-				var all_reserved = res.reservedAircrafts.All(ac => ac != null);
-				var self = false;
-
-				if (air != null)
+				if (res.reservedAircrafts.All(ac => ac == null) || res.reservedAircrafts.Any(ac => ac == null))
 				{
-					if (air.self.TraitOrDefault<AmmoPool>() != null)
+					return fully_reserved;
+				}
+
+				if (res.reservedAircrafts.All(ac => ac != null))
+				{
+					var all_reserved = res.reservedAircrafts.All(ac => ac != null);
+
+					if (forActor != null)
 					{
-						var has_ammo = air.self.TraitsImplementing<AmmoPool>().Count() > 0;
-						var ammo = !has_ammo || air.self.TraitsImplementing<AmmoPool>().All(am => am.FullAmmo());
-						var full_health = air.self.TraitsImplementing<IHealth>().All(h => h.HP >= h.MaxHP);
+						var self = false;
+						var air = forActor.TraitOrDefault<Aircraft>();
 
-						var index = -1;
-
-						if (res.reservedAircrafts.All(ac => ac != null))
+						if (res.reservedAircrafts.Any(ac => ac == air))
 						{
-							if (res.reservedAircrafts.Any(ac => ac.MayYieldReservation))
+							return fully_reserved;
+						}
+
+						if (air.self.TraitOrDefault<AmmoPool>() != null)
+						{
+							var has_ammo = air.self.TraitsImplementing<AmmoPool>().Count() > 0;
+							var ammo = !has_ammo || air.self.TraitsImplementing<AmmoPool>().All(am => am.FullAmmo());
+							var full_health = air.self.TraitsImplementing<IHealth>().All(h => h.HP >= h.MaxHP);
+							var index = res.reservedAircrafts.Any(a => a == null) ? res.reservedAircrafts.IndexOf(res.reservedAircrafts.First(a => a == null)) : -1;
+							index = res.AvailablePort(air);
+
+							if (index != -1)
 							{
-								index = res.reservedAircrafts.IndexOf(res.reservedAircrafts.First(ac => ac.MayYieldReservation));
+								fully_reserved = ammo && full_health && res.reservedAircrafts[index].Info.DontForceYield
+									&& all_reserved && !self;
 							}
-						}
-						
-
-						if (index != -1)
-						{
-							fully_reserved = ammo && full_health && res.reservedAircrafts[index].Info.DontForceYield 
-								&& all_reserved && !self;
-						}
-						else
-						{
-							self = res.reservedAircrafts.Any(ac => ac == air);
-							fully_reserved = !res.reservedAircrafts.Any(ac => ac == null) && !self;
+							else
+							{
+								self = res.reservedAircrafts.Any(ac => ac == air);
+								fully_reserved = !res.reservedAircrafts.Any(ac => ac == null) && !self;
+							}
 						}
 					}
 				}
@@ -209,7 +225,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		public static bool IsAvailableFor(Actor reservable, Actor forActor)
 		{
-			return IsReserved(reservable);
+			return !IsReserved(reservable, forActor);
 		}
 
 		private void UnReserve()

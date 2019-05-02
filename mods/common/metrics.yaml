@@ -42,3 +42,5 @@ Metrics:
 	UPnPDisabledColor: FFFFFF
 	UPnPEnabledColor: 00FF00
 	UPnPNotSupportedColor: FF0000
+	ChatMessageColor: FFFFFF
+	SystemMessageColor: FFFF00

@@ -24,6 +24,9 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Only produce units as long as there are less than this amount of units idling inside the base.")]
 		public readonly int IdleBaseUnitsMaximum = 12;
 
+		[Desc("This AI module requires specific factions. Add the factions as conditions to RequiresCondition.")]
+		public readonly bool Factions = false;
+
 		[Desc("Production queues AI uses for producing units.")]
 		public readonly HashSet<string> UnitQueues = new HashSet<string> { "Vehicle", "Infantry", "Plane", "Ship", "Aircraft" };
 
@@ -39,7 +42,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new UnitBuilderBotModule(init.Self, this); }
 	}
 
-	public class UnitBuilderBotModule : ConditionalTrait<UnitBuilderBotModuleInfo>, IBotTick, IBotNotifyIdleBaseUnits, IBotRequestUnitProduction
+	public class UnitBuilderBotModule : ConditionalTrait<UnitBuilderBotModuleInfo>, IBotTick, IBotNotifyIdleBaseUnits, IBotRequestUnitProduction, INotifyCreated
 	{
 		public const int FeedbackTime = 30; // ticks; = a bit over 1s. must be >= netlag.
 
@@ -59,6 +62,15 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			world = self.World;
 			player = self.Owner;
+		}
+
+		void INotifyCreated.Created(Actor self)
+		{
+			self.World.AddFrameEndTask(w =>
+			{
+				if (Info.Factions)
+					self.TraitOrDefault<ConditionManager>().GrantCondition(self, player.Faction.InternalName);
+			});
 		}
 
 		protected override void TraitEnabled(Actor self)

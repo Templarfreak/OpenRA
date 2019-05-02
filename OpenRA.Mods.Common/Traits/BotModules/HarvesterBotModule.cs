@@ -28,6 +28,21 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor types that are counted as refineries. Currently only needed by harvester replacement system.")]
 		public readonly HashSet<string> RefineryTypes = new HashSet<string>();
 
+		[Desc("Harvesters the bot would like to maintain per Refinery.")]
+		public readonly int HarvestersPerRefinery = 1;
+
+		[Desc("Amount of additional Harvesters in general the bot would like to have.")]
+		public readonly int AdditionalHarvesters = 0;
+
+		[Desc("Maximum number of Harvesters the bot is allowed to want. If -1, Bot can want RefineryCount * HarvestersPerRefinery + AdditionalHarvesters.")]
+		public readonly int MaxHarvesters = -1;
+
+		[Desc("Amount of Harvesters to build if the bot's money falls below EmergencyFunding.")]
+		public readonly int EmergencyHarvesters = 0;
+
+		[Desc("If the bot's average earnings/min falls below this amount, build EmergencyHarveters. This is allowed to go over MaxHarvesters.")]
+		public readonly int EmergencyFunding = 0;
+
 		[Desc("Interval (in ticks) between giving out orders to idle harvesters.")]
 		public readonly int ScanForIdleHarvestersInterval = 50;
 
@@ -57,6 +72,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly World world;
 		readonly Player player;
+		PlayerStatistics playerResources;
 		readonly Func<Actor, bool> unitCannotBeOrdered;
 		readonly Dictionary<Actor, HarvesterTraitWrapper> harvesters = new Dictionary<Actor, HarvesterTraitWrapper>();
 
@@ -83,6 +99,7 @@ namespace OpenRA.Mods.Common.Traits
 			resLayer = world.WorldActor.TraitOrDefault<ResourceLayer>();
 			claimLayer = world.WorldActor.TraitOrDefault<ResourceClaimLayer>();
 			scanForIdleHarvestersTicks = Info.ScanForIdleHarvestersInterval;
+			playerResources = player.PlayerActor.Trait<PlayerStatistics>();
 		}
 
 		void IBotTick.BotTick(IBot bot)
@@ -127,13 +144,18 @@ namespace OpenRA.Mods.Common.Traits
 				bot.QueueOrder(new Order("Harvest", h.Key, newSafeResourcePatch, false));
 			}
 
-			// Less harvesters than refineries - build a new harvester
+			// Less harvesters than wanted - build a new harvester
 			var unitBuilder = requestUnitProduction.FirstOrDefault(Exts.IsTraitEnabled);
+			var maxharvs = Info.MaxHarvesters == -1 ? AIUtils.CountBuildingByCommonName(Info.RefineryTypes, player) * 
+				Info.HarvestersPerRefinery + Info.AdditionalHarvesters : Info.MaxHarvesters;
+
+			var emergencyharvs = playerResources.EarnedSamples.Average() < Info.EmergencyFunding ? Info.EmergencyHarvesters : 0;
 			if (unitBuilder != null && Info.HarvesterTypes.Any())
 			{
 				var harvInfo = AIUtils.GetInfoByCommonName(Info.HarvesterTypes, player);
-				var harvCountTooLow = AIUtils.CountActorByCommonName(Info.HarvesterTypes, player) < AIUtils.CountBuildingByCommonName(Info.RefineryTypes, player);
-				if (harvCountTooLow && unitBuilder.RequestedProductionCount(bot, harvInfo.Name) == 0)
+				var harvCountTooLow = AIUtils.CountActorByCommonName(Info.HarvesterTypes, player) < Math.Min(AIUtils.CountBuildingByCommonName(Info.RefineryTypes, player) * 
+					Info.HarvestersPerRefinery + Info.AdditionalHarvesters, maxharvs) + emergencyharvs;
+				if (harvCountTooLow && unitBuilder.RequestedProductionCount(bot, harvInfo.Name) < 0)
 					unitBuilder.RequestUnitProduction(bot, harvInfo.Name);
 			}
 		}
