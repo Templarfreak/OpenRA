@@ -1,6 +1,6 @@
 # OpenRA
 
-My personal repo that I dump all my changes and ideas to. Will try to maintain as much Bleed compatibility as possible.
+My personal repo that I dump all my changes and ideas to. Not really maintaining this right now
 
 OpenRA's Readme:
 
